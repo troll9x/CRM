@@ -1,0 +1,33 @@
+{
+  "name": "son-crm",
+  "version": "0.1.0",
+  "private": true,
+  "description": "CRM bán sỉ và bán lẻ - modular monolith",
+  "engines": {
+    "node": ">=24 <25",
+    "npm": ">=11"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build -w @crm/contracts && npm run build -w @crm/api && npm run build -w @crm/web",
+    "dev:api": "npm run dev -w @crm/api",
+    "dev:web": "npm run dev -w @crm/web",
+    "lint": "npm run lint --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "test:e2e": "npm run test:e2e -w @crm/api",
+    "format:check": "prettier --check \"apps/**/*.{ts,tsx,js,mjs,json,css}\" \"packages/**/*.{ts,js,mjs,json}\" package.json compose.yaml \".github/**/*.yml\"",
+    "format": "prettier --write \"apps/**/*.{ts,tsx,js,mjs,json,css}\" \"packages/**/*.{ts,js,mjs,json}\" package.json compose.yaml \".github/**/*.yml\"",
+    "db:generate": "npm run db:generate -w @crm/api",
+    "db:migrate:deploy": "npm run db:migrate:deploy -w @crm/api",
+    "db:migrate:dev": "npm run db:migrate:dev -w @crm/api --",
+    "db:seed": "npm run db:seed -w @crm/api"
+  },
+  "devDependencies": {
+    "prettier": "3.9.9",
+    "typescript": "6.0.3"
+  }
+}

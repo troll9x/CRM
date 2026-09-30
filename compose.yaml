@@ -1,0 +1,63 @@
+name: son-crm
+
+services:
+  db:
+    image: postgres:17.6-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-son_crm}
+      POSTGRES_USER: ${POSTGRES_USER:-son_crm}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  api:
+    image: node:24.18.0-bookworm
+    working_dir: /workspace
+    restart: unless-stopped
+    command: npm run dev:api
+    environment:
+      NODE_ENV: development
+      API_PORT: 4000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-son_crm}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-son_crm}?schema=public
+      WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:3000}
+      SESSION_COOKIE_SECURE: 'false'
+      SESSION_TTL_HOURS: ${SESSION_TTL_HOURS:-12}
+      SEED_OWNER_EMAIL: ${SEED_OWNER_EMAIL:?Set SEED_OWNER_EMAIL in .env}
+      SEED_OWNER_PASSWORD: ${SEED_OWNER_PASSWORD:?Set SEED_OWNER_PASSWORD in .env}
+      SEED_OWNER_NAME: ${SEED_OWNER_NAME:-Chủ cửa hàng}
+    ports:
+      - '4000:4000'
+    volumes:
+      - .:/workspace
+      - node_modules:/workspace/node_modules
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    image: node:24.18.0-bookworm
+    working_dir: /workspace
+    restart: unless-stopped
+    command: npm run dev -w @crm/web -- --hostname 0.0.0.0
+    environment:
+      NODE_ENV: development
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000/api/v1}
+    ports:
+      - '3000:3000'
+    volumes:
+      - .:/workspace
+      - node_modules:/workspace/node_modules
+    depends_on:
+      - api
+
+volumes:
+  postgres_data:
+  node_modules:

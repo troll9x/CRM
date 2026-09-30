@@ -1,0 +1,127 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum StaffStatus {
+  ACTIVE
+  LOCKED
+}
+
+model Business {
+  id        String      @id @default(cuid())
+  name      String
+  timezone  String      @default("Asia/Ho_Chi_Minh")
+  currency  String      @default("VND")
+  createdAt DateTime    @default(now()) @map("created_at")
+  updatedAt DateTime    @updatedAt @map("updated_at")
+  staff     StaffUser[]
+  roles     Role[]
+  audits    AuditLog[]
+
+  @@map("businesses")
+}
+
+model StaffUser {
+  id              String          @id @default(cuid())
+  businessId      String          @map("business_id")
+  email           String
+  emailNormalized String          @unique @map("email_normalized")
+  displayName     String          @map("display_name")
+  passwordHash    String          @map("password_hash")
+  status          StaffStatus     @default(ACTIVE)
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+  business        Business        @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  roles           StaffUserRole[]
+  sessions        Session[]
+  audits          AuditLog[]      @relation("AuditActor")
+
+  @@index([businessId, status])
+  @@map("staff_users")
+}
+
+model Role {
+  id          String           @id @default(cuid())
+  businessId  String           @map("business_id")
+  code        String
+  name        String
+  description String?
+  isSystem    Boolean          @default(false) @map("is_system")
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+  business    Business         @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  permissions RolePermission[]
+  staff       StaffUserRole[]
+
+  @@unique([businessId, code])
+  @@map("roles")
+}
+
+model Permission {
+  key         String           @id
+  description String
+  roles       RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId        String     @map("role_id")
+  permissionKey String     @map("permission_key")
+  role          Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission    Permission @relation(fields: [permissionKey], references: [key], onDelete: Cascade)
+
+  @@id([roleId, permissionKey])
+  @@map("role_permissions")
+}
+
+model StaffUserRole {
+  staffUserId String    @map("staff_user_id")
+  roleId      String    @map("role_id")
+  assignedAt  DateTime  @default(now()) @map("assigned_at")
+  staffUser   StaffUser @relation(fields: [staffUserId], references: [id], onDelete: Cascade)
+  role        Role      @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([staffUserId, roleId])
+  @@map("staff_user_roles")
+}
+
+model Session {
+  id          String    @id
+  staffUserId String    @map("staff_user_id")
+  expiresAt   DateTime  @map("expires_at")
+  lastSeenAt  DateTime  @default(now()) @map("last_seen_at")
+  revokedAt   DateTime? @map("revoked_at")
+  ipAddress   String?   @map("ip_address")
+  userAgent   String?   @map("user_agent")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  staffUser   StaffUser @relation(fields: [staffUserId], references: [id], onDelete: Cascade)
+
+  @@index([staffUserId, expiresAt])
+  @@index([expiresAt, revokedAt])
+  @@map("sessions")
+}
+
+model AuditLog {
+  id         String     @id @default(cuid())
+  businessId String     @map("business_id")
+  actorId    String?    @map("actor_id")
+  action     String
+  entityType String     @map("entity_type")
+  entityId   String?    @map("entity_id")
+  requestId  String?    @map("request_id")
+  metadata   Json?
+  createdAt  DateTime   @default(now()) @map("created_at")
+  business   Business   @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  actor      StaffUser? @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([businessId, createdAt])
+  @@index([entityType, entityId])
+  @@map("audit_logs")
+}

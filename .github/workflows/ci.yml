@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17.6-bookworm
+        env:
+          POSTGRES_DB: son_crm_test
+          POSTGRES_USER: son_crm
+          POSTGRES_PASSWORD: ci-only-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U son_crm -d son_crm_test"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+    env:
+      DATABASE_URL: postgresql://son_crm:ci-only-password@localhost:5432/son_crm_test?schema=public
+      SEED_OWNER_EMAIL: owner@crm.local
+      SEED_OWNER_PASSWORD: Local-ci-password-123!
+      SEED_OWNER_NAME: Chủ cửa hàng CI
+      SESSION_COOKIE_SECURE: 'false'
+      WEB_ORIGIN: http://localhost:3000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.18.0
+          cache: npm
+      - run: npm ci
+      - run: npm run db:generate
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run test
+      - run: npm run build
+      - run: npm run db:migrate:deploy
+      - run: npm run db:seed
+      - run: npm run test:e2e

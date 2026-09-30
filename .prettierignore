@@ -1,0 +1,7 @@
+node_modules
+.next
+dist
+coverage
+apps/api/src/generated
+package-lock.json
+prototype

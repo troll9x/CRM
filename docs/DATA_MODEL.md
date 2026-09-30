@@ -1,0 +1,113 @@
+# Mô hình dữ liệu đích ở mức khung
+
+Đợt 00 chưa tạo schema. Mỗi đợt chỉ migration phần cần cho lát cắt đang làm, nhưng khóa và ranh giới module phải phù hợp mô hình đích dưới đây.
+
+## 1. Quy ước chung
+
+- ID nội bộ không mang ý nghĩa nghiệp vụ; mã hiển thị (`order_no`, `sku`) có unique constraint riêng.
+- Tất cả bảng nghiệp vụ có `created_at`, `updated_at` theo UTC; chứng từ đã chốt ưu tiên event/adjustment thay vì sửa mất lịch sử.
+- Tiền VND là integer/bigint; số lượng và hệ số là Decimal với precision được chốt khi biết ngành hàng.
+- Bản ghi thuộc một đơn vị kinh doanh; thiết kế ban đầu chỉ có một đơn vị nhưng không dùng hằng số ngầm trong logic quyền.
+- Trường trạng thái dùng enum/constraint và transition service, không cho cập nhật tùy ý.
+- PII và credential tách khỏi dữ liệu hiển thị; credential mã hóa và không bao giờ trả về API.
+
+## 2. Quyền sở hữu theo module
+
+| Module       | Sở hữu                                                                                            | Không được tự thay                           |
+| ------------ | ------------------------------------------------------------------------------------------------- | -------------------------------------------- |
+| Identity     | StaffUser, Role, Permission, Session                                                              | Chứng từ bán/kho/tiền                        |
+| Customer     | Customer, ContactPoint, Address, CustomerIdentity, CustomerGroup, Task                            | Snapshot địa chỉ trên đơn cũ                 |
+| Catalog      | Product, ProductVariant, UnitConversion, MediaAsset                                               | StockBalance, giá chốt trên đơn              |
+| Pricing      | PriceList, PriceRule, CustomerPriceAssignment                                                     | Tổng đơn đã chốt                             |
+| Quoting      | Quote, QuoteLine, QuoteRevision                                                                   | Reservation/StockMovement                    |
+| Inventory    | Warehouse, StockBalance, StockMovement, StockReservation, StockAdjustment                         | Yêu cầu mua, khoản phải trả                  |
+| Purchasing   | Supplier, PurchaseOrder/Line, GoodsReceipt/Line                                                   | Sổ tiền; nhận hàng gọi inventory transaction |
+| Ordering     | SalesOrder/Line, OrderEvent                                                                       | Stock ledger và payment ledger trực tiếp     |
+| Fulfillment  | Shipment/Line, TrackingEvent, ReturnRequest/Line/Receipt                                          | Tự ghi nhận COD đã về                        |
+| Finance      | Payment, PaymentAllocation, Refund, Expense, ReceivableDocument, PayableDocument, SettlementEntry | Sửa dòng đơn/kho để khớp số                  |
+| Messaging    | ChannelAccount, Conversation, Message, Assignment                                                 | Tự xác nhận đơn từ nội dung chat             |
+| Integration  | ChannelListing, ExternalOrderLink, WebhookEvent, SyncJob, OutboxEvent, IntegrationCredential      | Logic nghiệp vụ bản sao                      |
+| Customer web | CustomerAccount, OtpChallenge, Cart                                                               | Cấp nhóm sỉ/nợ từ đăng ký                    |
+| Marketing/AI | Campaign, ContentItem, ConsentRecord, KnowledgeDocument, AiRun/Suggestion/Feedback                | Tạo tiền/kho không qua API nghiệp vụ         |
+
+## 3. Quan hệ trung tâm
+
+```mermaid
+erDiagram
+  Customer ||--o{ Address : has
+  Customer ||--o{ CustomerIdentity : identified_by
+  Customer ||--o{ SalesOrder : places
+  Customer ||--o{ Quote : receives
+  Product ||--o{ ProductVariant : has
+  ProductVariant ||--o{ UnitConversion : converts
+  SalesOrder ||--|{ SalesOrderLine : contains
+  SalesOrderLine }o--|| ProductVariant : snapshots
+  SalesOrder ||--o{ StockReservation : reserves
+  SalesOrder ||--o{ Shipment : fulfilled_by
+  Shipment ||--|{ ShipmentLine : contains
+  ShipmentLine }o--|| SalesOrderLine : fulfills
+  Warehouse ||--o{ StockMovement : records
+  ProductVariant ||--o{ StockMovement : moves
+  Payment ||--o{ PaymentAllocation : allocates
+  SalesOrder ||--o{ PaymentAllocation : receives
+  Conversation }o--|| CustomerIdentity : belongs_to
+  Conversation ||--o{ Message : contains
+  ChannelAccount ||--o{ Conversation : hosts
+```
+
+## 4. Aggregate và khóa cạnh tranh
+
+### Inventory aggregate
+
+- Khóa logic: `business_id + warehouse_id + variant_id`.
+- `StockMovement` là sổ; `StockBalance` là projection/tổng hợp có version để cập nhật optimistic hoặc row lock trong transaction.
+- `StockReservation` gắn nguồn (`SALES_ORDER`) và source id/line id; unique chống giữ hai lần.
+- Xác nhận và xuất đơn phải khóa đúng các balance theo thứ tự ổn định để tránh deadlock.
+
+### Sales order aggregate
+
+- Header lưu khách, nguồn, currency, snapshot địa chỉ, tổng do backend tính và ba nhóm trạng thái: vòng đời, giao, thanh toán.
+- Line lưu SKU/name/UOM/conversion/price/discount snapshots và số đặt/giao/trả.
+- `OrderEvent` lưu transition và idempotency key; sửa sau chốt qua command có version.
+
+### Payment aggregate
+
+- `Payment` là khoản tiền thực nhận/chi với external reference unique theo provider/account.
+- `PaymentAllocation` phân bổ tới receivable/order; tổng allocation không vượt payment.
+- Phần chưa phân bổ là tiền khách trả trước/trả thừa, không phải nợ âm.
+
+## 5. Unique và constraint dự kiến
+
+| Dữ liệu                | Constraint tối thiểu                                                 |
+| ---------------------- | -------------------------------------------------------------------- |
+| SKU                    | unique trong đơn vị kinh doanh, so sánh theo chuẩn đã chốt           |
+| Định danh kênh         | unique `(channel_account_id, external_user_id)`                      |
+| Sự kiện ngoài          | unique `(channel_account_id, external_event_id)`                     |
+| Đơn ngoài              | unique `(channel_account_id/shop_id, external_order_id)`             |
+| Idempotency API        | unique `(actor/client, operation, idempotency_key)` với request hash |
+| Reservation nguồn      | unique `(source_type, source_line_id, active version)`               |
+| Mã thanh toán provider | unique `(provider_account_id, external_transaction_id)`              |
+| Quy đổi                | hệ số > 0; một base unit/SKU; version không chồng hiệu lực           |
+| Số lượng chứng từ      | >= 0; transition kiểm tra giới hạn theo nghiệp vụ                    |
+
+## 6. Projection và đối chiếu
+
+`StockBalance`, số phải thu và dashboard là projection để đọc nhanh, không thay sổ. Cần job/báo cáo đối chiếu:
+
+- Tổng stock movements theo SKU/kho với balance.
+- Tổng receivable documents, allocations, credit adjustments với số còn phải thu.
+- Tổng shipment/return lines với số đã giao/đã trả trên order line.
+- Tổng payment với allocations/refunds và phần chưa phân bổ.
+
+Sai lệch tạo cảnh báo và quy trình sửa có chứng từ; không “fix” bằng update trực tiếp.
+
+## 7. Migration theo đợt
+
+- Đợt 01: business, staff identity, role/permission/session, audit.
+- Đợt 02: customer/contact/address/group/task.
+- Đợt 03: product/variant/unit conversion/media metadata.
+- Đợt 04: supplier/purchase/goods receipt/inventory ledger/balance.
+- Đợt 05: price list/rule/assignment, quote/revision.
+- Đợt 06: sales order/event, reservation, shipment.
+- Đợt 07–08: payment/allocation/receivable/expense, return and reporting projections.
+- Chỉ thêm integration/AI/customer-web entities khi bắt đầu đúng đợt tương ứng.

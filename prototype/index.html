@@ -1,0 +1,669 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light" />
+    <title>Prototype CRM cửa hàng — Đợt 00</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23163b32'/%3E%3Ctext x='32' y='43' text-anchor='middle' font-size='34' font-family='Arial' font-weight='700' fill='%23f6d798'%3ES%3C/text%3E%3C/svg%3E"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="prototype-banner">
+      <strong>DỮ LIỆU MẪU — KHÔNG LƯU</strong>
+      <span>Prototype Đợt 00 để chốt trải nghiệm, chưa phải CRM hoạt động</span>
+    </div>
+
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="Điều hướng chính">
+        <div class="brand">
+          <div class="brand-mark">S</div>
+          <div><strong>Sơn CRM</strong><small>Cửa hàng sỉ & lẻ</small></div>
+        </div>
+        <nav>
+          <button class="nav-item is-active" data-view="dashboard"><span>⌂</span>Tổng quan</button>
+          <button class="nav-item" data-view="customers"><span>♙</span>Khách hàng</button>
+          <button class="nav-item" data-view="inbox">
+            <span>◌</span>Hội thoại <b class="nav-count">5</b>
+          </button>
+          <button class="nav-item" data-view="order"><span>＋</span>Tạo đơn</button>
+          <button class="nav-item" data-view="inventory"><span>◇</span>Kho</button>
+          <button class="nav-item" data-view="receivables">
+            <span>₫</span>Công nợ <b class="nav-count warn">2</b>
+          </button>
+        </nav>
+        <div class="sidebar-note"><span class="status-dot"></span> Bản phác thảo ngoại tuyến</div>
+      </aside>
+
+      <main>
+        <header class="topbar">
+          <button class="menu-button" aria-label="Mở điều hướng">☰</button>
+          <div>
+            <p class="eyebrow">Thứ tư, 30 tháng 9</p>
+            <h1 id="page-title">Tổng quan</h1>
+          </div>
+          <label class="global-search"
+            ><span>⌕</span><input id="global-search" placeholder="Tìm khách, SKU, mã đơn..." /><kbd
+              >Ctrl K</kbd
+            ></label
+          >
+          <button class="avatar" aria-label="Tài khoản chủ cửa hàng">H</button>
+        </header>
+
+        <section class="view is-active" id="dashboard" data-title="Tổng quan">
+          <div class="welcome-row">
+            <div>
+              <h2>Chào buổi sáng, chị Hương</h2>
+              <p>Có 5 hội thoại và 3 đơn cần xử lý hôm nay.</p>
+            </div>
+            <button class="primary" data-go="order">＋ Tạo đơn nhanh</button>
+          </div>
+          <div class="metric-grid">
+            <button class="metric-card coral" data-go="inbox">
+              <span class="metric-icon">◌</span
+              ><span><small>Cần trả lời</small><strong>5</strong><em>2 tin quá 30 phút</em></span>
+            </button>
+            <button class="metric-card blue" data-go="order">
+              <span class="metric-icon">▣</span
+              ><span
+                ><small>Đơn cần giao</small><strong>3</strong><em>1 đơn giao một phần</em></span
+              >
+            </button>
+            <button class="metric-card amber" data-go="inventory">
+              <span class="metric-icon">◇</span
+              ><span
+                ><small>SKU sắp hết</small><strong>4</strong><em>Dưới ngưỡng cảnh báo</em></span
+              >
+            </button>
+            <button class="metric-card violet" data-go="receivables">
+              <span class="metric-icon">₫</span
+              ><span><small>Phải thu</small><strong>12,4 tr</strong><em>2 khoản quá hạn</em></span>
+            </button>
+          </div>
+          <div class="two-column">
+            <article class="panel">
+              <div class="panel-head">
+                <div>
+                  <h3>Việc cần làm</h3>
+                  <p>Ưu tiên theo thời gian và ảnh hưởng</p>
+                </div>
+                <button class="link-button" data-feedback="Danh sách đầy đủ sẽ được xây ở Đợt 02.">
+                  Xem tất cả
+                </button>
+              </div>
+              <div class="task-list">
+                <button class="task" data-go="inbox">
+                  <span class="task-badge fb">f</span
+                  ><span
+                    ><strong>Trả lời chị Lan</strong
+                    ><small>Hỏi giá sỉ áo thun • 12 phút trước</small></span
+                  ><b>›</b>
+                </button>
+                <button class="task" data-go="order">
+                  <span class="task-badge pack">▣</span
+                  ><span
+                    ><strong>Đóng gói DH-1028</strong
+                    ><small>Giao 6/10 sản phẩm trước 15:00</small></span
+                  ><b>›</b>
+                </button>
+                <button class="task" data-go="receivables">
+                  <span class="task-badge cash">₫</span
+                  ><span
+                    ><strong>Nhắc khoản nợ đến hạn</strong
+                    ><small>Đại lý Minh Anh • 5.300.000đ</small></span
+                  ><b>›</b>
+                </button>
+              </div>
+            </article>
+            <article class="panel">
+              <div class="panel-head">
+                <div>
+                  <h3>Đơn hôm nay</h3>
+                  <p>Tiền hàng mẫu, chưa phải báo cáo</p>
+                </div>
+                <span class="trend">↗ 12%</span>
+              </div>
+              <div class="revenue"><strong>8.430.000đ</strong><span>7 đơn</span></div>
+              <div class="bar-chart" aria-label="Biểu đồ đơn mẫu">
+                <i style="--h: 38%"></i><i style="--h: 55%"></i><i style="--h: 34%"></i
+                ><i style="--h: 74%"></i><i style="--h: 62%"></i
+                ><i class="today" style="--h: 92%"></i><i style="--h: 46%"></i>
+              </div>
+              <div class="chart-labels">
+                <span>T5</span><span>T6</span><span>T7</span><span>CN</span><span>T2</span
+                ><span>Hôm nay</span><span>T4</span>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section class="view" id="customers" data-title="Khách hàng">
+          <div class="section-actions">
+            <div>
+              <h2>Khách hàng</h2>
+              <p>Hồ sơ, nhóm giá và lần tương tác gần nhất</p>
+            </div>
+            <button
+              class="primary"
+              data-feedback="Prototype: form tạo khách sẽ được kiểm chứng ở Đợt 02."
+            >
+              ＋ Thêm khách
+            </button>
+          </div>
+          <div class="panel table-panel">
+            <div class="filter-row">
+              <label class="inline-search"
+                >⌕
+                <input
+                  class="table-filter"
+                  data-table="customer-table"
+                  placeholder="Tìm tên hoặc số điện thoại" /></label
+              ><button class="chip is-selected">Tất cả 248</button
+              ><button class="chip">Khách sỉ 42</button><button class="chip">Khách lẻ 206</button>
+            </div>
+            <div class="table-wrap">
+              <table id="customer-table">
+                <thead>
+                  <tr>
+                    <th>Khách hàng</th>
+                    <th>Nhóm</th>
+                    <th>Nguồn</th>
+                    <th>Lần mua gần nhất</th>
+                    <th>Phụ trách</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>
+                      <div class="person">
+                        <span class="initial pink">LN</span
+                        ><span><strong>Nguyễn Thị Lan</strong><small>0901 234 567</small></span>
+                      </div>
+                    </td>
+                    <td><span class="tag wholesale">Khách sỉ</span></td>
+                    <td>Facebook</td>
+                    <td>Hôm qua • 830.000đ</td>
+                    <td>Hương</td>
+                    <td>
+                      <button
+                        class="round-more"
+                        data-feedback="Hồ sơ chị Lan: prototype chưa lưu thay đổi."
+                      >
+                        •••
+                      </button>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <div class="person">
+                        <span class="initial blue">MA</span
+                        ><span><strong>Đại lý Minh Anh</strong><small>0987 654 321</small></span>
+                      </div>
+                    </td>
+                    <td><span class="tag wholesale">Khách sỉ</span></td>
+                    <td>Zalo OA</td>
+                    <td>25/09 • 8.200.000đ</td>
+                    <td>Hương</td>
+                    <td>
+                      <button class="round-more" data-feedback="Hồ sơ Đại lý Minh Anh: prototype.">
+                        •••
+                      </button>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <div class="person">
+                        <span class="initial green">TH</span
+                        ><span><strong>Trần Thu Hà</strong><small>0912 888 456</small></span>
+                      </div>
+                    </td>
+                    <td><span class="tag retail">Khách lẻ</span></td>
+                    <td>Nhập tay</td>
+                    <td>18/09 • 420.000đ</td>
+                    <td>Mai</td>
+                    <td>
+                      <button class="round-more" data-feedback="Hồ sơ Thu Hà: prototype.">
+                        •••
+                      </button>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <div class="person">
+                        <span class="initial amber">QT</span
+                        ><span
+                          ><strong>Cửa hàng Quỳnh Trang</strong><small>0935 102 202</small></span
+                        >
+                      </div>
+                    </td>
+                    <td><span class="tag wholesale">Khách sỉ</span></td>
+                    <td>Facebook</td>
+                    <td>05/09 • 3.600.000đ</td>
+                    <td>Mai</td>
+                    <td>
+                      <button class="round-more" data-feedback="Hồ sơ Quỳnh Trang: prototype.">
+                        •••
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section class="view" id="inbox" data-title="Hội thoại">
+          <div class="inbox-layout panel">
+            <aside class="thread-list">
+              <div class="thread-head">
+                <div>
+                  <h2>Hội thoại</h2>
+                  <p>5 cần trả lời</p>
+                </div>
+                <button class="round-more" data-feedback="Bộ lọc hội thoại sẽ chốt ở Đợt 09.">
+                  ⌁
+                </button>
+              </div>
+              <label class="inline-search">⌕ <input placeholder="Tìm hội thoại" /></label>
+              <button class="thread is-active">
+                <span class="initial pink">LN</span
+                ><span
+                  ><strong>Nguyễn Thị Lan <time>10:42</time></strong
+                  ><small>Chị lấy 10 áo thì giá sao em?</small
+                  ><em>Facebook • chưa trả lời</em></span
+                >
+              </button>
+              <button class="thread">
+                <span class="initial blue">MA</span
+                ><span
+                  ><strong>Đại lý Minh Anh <time>09:18</time></strong
+                  ><small>Cho chị xin lại mã vận đơn nhé</small><em>Zalo OA • 1 giờ</em></span
+                >
+              </button>
+              <button class="thread">
+                <span class="initial green">TH</span
+                ><span
+                  ><strong>Trần Thu Hà <time>Hôm qua</time></strong
+                  ><small>Cảm ơn shop, mình nhận được rồi</small
+                  ><em>Facebook • đã trả lời</em></span
+                >
+              </button>
+            </aside>
+            <div class="chat-pane">
+              <div class="chat-head">
+                <div class="person">
+                  <span class="initial pink">LN</span
+                  ><span><strong>Nguyễn Thị Lan</strong><small>Facebook • Khách sỉ</small></span>
+                </div>
+                <button class="secondary" data-go="order">＋ Tạo đơn nháp</button>
+              </div>
+              <div class="messages">
+                <div class="day-label">Hôm nay</div>
+                <div class="bubble incoming">
+                  Em ơi áo thun đen size M còn không?<time>10:38</time>
+                </div>
+                <div class="bubble incoming">Chị lấy 10 áo thì giá sao em?<time>10:42</time></div>
+                <div class="suggestion">
+                  <small>GỢI Ý THAO TÁC — KHÔNG PHẢI AI THẬT</small>
+                  <p>Tra tồn <b>TS-DEN-M</b> và áp bảng giá sỉ trước khi trả lời.</p>
+                  <button data-go="order">Tra hàng và tạo đơn</button>
+                </div>
+              </div>
+              <div class="composer">
+                <button
+                  aria-label="Đính kèm"
+                  data-feedback="Đính kèm chưa hoạt động trong prototype."
+                >
+                  ＋</button
+                ><textarea placeholder="Nhập câu trả lời..."></textarea
+                ><button class="send" data-feedback="Prototype không gửi tin ra Facebook/Zalo.">
+                  Gửi
+                </button>
+              </div>
+            </div>
+            <aside class="customer-context">
+              <h3>Thông tin khách</h3>
+              <div class="context-profile">
+                <span class="initial pink big">LN</span><strong>Nguyễn Thị Lan</strong
+                ><span class="tag wholesale">Khách sỉ</span>
+              </div>
+              <dl>
+                <div>
+                  <dt>Điện thoại</dt>
+                  <dd>0901 234 567</dd>
+                </div>
+                <div>
+                  <dt>Bảng giá</dt>
+                  <dd>Sỉ tiêu chuẩn</dd>
+                </div>
+                <div>
+                  <dt>Công nợ</dt>
+                  <dd>0đ</dd>
+                </div>
+                <div>
+                  <dt>Đơn gần nhất</dt>
+                  <dd>DH-1024 • 830.000đ</dd>
+                </div>
+              </dl>
+              <button class="secondary full" data-go="customers">Xem hồ sơ khách</button>
+            </aside>
+          </div>
+        </section>
+
+        <section class="view" id="order" data-title="Tạo đơn">
+          <div class="section-actions">
+            <div>
+              <h2>Tạo đơn bán</h2>
+              <p>Đơn nháp • Chưa giữ hàng</p>
+            </div>
+            <div class="action-pair">
+              <button
+                class="secondary"
+                data-feedback="Đã mô phỏng lưu nháp trong bộ nhớ; tải lại trang sẽ mất."
+              >
+                Lưu nháp</button
+              ><button class="primary" data-feedback="Prototype không xác nhận hay giữ hàng thật.">
+                Xác nhận đơn
+              </button>
+            </div>
+          </div>
+          <div class="order-layout">
+            <div class="panel order-main">
+              <div class="form-grid">
+                <label
+                  >Khách hàng<select id="order-customer">
+                    <option>Nguyễn Thị Lan — Khách sỉ</option>
+                    <option>Trần Thu Hà — Khách lẻ</option>
+                  </select></label
+                ><label
+                  >Địa chỉ giao<select>
+                    <option>12 Nguyễn Trãi, Q.1, TP.HCM</option>
+                    <option>Thêm địa chỉ mới...</option>
+                  </select></label
+                >
+              </div>
+              <div class="product-finder">
+                <label class="inline-search"
+                  >⌕ <input id="product-search" placeholder="Tìm tên, SKU hoặc mã vạch"
+                /></label>
+                <div class="product-results" id="product-results">
+                  <button data-product="TS-DEN-M">
+                    <span class="product-thumb dark">A</span
+                    ><span
+                      ><strong>Áo thun cotton đen — M</strong
+                      ><small>TS-DEN-M • Có thể bán 90 cái</small></span
+                    ><b>80.000đ</b>
+                  </button>
+                  <button data-product="SM-TRANG-L">
+                    <span class="product-thumb pale">S</span
+                    ><span
+                      ><strong>Sơ mi trắng — L</strong
+                      ><small>SM-TRANG-L • Có thể bán 7 cái</small></span
+                    ><b>145.000đ</b>
+                  </button>
+                </div>
+              </div>
+              <table class="order-lines">
+                <thead>
+                  <tr>
+                    <th>Sản phẩm</th>
+                    <th>Đơn vị</th>
+                    <th>Số lượng</th>
+                    <th>Đơn giá</th>
+                    <th>Thành tiền</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="order-lines">
+                  <tr data-line="TS-DEN-M">
+                    <td><strong>Áo thun cotton đen — M</strong><small>TS-DEN-M</small></td>
+                    <td>
+                      <select class="unit">
+                        <option value="1">Cái</option>
+                        <option value="12">Hộp (12 cái)</option>
+                      </select>
+                    </td>
+                    <td><input class="quantity" type="number" min="1" value="10" /></td>
+                    <td class="unit-price">80.000đ</td>
+                    <td class="line-total">800.000đ</td>
+                    <td><button class="remove-line" aria-label="Xóa dòng">×</button></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <aside class="panel order-summary">
+              <h3>Tóm tắt đơn</h3>
+              <dl>
+                <div>
+                  <dt>Tiền hàng</dt>
+                  <dd id="subtotal">800.000đ</dd>
+                </div>
+                <div>
+                  <dt>Giảm giá</dt>
+                  <dd>0đ</dd>
+                </div>
+                <div>
+                  <dt>Phí giao</dt>
+                  <dd><input id="shipping-fee" type="number" value="30000" /></dd>
+                </div>
+                <div class="grand">
+                  <dt>Tổng cộng</dt>
+                  <dd id="grand-total">830.000đ</dd>
+                </div>
+              </dl>
+              <div class="rule-note">
+                <b>✓ Giá sỉ đã áp dụng</b><span>Từ 10 cái: 80.000đ/cái</span>
+              </div>
+              <label
+                >Thanh toán<select>
+                  <option>Thu sau / công nợ</option>
+                  <option>Đã đặt cọc</option>
+                  <option>Thanh toán đủ</option>
+                </select></label
+              >
+              <p class="warning-note">
+                Quyền mua nợ chỉ là dữ liệu mẫu; hệ thống thật phải kiểm tra ở backend.
+              </p>
+            </aside>
+          </div>
+        </section>
+
+        <section class="view" id="inventory" data-title="Kho">
+          <div class="section-actions">
+            <div>
+              <h2>Tồn kho</h2>
+              <p>Kho chính • Cập nhật mẫu lúc 10:45</p>
+            </div>
+            <button
+              class="secondary"
+              data-feedback="Điều chỉnh kho thật phải có chứng từ và quyền."
+            >
+              ＋ Phiếu điều chỉnh
+            </button>
+          </div>
+          <div class="metric-grid compact">
+            <div class="metric-card static">
+              <span><small>Tổng SKU đang bán</small><strong>126</strong></span>
+            </div>
+            <div class="metric-card static">
+              <span><small>SKU sắp hết</small><strong class="text-amber">4</strong></span>
+            </div>
+            <div class="metric-card static">
+              <span><small>Hàng đang giữ</small><strong>38</strong></span>
+            </div>
+            <div class="metric-card static">
+              <span><small>Không bán được</small><strong>6</strong></span>
+            </div>
+          </div>
+          <div class="panel table-panel">
+            <div class="filter-row">
+              <label class="inline-search"
+                >⌕
+                <input
+                  class="table-filter"
+                  data-table="stock-table"
+                  placeholder="Tìm tên hoặc SKU" /></label
+              ><button class="chip is-selected">Tất cả</button
+              ><button class="chip">Sắp hết 4</button>
+            </div>
+            <div class="table-wrap">
+              <table id="stock-table">
+                <thead>
+                  <tr>
+                    <th>Sản phẩm / SKU</th>
+                    <th>Thực tế</th>
+                    <th>Đang giữ</th>
+                    <th>Không bán được</th>
+                    <th>Có thể bán</th>
+                    <th>Trạng thái</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>Áo thun cotton đen — M</strong><small>TS-DEN-M</small></td>
+                    <td>100</td>
+                    <td>10</td>
+                    <td>0</td>
+                    <td><b>90</b></td>
+                    <td><span class="tag good">Còn hàng</span></td>
+                  </tr>
+                  <tr>
+                    <td><strong>Sơ mi trắng — L</strong><small>SM-TRANG-L</small></td>
+                    <td>9</td>
+                    <td>2</td>
+                    <td>0</td>
+                    <td><b>7</b></td>
+                    <td><span class="tag low">Sắp hết</span></td>
+                  </tr>
+                  <tr>
+                    <td><strong>Quần jean xanh — 28</strong><small>QJ-XANH-28</small></td>
+                    <td>14</td>
+                    <td>5</td>
+                    <td>2</td>
+                    <td><b>7</b></td>
+                    <td><span class="tag low">Sắp hết</span></td>
+                  </tr>
+                  <tr>
+                    <td><strong>Áo khoác be — Freesize</strong><small>AK-BE-FS</small></td>
+                    <td>0</td>
+                    <td>0</td>
+                    <td>0</td>
+                    <td><b>0</b></td>
+                    <td><span class="tag danger">Hết hàng</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="formula">Có thể bán = Thực tế − Đang giữ − Không bán được</p>
+          </div>
+        </section>
+
+        <section class="view" id="receivables" data-title="Công nợ">
+          <div class="section-actions">
+            <div>
+              <h2>Công nợ khách hàng</h2>
+              <p>Số liệu mẫu để chốt cách trình bày</p>
+            </div>
+            <button class="primary" data-feedback="Prototype không ghi nhận tiền thật.">
+              ＋ Ghi nhận thu
+            </button>
+          </div>
+          <div class="metric-grid compact">
+            <div class="metric-card static">
+              <span><small>Tổng phải thu</small><strong>12.400.000đ</strong></span>
+            </div>
+            <div class="metric-card static">
+              <span><small>Đến hạn 7 ngày</small><strong>4.100.000đ</strong></span>
+            </div>
+            <div class="metric-card static">
+              <span><small>Quá hạn</small><strong class="text-coral">5.800.000đ</strong></span>
+            </div>
+            <div class="metric-card static">
+              <span><small>Tiền chưa phân bổ</small><strong>500.000đ</strong></span>
+            </div>
+          </div>
+          <div class="panel table-panel">
+            <div class="filter-row">
+              <label class="inline-search"
+                >⌕
+                <input
+                  class="table-filter"
+                  data-table="debt-table"
+                  placeholder="Tìm khách hoặc mã đơn" /></label
+              ><button class="chip is-selected">Tất cả</button
+              ><button class="chip">Quá hạn 2</button>
+            </div>
+            <div class="table-wrap">
+              <table id="debt-table">
+                <thead>
+                  <tr>
+                    <th>Khách / Chứng từ</th>
+                    <th>Tổng đơn</th>
+                    <th>Đã nhận</th>
+                    <th>Còn phải thu</th>
+                    <th>Đến hạn</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>Đại lý Minh Anh</strong><small>DH-1012</small></td>
+                    <td>8.200.000đ</td>
+                    <td>2.900.000đ</td>
+                    <td><b class="text-coral">5.300.000đ</b></td>
+                    <td><span class="tag danger">Quá 5 ngày</span></td>
+                    <td>
+                      <button
+                        class="secondary small"
+                        data-feedback="Mở form thu tiền cho DH-1012 (prototype)."
+                      >
+                        Ghi nhận thu
+                      </button>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td><strong>Cửa hàng Quỳnh Trang</strong><small>DH-1020</small></td>
+                    <td>3.600.000đ</td>
+                    <td>1.800.000đ</td>
+                    <td><b>1.800.000đ</b></td>
+                    <td>03/10/2026</td>
+                    <td>
+                      <button
+                        class="secondary small"
+                        data-feedback="Mở form thu tiền cho DH-1020 (prototype)."
+                      >
+                        Ghi nhận thu
+                      </button>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td><strong>Shop Bé Xinh</strong><small>DH-1006</small></td>
+                    <td>6.000.000đ</td>
+                    <td>700.000đ</td>
+                    <td><b class="text-coral">5.300.000đ</b></td>
+                    <td><span class="tag danger">Quá 12 ngày</span></td>
+                    <td>
+                      <button
+                        class="secondary small"
+                        data-feedback="Mở form thu tiền cho DH-1006 (prototype)."
+                      >
+                        Ghi nhận thu
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <div class="toast" role="status" aria-live="polite"></div>
+    <script src="app.js"></script>
+  </body>
+</html>
