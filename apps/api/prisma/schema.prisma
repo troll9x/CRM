@@ -56,6 +56,17 @@ enum MediaStatus {
   ARCHIVED
 }
 
+enum SupplierStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+enum PurchaseOrderStatus {
+  DRAFT
+  ORDERED
+  CANCELED
+}
+
 model Business {
   id               String             @id @default(cuid())
   name             String
@@ -73,6 +84,8 @@ model Business {
   opportunities    SalesOpportunity[]
   products         Product[]
   productVariants  ProductVariant[]
+  suppliers        Supplier[]
+  purchaseOrders   PurchaseOrder[]
 
   @@map("businesses")
 }
@@ -94,6 +107,7 @@ model StaffUser {
   assignedCustomers     Customer[]         @relation("CustomerAssignee")
   assignedTasks         CustomerTask[]     @relation("TaskAssignee")
   assignedOpportunities SalesOpportunity[] @relation("OpportunityAssignee")
+  createdPurchaseOrders PurchaseOrder[]    @relation("PurchaseOrderCreator")
 
   @@index([businessId, status])
   @@map("staff_users")
@@ -328,23 +342,24 @@ model Product {
 }
 
 model ProductVariant {
-  id           String           @id @default(cuid())
-  businessId   String           @map("business_id")
-  productId    String           @map("product_id")
-  sku          String
-  name         String
-  barcode      String?
-  baseUnitCode String           @map("base_unit_code")
-  baseUnitName String           @map("base_unit_name")
-  attributes   Json?
-  status       CatalogStatus    @default(ACTIVE)
-  version      Int              @default(1)
-  createdAt    DateTime         @default(now()) @map("created_at")
-  updatedAt    DateTime         @updatedAt @map("updated_at")
-  business     Business         @relation(fields: [businessId], references: [id], onDelete: Restrict)
-  product      Product          @relation(fields: [productId], references: [id], onDelete: Restrict)
-  conversions  UnitConversion[]
-  media        MediaAsset[]
+  id                 String              @id @default(cuid())
+  businessId         String              @map("business_id")
+  productId          String              @map("product_id")
+  sku                String
+  name               String
+  barcode            String?
+  baseUnitCode       String              @map("base_unit_code")
+  baseUnitName       String              @map("base_unit_name")
+  attributes         Json?
+  status             CatalogStatus       @default(ACTIVE)
+  version            Int                 @default(1)
+  createdAt          DateTime            @default(now()) @map("created_at")
+  updatedAt          DateTime            @updatedAt @map("updated_at")
+  business           Business            @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  product            Product             @relation(fields: [productId], references: [id], onDelete: Restrict)
+  conversions        UnitConversion[]
+  media              MediaAsset[]
+  purchaseOrderLines PurchaseOrderLine[]
 
   @@unique([businessId, sku])
   @@unique([businessId, barcode])
@@ -382,4 +397,76 @@ model MediaAsset {
   @@index([productId, status, sortOrder])
   @@index([variantId, status])
   @@map("media_assets")
+}
+
+model Supplier {
+  id             String          @id @default(cuid())
+  businessId     String          @map("business_id")
+  supplierCode   String          @map("supplier_code")
+  name           String
+  contactName    String?         @map("contact_name")
+  phone          String?
+  email          String?
+  taxCode        String?         @map("tax_code")
+  address        String?
+  notes          String?
+  status         SupplierStatus  @default(ACTIVE)
+  version        Int             @default(1)
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
+  business       Business        @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  purchaseOrders PurchaseOrder[]
+
+  @@unique([businessId, supplierCode])
+  @@index([businessId, status, updatedAt])
+  @@index([businessId, name])
+  @@map("suppliers")
+}
+
+model PurchaseOrder {
+  id          String              @id @default(cuid())
+  businessId  String              @map("business_id")
+  supplierId  String              @map("supplier_id")
+  orderNumber String              @map("order_number")
+  status      PurchaseOrderStatus @default(DRAFT)
+  expectedAt  DateTime?           @map("expected_at")
+  notes       String?
+  version     Int                 @default(1)
+  orderedAt   DateTime?           @map("ordered_at")
+  canceledAt  DateTime?           @map("canceled_at")
+  createdById String              @map("created_by_id")
+  createdAt   DateTime            @default(now()) @map("created_at")
+  updatedAt   DateTime            @updatedAt @map("updated_at")
+  business    Business            @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  supplier    Supplier            @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  createdBy   StaffUser           @relation("PurchaseOrderCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  lines       PurchaseOrderLine[]
+
+  @@unique([businessId, orderNumber])
+  @@index([businessId, status, updatedAt])
+  @@index([supplierId, createdAt])
+  @@map("purchase_orders")
+}
+
+model PurchaseOrderLine {
+  id                       String         @id @default(cuid())
+  purchaseOrderId          String         @map("purchase_order_id")
+  variantId                String         @map("variant_id")
+  lineNumber               Int            @map("line_number")
+  productNameSnapshot      String         @map("product_name_snapshot")
+  skuSnapshot              String         @map("sku_snapshot")
+  variantNameSnapshot      String         @map("variant_name_snapshot")
+  unitCodeSnapshot         String         @map("unit_code_snapshot")
+  unitNameSnapshot         String         @map("unit_name_snapshot")
+  conversionFactorSnapshot Decimal        @map("conversion_factor_snapshot") @db.Decimal(20, 6)
+  orderedQuantity          Decimal        @map("ordered_quantity") @db.Decimal(20, 6)
+  baseQuantity             Decimal        @map("base_quantity") @db.Decimal(20, 6)
+  expectedUnitCostVnd      Decimal?       @map("expected_unit_cost_vnd") @db.Decimal(20, 0)
+  createdAt                DateTime       @default(now()) @map("created_at")
+  purchaseOrder            PurchaseOrder  @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  variant                  ProductVariant @relation(fields: [variantId], references: [id], onDelete: Restrict)
+
+  @@unique([purchaseOrderId, lineNumber])
+  @@index([variantId, createdAt])
+  @@map("purchase_order_lines")
 }

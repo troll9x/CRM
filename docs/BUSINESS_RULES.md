@@ -1,6 +1,6 @@
 # Quy tắc nghiệp vụ
 
-Trạng thái: đặc tả đang triển khai tới Đợt 03. Mỗi quy tắc có mã ổn định để API, test và audit cùng tham chiếu. Ký hiệu **Tạm dùng** nghĩa là chưa được chủ dự án xác nhận để chạy dữ liệu thật.
+Trạng thái: đặc tả đang triển khai tới lát cắt Đợt 04A. Mỗi quy tắc có mã ổn định để API, test và audit cùng tham chiếu. Ký hiệu **Tạm dùng** nghĩa là chưa được chủ dự án xác nhận để chạy dữ liệu thật.
 
 ## 1. Khách hàng và quyền
 
@@ -30,6 +30,8 @@ Trạng thái: đặc tả đang triển khai tới Đợt 03. Mỗi quy tắc c
 - **BR-STOCK-01:** `có thể bán = thực tế - giữ hàng - không đủ điều kiện bán`; ba đại lượng được theo dõi riêng.
 - **BR-STOCK-02:** Mọi nhận, xuất, trả và điều chỉnh phải có chứng từ và dòng sổ kho bất biến; không sửa thẳng số tồn thay cho chứng từ.
 - **BR-STOCK-03:** Tạo đơn mua không tăng tồn. Chỉ phiếu nhận thực tế tăng tồn; nhận nhiều đợt không vượt phần được phép nhận.
+- **BR-PUR-01:** Đơn mua nháp lưu nhà cung cấp, SKU, đơn vị đặt và số lượng; backend lấy hệ số hiện hành rồi snapshot đơn vị, hệ số và số lượng cơ sở. Client không được gửi hệ số quy đổi.
+- **BR-PUR-02:** Phát hành đơn mua khóa nội dung dòng; sửa lịch sử dùng chứng từ/transition phù hợp. Đơn mua nháp, phát hành hoặc hủy đều không tạo biến động tồn.
 - **BR-STOCK-04:** Tồn đầu kỳ là một chứng từ có người tạo, thời điểm, số lượng và giá trị; import lại phải chống trùng.
 - **BR-STOCK-05:** Xác nhận đơn kiểm tra hàng có thể bán và tạo giữ hàng trong cùng giao dịch có kiểm soát cạnh tranh.
 - **BR-STOCK-06:** Xuất hàng giảm tồn thực tế và giảm giữ tương ứng trong cùng nghiệp vụ. Cùng idempotency key không tạo lần xuất thứ hai.

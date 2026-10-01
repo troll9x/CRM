@@ -25,7 +25,7 @@ Trạng thái: `DONE` tài liệu/prototype đã tạo; `WAITING` cần xác nh�
 | 01  | Monorepo, môi trường, auth nhân viên, RBAC, audit, CI | 00 đủ quyết định core       | DONE LOCAL; chờ lần chạy CI remote  |
 | 02  | Khách, nhóm sỉ/lẻ, nhiều địa chỉ, nhắc việc           | 01                          | DONE LOCAL; chờ phản hồi người dùng |
 | 03  | Sản phẩm, SKU, đơn vị, ảnh                            | 01 + OPEN-02                | DONE LOCAL theo giả định tạm        |
-| 04  | Nhà cung cấp, nhập hàng, tồn đầu, sổ kho              | 03 + OPEN-05                | WAITING OPEN-02/05                  |
+| 04  | Nhà cung cấp, nhập hàng, tồn đầu, sổ kho              | 03 + OPEN-05                | 04A DONE LOCAL; 04B–C WAITING       |
 | 05  | Giá sỉ/lẻ, bậc giá, báo giá                           | 02,03 + OPEN-03             | LATER                               |
 | 06  | Đơn, xác nhận, giữ, hủy, giao một phần                | 04,05 + OPEN-04/05          | LATER                               |
 | 07  | Thu tiền, đặt cọc, công nợ, chi phí                   | 06 + chốt ghi nhận phải thu | LATER                               |
@@ -77,6 +77,15 @@ Mỗi lát cắt phải có migration + API + UI + dữ liệu lưu thật + tes
 - `DONE` — metadata ảnh chỉ nhận URL HTTPS, alt text, thứ tự và lưu trữ; chưa giả lập kho file/upload.
 - `DONE` — UI responsive, API/OpenAPI, migration và E2E quyền/SKU/quy đổi/media.
 - `WAITING` — xác nhận `OPEN-02` trước khi nhập dữ liệu hàng thật hoặc xây kho Đợt 04.
+
+### Kết quả Đợt 04A
+
+- `DONE` — nhà cung cấp có mã nội bộ, tìm kiếm, optimistic version và lưu trữ thay vì xóa.
+- `DONE` — đơn mua nháp snapshot SKU, đơn vị, hệ số và số lượng cơ sở do backend tính; giá dự kiến là số nguyên VND tùy chọn, chưa ghi giá vốn.
+- `DONE` — phát hành khóa sửa dòng; hủy/phát hành/tạo đơn mua không tăng tồn và đều có audit.
+- `DONE` — quyền `purchasing.read/write`; owner/kho thao tác được, sales gọi trực tiếp bị `403`.
+- `DONE` — UI responsive, API/OpenAPI, migration có DB check và E2E 04A.
+- `WAITING` — 04B phiếu nhận/sổ kho và 04C tồn đầu/kiểm kê/điều chỉnh phải chờ xác nhận `OPEN-02/05`.
 
 ## Definition of Done cho đợt có code
 

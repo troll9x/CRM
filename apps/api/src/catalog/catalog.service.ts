@@ -466,6 +466,16 @@ export class CatalogService {
         throw new ProblemException(404, 'RESOURCE_NOT_FOUND', 'Không tìm thấy SKU.');
       }
       productId = variant.productId;
+      const referencedByPurchaseOrder = await tx.purchaseOrderLine.count({
+        where: { variantId: id },
+      });
+      if (referencedByPurchaseOrder > 0) {
+        throw new ProblemException(
+          409,
+          'UNIT_CONVERSION_IN_USE',
+          'SKU đã được chứng từ mua tham chiếu; không thể thay danh sách quy đổi.',
+        );
+      }
       const conversions = this.cleanConversions(variant.baseUnitCode, dto.conversions);
       const update = await tx.productVariant.updateMany({
         where: { id, version: dto.version },

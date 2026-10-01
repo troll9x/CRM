@@ -23,6 +23,8 @@ const permissionDescriptions: Record<string, string> = {
   [PERMISSIONS.CATALOG_READ]: 'Xem và tìm kiếm sản phẩm, SKU, đơn vị',
   [PERMISSIONS.CATALOG_WRITE]: 'Tạo, sửa và ngừng bán sản phẩm, SKU, quy đổi đơn vị',
   [PERMISSIONS.MEDIA_MANAGE]: 'Quản lý metadata ảnh sản phẩm',
+  [PERMISSIONS.PURCHASING_READ]: 'Xem nhà cung cấp và đơn mua',
+  [PERMISSIONS.PURCHASING_WRITE]: 'Tạo, sửa và phát hành đơn mua',
   [PERMISSIONS.CONNECTORS_MANAGE]: 'Cấu hình và thu hồi connector',
 };
 
@@ -50,7 +52,12 @@ const roles = [
     code: 'warehouse',
     name: 'Kho',
     description: 'Thao tác kho theo chứng từ',
-    permissions: [PERMISSIONS.CATALOG_READ, PERMISSIONS.INVENTORY_ADJUST],
+    permissions: [
+      PERMISSIONS.CATALOG_READ,
+      PERMISSIONS.PURCHASING_READ,
+      PERMISSIONS.PURCHASING_WRITE,
+      PERMISSIONS.INVENTORY_ADJUST,
+    ],
   },
   {
     code: 'finance',

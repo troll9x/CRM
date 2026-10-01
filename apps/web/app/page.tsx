@@ -4,13 +4,16 @@ import { FormEvent, useEffect, useState } from 'react';
 import { api, type Staff } from './api-client';
 import { CustomerWorkspace } from './customer-workspace';
 import { ProductWorkspace } from './product-workspace';
+import { PurchasingWorkspace } from './purchasing-workspace';
 
 export default function Home() {
   const [staff, setStaff] = useState<Staff | null>(null);
   const [checking, setChecking] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState('');
-  const [view, setView] = useState<'overview' | 'customers' | 'products'>('products');
+  const [view, setView] = useState<'overview' | 'customers' | 'products' | 'purchasing'>(
+    'purchasing',
+  );
 
   useEffect(() => {
     let active = true;
@@ -150,8 +153,12 @@ export default function Home() {
           >
             Sản phẩm <small>Đang dùng</small>
           </button>
-          <button disabled>
-            Kho <small>Đợt 04</small>
+          <button
+            className={view === 'purchasing' ? 'active' : ''}
+            onClick={() => setView('purchasing')}
+            disabled={!staff.permissions.includes('purchasing.read')}
+          >
+            Mua hàng <small>04A</small>
           </button>
         </nav>
         <div className="staff-mini">
@@ -163,6 +170,8 @@ export default function Home() {
         <CustomerWorkspace staff={staff} onLogout={logout} loggingOut={submitting} />
       ) : view === 'products' ? (
         <ProductWorkspace staff={staff} onLogout={logout} loggingOut={submitting} />
+      ) : view === 'purchasing' ? (
+        <PurchasingWorkspace staff={staff} onLogout={logout} loggingOut={submitting} />
       ) : (
         <section className="dashboard-content">
           <header>

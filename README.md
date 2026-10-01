@@ -1,6 +1,6 @@
 # CRM bán sỉ và bán lẻ
 
-Đợt 03 đã có luồng **web → API → PostgreSQL** cho đăng nhập/RBAC, CRM khách hàng và danh mục sản phẩm: SKU duy nhất, biến thể, đơn vị gốc, quy đổi cái/hộp/thùng, ngừng bán và metadata ảnh HTTPS. Chưa triển khai tồn kho, nhập hàng, giá bán, đơn, tiền hay connector; prototype trong `prototype/` vẫn chỉ là dữ liệu mẫu của Đợt 00.
+Đợt 04A đã có luồng **web → API → PostgreSQL** cho đăng nhập/RBAC, CRM khách hàng, danh mục sản phẩm, nhà cung cấp và đơn mua. Đơn mua lưu snapshot SKU/đơn vị/hệ số/số lượng cơ sở nhưng không làm tăng tồn. Chưa triển khai phiếu nhận, sổ kho, tồn đầu, giá vốn, giá bán, đơn bán, tiền hay connector; prototype trong `prototype/` vẫn chỉ là dữ liệu mẫu của Đợt 00.
 
 ## Chạy nhanh
 
@@ -33,7 +33,7 @@ docker compose up -d api web
 - [Quyết định](docs/DECISIONS.md): quyết định đã chốt, tạm dùng và tối đa 5 câu hỏi cần xác nhận.
 - [Sẵn sàng tích hợp](docs/INTEGRATION_READINESS.md): quyền, bằng chứng và trạng thái Facebook/Zalo cùng các kênh sau.
 - [Hướng dẫn prototype](docs/UI_PROTOTYPE.md): kịch bản thử sáu màn hình.
-- [Phát triển local](docs/LOCAL_DEVELOPMENT.md): cài đặt, migration, seed, chạy và kiểm tra Đợt 01–03.
+- [Phát triển local](docs/LOCAL_DEVELOPMENT.md): cài đặt, migration, seed, chạy và kiểm tra Đợt 01–04A.
 
 ## Xem prototype Đợt 00
 
@@ -47,7 +47,7 @@ Sau đó mở `http://localhost:4173/prototype/`. Mọi số liệu đều có n
 
 ## Trạng thái và bước tiếp theo
 
-1. Đợt 01–03 đã hoàn thành và được kiểm tra local; workflow CI đã cấu hình, cần một remote Git để có lần chạy CI đầu tiên.
+1. Đợt 01–03 và lát cắt 04A đã hoàn thành, kiểm tra local; workflow CI đã cấu hình, cần một remote Git để có lần chạy CI đầu tiên.
 2. Chủ dự án vẫn cần trả lời 5 mục `OPEN-01` đến `OPEN-05` trong `docs/DECISIONS.md`; các giả định tạm không phải cấu hình production.
 3. Em gái anh Sơn thử prototype theo `docs/UI_PROTOTYPE.md` và giao diện đăng nhập thật, rồi ghi phản hồi vào backlog.
-4. Trước khi nhập hàng thật/Đợt 04, cần chốt `OPEN-02` và `OPEN-05` về ngành hàng, precision, lô/hạn dùng/serial và giá vốn. Không đưa token Facebook/Zalo vào repo.
+4. Trước khi làm phiếu nhận/sổ kho Đợt 04B hoặc nhập hàng thật, cần chốt `OPEN-02` và `OPEN-05` về ngành hàng, precision, lô/hạn dùng/serial và giá vốn. Không đưa token Facebook/Zalo vào repo.

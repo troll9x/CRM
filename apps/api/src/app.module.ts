@@ -8,6 +8,7 @@ import { AuthenticationGuard } from './identity/authentication.guard';
 import { IdentityModule } from './identity/identity.module';
 import { PermissionsGuard } from './identity/permissions.guard';
 import { PrismaModule } from './prisma/prisma.module';
+import { PurchasingModule } from './purchasing/purchasing.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { PrismaModule } from './prisma/prisma.module';
     IdentityModule,
     CustomersModule,
     CatalogModule,
+    PurchasingModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: AuthenticationGuard },

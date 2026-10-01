@@ -1,6 +1,6 @@
 # Mô hình dữ liệu đích ở mức khung
 
-Schema đã được migration tăng dần tới Đợt 03. Mỗi đợt chỉ thêm phần cần cho lát cắt đang làm, nhưng khóa và ranh giới module phải phù hợp mô hình đích dưới đây.
+Schema đã được migration tăng dần tới lát cắt Đợt 04A. Mỗi đợt chỉ thêm phần cần cho lát cắt đang làm, nhưng khóa và ranh giới module phải phù hợp mô hình đích dưới đây.
 
 ## 1. Quy ước chung
 
@@ -108,7 +108,8 @@ Sai lệch tạo cảnh báo và quy trình sửa có chứng từ; không “fi
 - Migration Đợt 02 đã triển khai `Customer`, `ContactPoint`, `Address`, `CustomerGroup`, `CustomerTask` và `SalesOpportunity`; trùng liên hệ được phép giữa các customer để chỉ gợi ý, không tự gộp.
 - Đợt 03: product/variant/unit conversion/media metadata.
 - Migration Đợt 03 đã triển khai `Product`, `ProductVariant`, `UnitConversion` và `MediaAsset`; SKU/barcode có unique theo business, factor có check dương, mọi trạng thái dùng ngừng bán/lưu trữ thay cho xóa.
-- Đợt 04: supplier/purchase/goods receipt/inventory ledger/balance.
+- Migration Đợt 04A đã triển khai `Supplier`, `PurchaseOrder`, `PurchaseOrderLine`; dòng đơn mua snapshot SKU/đơn vị/hệ số/số lượng cơ sở, có DB check dương và không có quan hệ nào tự ghi tồn.
+- Đợt 04B–04C: goods receipt/inventory ledger/balance/opening stock/adjustment sau khi đóng `OPEN-02/05`.
 - Đợt 05: price list/rule/assignment, quote/revision.
 - Đợt 06: sales order/event, reservation, shipment.
 - Đợt 07–08: payment/allocation/receivable/expense, return and reporting projections.

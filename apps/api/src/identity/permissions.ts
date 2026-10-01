@@ -15,6 +15,8 @@ export const PERMISSIONS = {
   CATALOG_READ: 'catalog.read',
   CATALOG_WRITE: 'catalog.write',
   MEDIA_MANAGE: 'media.manage',
+  PURCHASING_READ: 'purchasing.read',
+  PURCHASING_WRITE: 'purchasing.write',
   CONNECTORS_MANAGE: 'connectors.manage',
 } as const;
 

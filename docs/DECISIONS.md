@@ -25,6 +25,8 @@ Các mục sau đủ để viết tài liệu/prototype nhưng **không tự đ�
 
 Đợt 03 dùng đơn vị gốc và quy đổi cái/hộp/thùng, thuộc tính biến thể dạng metadata, chưa có lô/hạn dùng/serial. Ảnh chỉ lưu metadata URL HTTPS; không tuyên bố có upload/kho file. Các lựa chọn này phải được thay thế hoặc xác nhận khi đóng `OPEN-02`.
 
+Đợt 04A chỉ triển khai nhà cung cấp và đơn mua theo các quy đổi đã có; giá dự kiến trên dòng là metadata số nguyên VND, không cập nhật giá vốn. Không tạo phiếu nhận, balance hay ledger trước khi đóng `OPEN-02` và `OPEN-05`.
+
 ## 3. Năm quyết định cần chủ dự án xác nhận trước Đợt 01–06
 
 Không thêm câu hỏi chặn mới vào danh sách này; câu hỏi phát sinh phải gộp vào mục phù hợp hoặc đưa sang backlog của đợt sau.
