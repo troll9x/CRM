@@ -1,6 +1,6 @@
 # CRM bán sỉ và bán lẻ
 
-Đợt 04B đã có luồng **web → API → PostgreSQL** cho đăng nhập/RBAC, CRM khách hàng, danh mục, mua hàng và nhận hàng vào kho. Tổng quan dùng dữ liệu thật; giao diện khai báo UTF-8/tiếng Việt rõ ràng. Phiếu nhận hỗ trợ nhận từng phần, chống gửi trùng, cập nhật tồn và giá vốn bình quân trong giao dịch, đồng thời tạo sổ kho bất biến. Chưa triển khai tồn đầu/kiểm kê/điều chỉnh, giá bán, đơn bán, tiền hay connector; prototype trong `prototype/` vẫn chỉ là dữ liệu mẫu của Đợt 00.
+Đợt 04C-A đã có luồng **web → API → PostgreSQL** cho đăng nhập/RBAC, CRM khách hàng, danh mục, mua hàng, nhận hàng và ghi tồn đầu kỳ. Tổng quan dùng dữ liệu thật; giao diện khai báo UTF-8/tiếng Việt rõ ràng. Phiếu nhận và tồn đầu chống gửi trùng, cập nhật tồn/giá vốn trong giao dịch và tạo sổ kho bất biến. Chưa triển khai kiểm kê/điều chỉnh, giá bán, đơn bán, tiền hay connector; prototype trong `prototype/` vẫn chỉ là dữ liệu mẫu của Đợt 00.
 
 ## Chạy nhanh
 
@@ -33,7 +33,7 @@ docker compose up -d api web
 - [Quyết định](docs/DECISIONS.md): quyết định đã chốt, tạm dùng và tối đa 5 câu hỏi cần xác nhận.
 - [Sẵn sàng tích hợp](docs/INTEGRATION_READINESS.md): quyền, bằng chứng và trạng thái Facebook/Zalo cùng các kênh sau.
 - [Hướng dẫn prototype](docs/UI_PROTOTYPE.md): kịch bản thử sáu màn hình.
-- [Phát triển local](docs/LOCAL_DEVELOPMENT.md): cài đặt, migration, seed, chạy và kiểm tra Đợt 01–04B.
+- [Phát triển local](docs/LOCAL_DEVELOPMENT.md): cài đặt, migration, seed, chạy và kiểm tra Đợt 01–04C-A.
 
 ## Xem prototype Đợt 00
 
@@ -47,7 +47,7 @@ Sau đó mở `http://localhost:4173/prototype/`. Mọi số liệu đều có n
 
 ## Trạng thái và bước tiếp theo
 
-1. Đợt 01–03 và lát cắt 04A–04B đã hoàn thành, kiểm tra local; workflow CI đã cấu hình, cần một remote Git để có lần chạy CI đầu tiên.
-2. Chủ dự án vẫn cần xác nhận `OPEN-01..05` bằng dữ liệu vận hành/tài khoản thật; Đợt 04B hiện dùng giả định hàng đóng gói, một kho và giá vốn bình quân để kiểm chứng local.
+1. Đợt 01–03 và lát cắt 04A–04C-A đã hoàn thành, kiểm tra local; workflow CI đã cấu hình, cần một remote Git để có lần chạy CI đầu tiên.
+2. Chủ dự án vẫn cần xác nhận `OPEN-01..05` bằng dữ liệu vận hành/tài khoản thật; Đợt 04B–04C-A hiện dùng giả định hàng đóng gói, một kho và giá vốn bình quân để kiểm chứng local.
 3. Em gái anh Sơn thử prototype theo `docs/UI_PROTOTYPE.md` và giao diện đăng nhập thật, rồi ghi phản hồi vào backlog.
-4. Bước tiếp theo là Đợt 04C tồn đầu/kiểm kê/điều chỉnh có chứng từ. Không dùng bản hiện tại cho hàng cần lô, hạn dùng hoặc serial; không đưa token Facebook/Zalo vào repo.
+4. Bước tiếp theo là Đợt 04C-B kiểm kê/điều chỉnh có chứng từ. Không dùng bản hiện tại cho hàng cần lô, hạn dùng hoặc serial; không đưa token Facebook/Zalo vào repo.

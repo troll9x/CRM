@@ -80,6 +80,7 @@ enum GoodsReceiptStatus {
 
 enum StockMovementType {
   PURCHASE_RECEIPT
+  OPENING_STOCK
 }
 
 model Business {
@@ -105,6 +106,7 @@ model Business {
   goodsReceipts    GoodsReceipt[]
   stockBalances    StockBalance[]
   stockMovements   StockMovement[]
+  openingStocks    OpeningStock[]
 
   @@map("businesses")
 }
@@ -128,6 +130,7 @@ model StaffUser {
   assignedOpportunities SalesOpportunity[] @relation("OpportunityAssignee")
   createdPurchaseOrders PurchaseOrder[]    @relation("PurchaseOrderCreator")
   createdGoodsReceipts  GoodsReceipt[]     @relation("GoodsReceiptCreator")
+  createdOpeningStocks  OpeningStock[]     @relation("OpeningStockCreator")
 
   @@index([businessId, status])
   @@map("staff_users")
@@ -383,6 +386,7 @@ model ProductVariant {
   goodsReceiptLines  GoodsReceiptLine[]
   stockBalances      StockBalance[]
   stockMovements     StockMovement[]
+  openingStocks      OpeningStock[]
 
   @@unique([businessId, sku])
   @@unique([businessId, barcode])
@@ -508,6 +512,7 @@ model Warehouse {
   goodsReceipts  GoodsReceipt[]
   stockBalances  StockBalance[]
   stockMovements StockMovement[]
+  openingStocks  OpeningStock[]
 
   @@unique([businessId, code])
   @@index([businessId, status, name])
@@ -594,7 +599,8 @@ model StockMovement {
   businessId          String            @map("business_id")
   warehouseId         String            @map("warehouse_id")
   variantId           String            @map("variant_id")
-  goodsReceiptLineId  String            @unique @map("goods_receipt_line_id")
+  goodsReceiptLineId  String?           @unique @map("goods_receipt_line_id")
+  openingStockId      String?           @unique @map("opening_stock_id")
   movementKey         String            @map("movement_key")
   type                StockMovementType
   quantityDelta       Decimal           @map("quantity_delta") @db.Decimal(20, 6)
@@ -606,10 +612,44 @@ model StockMovement {
   business            Business          @relation(fields: [businessId], references: [id], onDelete: Restrict)
   warehouse           Warehouse         @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
   variant             ProductVariant    @relation(fields: [variantId], references: [id], onDelete: Restrict)
-  goodsReceiptLine    GoodsReceiptLine  @relation(fields: [goodsReceiptLineId], references: [id], onDelete: Restrict)
+  goodsReceiptLine    GoodsReceiptLine? @relation(fields: [goodsReceiptLineId], references: [id], onDelete: Restrict)
+  openingStock        OpeningStock?     @relation(fields: [openingStockId], references: [id], onDelete: Restrict)
 
   @@unique([businessId, movementKey])
   @@index([businessId, warehouseId, variantId, occurredAt])
   @@index([businessId, occurredAt])
   @@map("stock_movements")
+}
+
+model OpeningStock {
+  id                  String         @id @default(cuid())
+  businessId          String         @map("business_id")
+  warehouseId         String         @map("warehouse_id")
+  variantId           String         @map("variant_id")
+  skuSnapshot         String         @map("sku_snapshot")
+  productNameSnapshot String         @map("product_name_snapshot")
+  variantNameSnapshot String         @map("variant_name_snapshot")
+  unitCodeSnapshot    String         @map("unit_code_snapshot")
+  unitNameSnapshot    String         @map("unit_name_snapshot")
+  documentNumber      String         @map("document_number")
+  idempotencyKey      String         @map("idempotency_key")
+  requestHash         String         @map("request_hash")
+  quantity            Decimal        @db.Decimal(20, 6)
+  unitCostVnd         Decimal        @map("unit_cost_vnd") @db.Decimal(20, 0)
+  valueVnd            Decimal        @map("value_vnd") @db.Decimal(20, 0)
+  notes               String?
+  postedAt            DateTime       @map("posted_at")
+  createdById         String         @map("created_by_id")
+  createdAt           DateTime       @default(now()) @map("created_at")
+  business            Business       @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  warehouse           Warehouse      @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  variant             ProductVariant @relation(fields: [variantId], references: [id], onDelete: Restrict)
+  createdBy           StaffUser      @relation("OpeningStockCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  stockMovement       StockMovement?
+
+  @@unique([businessId, documentNumber])
+  @@unique([businessId, idempotencyKey])
+  @@unique([businessId, warehouseId, variantId])
+  @@index([businessId, postedAt])
+  @@map("opening_stocks")
 }

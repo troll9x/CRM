@@ -6,11 +6,16 @@ import { PERMISSIONS } from '../identity/permissions';
 import { RequirePermissions } from '../identity/require-permissions.decorator';
 import { CreateGoodsReceiptDto, InventoryListQueryDto } from './dto/inventory.dto';
 import { InventoryService } from './inventory.service';
+import { CreateOpeningStockDto } from './dto/opening-stock.dto';
+import { OpeningStockService } from './opening-stock.service';
 
 @ApiTags('inventory')
 @Controller()
 export class InventoryController {
-  constructor(private readonly inventory: InventoryService) {}
+  constructor(
+    private readonly inventory: InventoryService,
+    private readonly openingStock: OpeningStockService,
+  ) {}
 
   @Get('warehouses')
   @RequirePermissions(PERMISSIONS.INVENTORY_READ)
@@ -51,5 +56,25 @@ export class InventoryController {
     @Req() request: RequestWithContext,
   ) {
     return this.inventory.createReceipt(dto, idempotencyKey, actor, request.requestId);
+  }
+
+  @Get('stock-openings')
+  @RequirePermissions(PERMISSIONS.INVENTORY_READ)
+  @ApiOperation({ summary: 'Danh sách chứng từ tồn đầu kỳ đã ghi sổ' })
+  openings(@CurrentStaff() actor: RequestStaff, @Query() query: InventoryListQueryDto) {
+    return this.openingStock.list(actor, query);
+  }
+
+  @Post('stock-openings')
+  @RequirePermissions(PERMISSIONS.INVENTORY_ADJUST)
+  @ApiHeader({ name: 'Idempotency-Key', required: true })
+  @ApiOperation({ summary: 'Ghi tồn đầu cho SKU chưa từng có tồn tại kho' })
+  createOpening(
+    @Headers('idempotency-key') idempotencyKey: string | undefined,
+    @Body() dto: CreateOpeningStockDto,
+    @CurrentStaff() actor: RequestStaff,
+    @Req() request: RequestWithContext,
+  ) {
+    return this.openingStock.create(dto, idempotencyKey, actor, request.requestId);
   }
 }

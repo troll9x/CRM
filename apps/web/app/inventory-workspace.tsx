@@ -44,18 +44,40 @@ type GoodsReceipt = {
   purchaseOrder: { orderNumber: string; supplier: { name: string } };
   lines: Array<{ id: string; skuSnapshot: string; receivedQuantity: string }>;
 };
+type OpeningStock = {
+  id: string;
+  documentNumber: string;
+  skuSnapshot: string;
+  unitNameSnapshot: string;
+  quantity: string;
+  unitCostVnd?: string;
+  postedAt: string;
+  warehouse: Warehouse;
+};
+type CatalogProduct = {
+  id: string;
+  name: string;
+  variants: Array<{
+    id: string;
+    sku: string;
+    name: string;
+    status: 'ACTIVE' | 'INACTIVE';
+    baseUnitName: string;
+  }>;
+};
 type StockMovement = {
   id: string;
-  type: 'PURCHASE_RECEIPT';
+  type: 'PURCHASE_RECEIPT' | 'OPENING_STOCK';
   quantityDelta: string;
   valueDeltaVnd?: string;
   onHandAfter: string;
   occurredAt: string;
   warehouse: Warehouse;
   variant: { sku: string; name: string; baseUnitName: string };
-  goodsReceiptLine: {
+  goodsReceiptLine?: {
     goodsReceipt: { receiptNumber: string; purchaseOrder: { orderNumber: string } };
-  };
+  } | null;
+  openingStock?: { id: string; documentNumber: string } | null;
 };
 
 function field(form: FormData, name: string) {
@@ -89,59 +111,116 @@ export function InventoryWorkspace({
   onLogout: () => void;
   loggingOut: boolean;
 }) {
-  const canReceive = staff.permissions.includes('inventory.receive');
+  const canReadPurchasing = staff.permissions.includes('purchasing.read');
+  const canReadCatalog = staff.permissions.includes('catalog.read');
+  const canReceive = staff.permissions.includes('inventory.receive') && canReadPurchasing;
+  const canOpenStock = staff.permissions.includes('inventory.adjust') && canReadCatalog;
   const canViewCost = staff.permissions.includes('cost.view');
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [orders, setOrders] = useState<PurchaseOrder[]>([]);
   const [balances, setBalances] = useState<StockBalance[]>([]);
   const [receipts, setReceipts] = useState<GoodsReceipt[]>([]);
   const [movements, setMovements] = useState<StockMovement[]>([]);
+  const [openings, setOpenings] = useState<OpeningStock[]>([]);
+  const [products, setProducts] = useState<CatalogProduct[]>([]);
+  const [productSearch, setProductSearch] = useState('');
+  const [productNextCursor, setProductNextCursor] = useState<string | null>(null);
   const [selectedOrderId, setSelectedOrderId] = useState('');
   const [showReceiptForm, setShowReceiptForm] = useState(false);
+  const [showOpeningForm, setShowOpeningForm] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const pendingCommand = useRef<{ signature: string; key: string } | null>(null);
+  const pendingOpening = useRef<{ signature: string; key: string } | null>(null);
+  const loadSequence = useRef(0);
 
   const selectedOrder = useMemo(
     () => orders.find(({ id }) => id === selectedOrderId) ?? orders[0] ?? null,
     [orders, selectedOrderId],
   );
+  const variants = useMemo(
+    () =>
+      products.flatMap((product) =>
+        product.variants
+          .filter((variant) => variant.status === 'ACTIVE')
+          .map((variant) => ({ ...variant, productName: product.name })),
+      ),
+    [products],
+  );
 
   const load = useCallback(async () => {
+    const sequence = ++loadSequence.current;
     setLoading(true);
     setError('');
     try {
-      const [warehouseRows, orderedRows, partialRows, balanceRows, receiptRows, movementRows] =
-        await Promise.all([
-          api<Warehouse[]>('/warehouses'),
-          api<PurchaseOrder[]>('/purchase-orders?status=ORDERED&limit=50'),
-          api<PurchaseOrder[]>('/purchase-orders?status=PARTIALLY_RECEIVED&limit=50'),
-          api<StockBalance[]>('/stock-balances?limit=100'),
-          api<GoodsReceipt[]>('/goods-receipts?limit=20'),
-          api<StockMovement[]>('/stock-movements?limit=30'),
-        ]);
+      const [
+        warehouseRows,
+        orderedRows,
+        partialRows,
+        balanceRows,
+        receiptRows,
+        movementRows,
+        openingRows,
+        productRows,
+      ] = await Promise.all([
+        api<Warehouse[]>('/warehouses'),
+        canReadPurchasing
+          ? api<PurchaseOrder[]>('/purchase-orders?status=ORDERED&limit=50')
+          : Promise.resolve([]),
+        canReadPurchasing
+          ? api<PurchaseOrder[]>('/purchase-orders?status=PARTIALLY_RECEIVED&limit=50')
+          : Promise.resolve([]),
+        api<StockBalance[]>('/stock-balances?limit=100'),
+        api<GoodsReceipt[]>('/goods-receipts?limit=20'),
+        api<StockMovement[]>('/stock-movements?limit=30'),
+        api<OpeningStock[]>('/stock-openings?limit=20'),
+        canReadCatalog
+          ? api<{ items: CatalogProduct[]; nextCursor: string | null }>(
+              `/products?status=ACTIVE&limit=50&query=${encodeURIComponent(productSearch)}`,
+            )
+          : Promise.resolve({ items: [], nextCursor: null }),
+      ]);
+      if (sequence !== loadSequence.current) return;
       const receivable = [...partialRows, ...orderedRows];
       setWarehouses(warehouseRows);
       setOrders(receivable);
       setBalances(balanceRows);
       setReceipts(receiptRows);
       setMovements(movementRows);
+      setOpenings(openingRows);
+      setProducts(productRows.items);
+      setProductNextCursor(productRows.nextCursor);
       setSelectedOrderId((current) =>
         receivable.some(({ id }) => id === current) ? current : (receivable[0]?.id ?? ''),
       );
     } catch (caught) {
+      if (sequence !== loadSequence.current) return;
       setError(caught instanceof Error ? caught.message : 'Không tải được dữ liệu kho.');
     } finally {
-      setLoading(false);
+      if (sequence === loadSequence.current) setLoading(false);
     }
-  }, []);
+  }, [canReadCatalog, canReadPurchasing, productSearch]);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => void load(), 0);
+    const timer = window.setTimeout(() => void load(), 250);
     return () => window.clearTimeout(timer);
   }, [load]);
+
+  async function loadMoreProducts() {
+    if (!productNextCursor) return;
+    setError('');
+    try {
+      const page = await api<{ items: CatalogProduct[]; nextCursor: string | null }>(
+        `/products?status=ACTIVE&limit=50&query=${encodeURIComponent(productSearch)}&cursor=${encodeURIComponent(productNextCursor)}`,
+      );
+      setProducts((current) => [...current, ...page.items]);
+      setProductNextCursor(page.nextCursor);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Không tải được thêm sản phẩm.');
+    }
+  }
 
   async function createReceipt(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -185,6 +264,43 @@ export function InventoryWorkspace({
     }
   }
 
+  async function createOpening(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSaving(true);
+    setError('');
+    setMessage('');
+    const form = new FormData(event.currentTarget);
+    const body = {
+      warehouseId: field(form, 'warehouseId'),
+      variantId: field(form, 'variantId'),
+      quantity: field(form, 'quantity'),
+      unitCostVnd: field(form, 'unitCostVnd'),
+      notes: field(form, 'notes') || undefined,
+    };
+    const signature = JSON.stringify(body);
+    const key =
+      pendingOpening.current?.signature === signature
+        ? pendingOpening.current.key
+        : `web-opening-${crypto.randomUUID()}`;
+    pendingOpening.current = { signature, key };
+    try {
+      const opening = await api<OpeningStock>('/stock-openings', {
+        method: 'POST',
+        headers: { 'Idempotency-Key': key },
+        body: signature,
+      });
+      pendingOpening.current = null;
+      event.currentTarget.reset();
+      setShowOpeningForm(false);
+      setMessage(`Đã ghi sổ tồn đầu ${opening.documentNumber}.`);
+      await load();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Không thể ghi tồn đầu.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <section className="dashboard-content inventory-workspace">
       <header>
@@ -201,6 +317,15 @@ export function InventoryWorkspace({
               disabled={orders.length === 0}
             >
               + Nhận hàng
+            </button>
+          )}
+          {canOpenStock && (
+            <button
+              className="ghost"
+              onClick={() => setShowOpeningForm((value) => !value)}
+              disabled={variants.length === 0}
+            >
+              + Tồn đầu
             </button>
           )}
           <button className="ghost" onClick={() => void load()} disabled={loading}>
@@ -288,13 +413,77 @@ export function InventoryWorkspace({
         </form>
       )}
 
+      {showOpeningForm && (
+        <form className="detail-card inventory-receipt-form" onSubmit={createOpening}>
+          <label>
+            Tìm sản phẩm hoặc SKU
+            <input
+              value={productSearch}
+              onChange={(event) => setProductSearch(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') event.preventDefault();
+              }}
+              maxLength={120}
+              placeholder="Nhập tên sản phẩm hoặc mã SKU"
+            />
+          </label>
+          <label>
+            Kho
+            <select name="warehouseId" required defaultValue={warehouses[0]?.id}>
+              {warehouses.map((warehouse) => (
+                <option key={warehouse.id} value={warehouse.id}>
+                  {warehouse.name} · {warehouse.code}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            SKU
+            <select name="variantId" required defaultValue="">
+              <option value="" disabled>
+                Chọn SKU
+              </option>
+              {variants.map((variant) => (
+                <option key={variant.id} value={variant.id}>
+                  {variant.sku} · {variant.productName} / {variant.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          {productNextCursor && (
+            <button type="button" className="ghost" onClick={() => void loadMoreProducts()}>
+              Tải thêm sản phẩm
+            </button>
+          )}
+          <label>
+            Số lượng đơn vị gốc
+            <input name="quantity" inputMode="decimal" pattern="[0-9]+([.][0-9]{1,6})?" required />
+          </label>
+          <label>
+            Giá vốn / đơn vị gốc (VND)
+            <input name="unitCostVnd" inputMode="numeric" pattern="[0-9]+" required />
+          </label>
+          <label>
+            Ghi chú
+            <input name="notes" maxLength={2000} />
+          </label>
+          <button className="primary" disabled={saving || warehouses.length === 0}>
+            {saving ? 'Đang ghi sổ…' : 'Ghi tồn đầu'}
+          </button>
+          <small className="form-warning">
+            Chỉ được ghi một lần cho mỗi SKU/kho trước khi có biến động. Cần đối chiếu số lượng và
+            giá trị thực tế trước khi xác nhận.
+          </small>
+        </form>
+      )}
+
       <section className="inventory-kpis">
         <article>
-          <span>SKU đang có tồn</span>
+          <span>SKU có tồn trong danh sách</span>
           <strong>{balances.filter((item) => !isZeroQuantity(item.onHandQuantity)).length}</strong>
         </article>
         <article>
-          <span>Đơn mua chờ nhận</span>
+          <span>Đơn mua chờ nhận trong danh sách</span>
           <strong>{orders.length}</strong>
         </article>
         <article>
@@ -349,7 +538,9 @@ export function InventoryWorkspace({
             </tbody>
           </table>
           {!loading && balances.length === 0 && (
-            <p className="empty-copy">Chưa có tồn. Hãy phát hành đơn mua và tạo phiếu nhận.</p>
+            <p className="empty-copy">
+              Chưa có tồn. Có thể ghi tồn đầu hoặc nhận hàng theo đơn mua.
+            </p>
           )}
         </div>
       </section>
@@ -382,8 +573,10 @@ export function InventoryWorkspace({
                 <div>
                   <b>{movement.variant.sku}</b>
                   <small>
-                    {movement.goodsReceiptLine.goodsReceipt.receiptNumber} · tồn sau{' '}
-                    {movement.onHandAfter}
+                    {movement.goodsReceiptLine?.goodsReceipt.receiptNumber ??
+                      movement.openingStock?.documentNumber ??
+                      'Chứng từ kho'}{' '}
+                    · tồn sau {movement.onHandAfter}
                   </small>
                 </div>
                 <strong className="quantity-in">
@@ -395,6 +588,28 @@ export function InventoryWorkspace({
           </div>
         </section>
       </div>
+
+      <section className="overview-card recent-table">
+        <p className="eyebrow">TỒN ĐẦU KỲ</p>
+        <h2>Chứng từ đã ghi sổ</h2>
+        <div className="history-list">
+          {openings.map((opening) => (
+            <article key={opening.id}>
+              <div>
+                <b>{opening.documentNumber}</b>
+                <small>
+                  {opening.skuSnapshot} · {opening.warehouse.name} · {opening.quantity}{' '}
+                  {opening.unitNameSnapshot}
+                </small>
+              </div>
+              <span>{formatTime(opening.postedAt)}</span>
+            </article>
+          ))}
+          {!loading && openings.length === 0 && (
+            <p className="empty-copy">Chưa có chứng từ tồn đầu.</p>
+          )}
+        </div>
+      </section>
     </section>
   );
 }

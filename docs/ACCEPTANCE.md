@@ -64,6 +64,16 @@
 - **AC-04B-06 — PASS migration:** DB khóa duy nhất balance theo business/kho/SKU, movement theo source line/key và kiểm tra số lượng/giá trị không âm.
 - **AC-04B-07 — PASS build/HTTP, cần kiểm tra thủ công:** UI Kho gọi API thật để tạo phiếu, xem tồn, phiếu nhận và sổ kho; HTTP local trả 200 và owner đăng nhập được. Chưa có bằng chứng kiểm tra màn hình bằng trình duyệt tương tác.
 
+## 5C. Nghiệm thu Đợt 04C-A — tồn đầu kỳ
+
+- **AC-04C-A-01 — PASS E2E:** tồn đầu ghi chứng từ với snapshot SKU/tên/đơn vị, số lượng và giá trị VND nguyên; backend tạo đúng một balance và movement nguồn `OPENING_STOCK`.
+- **AC-04C-A-02 — PASS E2E:** cùng `Idempotency-Key`/nội dung trả cùng chứng từ; đổi nội dung trả `409 IDEMPOTENCY_KEY_REUSED`; SKU/kho đã có tồn bị từ chối.
+- **AC-04C-A-03 — PASS E2E:** hai lệnh đồng thời cùng SKU/kho chỉ một lệnh ghi sổ; giá trị lẻ VND bị từ chối trước khi tạo dữ liệu.
+- **AC-04C-A-04 — PASS E2E/RBAC:** role kho đọc chứng từ nhưng không nhận giá vốn/giá trị; sales gọi lệnh tồn đầu bị `403`.
+- **AC-04C-A-05 — PASS migration:** unique business/kho/SKU và idempotency key; nguồn movement khớp loại; snapshot được backfill trước khi đặt NOT NULL.
+- **AC-04C-A-06 — PASS build/HTTP, cần kiểm tra thủ công:** UI Kho có form tồn đầu, tìm sản phẩm/SKU, nạp thêm theo cursor và danh sách chứng từ từ API thật; chưa có bằng chứng kiểm tra trực quan bằng trình duyệt tương tác.
+- **AC-04C-B — CHƯA LÀM:** kiểm kê và điều chỉnh có chứng từ; không được coi tồn đầu là thay thế cho hai nghiệp vụ này.
+
 ### Nghiệm thu giao diện và tổng quan
 
 - **AC-UI-UTF8 — PASS unit/build:** tài liệu HTML khai báo `lang=vi`, UTF-8 và font stack có glyph tiếng Việt; test quét source không có ký tự thay thế hoặc chuỗi mojibake thường gặp.

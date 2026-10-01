@@ -69,6 +69,8 @@ E2E cần PostgreSQL đã migrate và seed. Bài kiểm tra chứng minh: endpoi
 
 Đợt 04A bổ sung E2E cho nhà cung cấp, snapshot quy đổi trên đơn mua, phát hành không tăng tồn, khóa sửa sau phát hành và quyền kho/sales. Đợt 04B kiểm tra nhận từng phần, bình quân gia quyền, idempotency, nhận vượt, cạnh tranh đồng thời và ẩn giá vốn. Dữ liệu có nhãn `E2E Supplier`, SKU `E2E-PO-SKU`/`E2E-INV-*` và tài khoản `purchasing-*`/`inventory-*` được tự dọn sau test.
 
+Đợt 04C-A bổ sung E2E tồn đầu cho SKU/kho chưa có lịch sử tồn: snapshot danh mục, giá trị VND nguyên, balance/ledger, gửi lại/chống trùng, cạnh tranh đồng thời và quyền xem giá vốn. Dữ liệu `E2E-OPEN-*` được tự dọn sau test; không nhập dữ liệu hàng thật qua bài thử.
+
 ## Migration mới
 
 Chỉ chạy khi schema thay đổi có chủ đích:

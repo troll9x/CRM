@@ -27,6 +27,8 @@ Các mục sau đủ để viết tài liệu/prototype nhưng **không tự đ�
 
 Đợt 04A chỉ triển khai nhà cung cấp và đơn mua theo các quy đổi đã có; giá dự kiến trên dòng là metadata số nguyên VND, không cập nhật giá vốn. Đợt 04B dùng giả định kỹ thuật một kho, SKU đóng gói, số lượng tối đa 6 số lẻ, nhận từng phần và giá vốn bình quân gia quyền để kiểm chứng luồng local. Đây chưa phải xác nhận chính sách hàng thật; cần đối chiếu `OPEN-02/05` trước pilot.
 
+Đợt 04C-A thêm chứng từ tồn đầu một lần cho mỗi SKU/kho chưa có lịch sử tồn, dùng giá trị nguyên VND và snapshot danh mục. Đây là thao tác ghi sổ thật trong môi trường local, không phải import hàng thật được duyệt. Kiểm kê/điều chỉnh sẽ là chứng từ riêng ở 04C-B; không cho sửa trực tiếp balance.
+
 ## 3. Năm quyết định cần chủ dự án xác nhận trước Đợt 01–06
 
 Không thêm câu hỏi chặn mới vào danh sách này; câu hỏi phát sinh phải gộp vào mục phù hợp hoặc đưa sang backlog của đợt sau.
