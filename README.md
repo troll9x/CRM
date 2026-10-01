@@ -1,6 +1,6 @@
 # CRM bán sỉ và bán lẻ
 
-Đợt 01 đã có nền tảng chạy được theo luồng **web → API → PostgreSQL**: đăng nhập nhân viên, phiên đăng nhập có thể thu hồi, RBAC kiểm tra tại backend, quản trị nhân viên/vai trò, audit và OpenAPI. Chưa triển khai nghiệp vụ khách hàng, hàng hóa, kho, đơn, tiền hay connector; prototype trong `prototype/` vẫn chỉ là dữ liệu mẫu của Đợt 00.
+Đợt 02 đã có luồng **web → API → PostgreSQL** cho đăng nhập nhân viên, RBAC, hồ sơ khách, liên hệ chuẩn hóa, nhiều địa chỉ, nhóm sỉ/lẻ, việc nhắc và cơ hội mua lần đầu/mua lại. Chưa triển khai hàng hóa, kho, đơn, tiền hay connector; prototype trong `prototype/` vẫn chỉ là dữ liệu mẫu của Đợt 00.
 
 ## Chạy nhanh
 
@@ -47,7 +47,7 @@ Sau đó mở `http://localhost:4173/prototype/`. Mọi số liệu đều có n
 
 ## Trạng thái và bước tiếp theo
 
-1. Nền tảng kỹ thuật Đợt 01 đã hoàn thành và được kiểm tra local; workflow CI đã cấu hình, cần một remote Git để có lần chạy CI đầu tiên.
+1. Nền tảng Đợt 01 và CRM khách hàng Đợt 02 đã hoàn thành, được kiểm tra local; workflow CI đã cấu hình, cần một remote Git để có lần chạy CI đầu tiên.
 2. Chủ dự án vẫn cần trả lời 5 mục `OPEN-01` đến `OPEN-05` trong `docs/DECISIONS.md`; các giả định tạm không phải cấu hình production.
 3. Em gái anh Sơn thử prototype theo `docs/UI_PROTOTYPE.md` và giao diện đăng nhập thật, rồi ghi phản hồi vào backlog.
-4. Sau khi chốt phạm vi gần nhất, tiếp tục Đợt 02 (khách hàng) hoặc Đợt 03 (sản phẩm/SKU). Không đưa token Facebook/Zalo vào repo.
+4. Tiếp tục Đợt 03 với giả định tạm của `OPEN-02`; không nhập dữ liệu hàng thật cho tới khi chốt ngành hàng, đơn vị, lô/hạn dùng/serial. Không đưa token Facebook/Zalo vào repo.

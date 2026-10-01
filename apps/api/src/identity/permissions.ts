@@ -7,7 +7,11 @@ export const PERMISSIONS = {
   INVENTORY_ADJUST: 'inventory.adjust',
   PAYMENTS_MANAGE: 'payments.manage',
   RECEIVABLES_VIEW: 'receivables.view',
+  CUSTOMERS_READ: 'customers.read',
+  CUSTOMERS_WRITE: 'customers.write',
   CUSTOMERS_EXPORT: 'customers.export',
+  TASKS_MANAGE: 'tasks.manage',
+  OPPORTUNITIES_MANAGE: 'opportunities.manage',
   CONNECTORS_MANAGE: 'connectors.manage',
 } as const;
 

@@ -21,7 +21,17 @@
 - **AC-01-07 — PASS local:** format, lint, typecheck, unit, build và E2E; workflow CI đã cấu hình nhưng cần remote để có bằng chứng run đầu tiên.
 - **AC-01-08 — PASS:** DTO từ chối field ngoài schema; OpenAPI xuất được hợp đồng của chín path Đợt 01.
 
-## 3. Bộ dữ liệu chuẩn liên module
+## 3. Nghiệm thu Đợt 02
+
+- **AC-02-01 — PASS E2E:** hai hồ sơ trùng tên và cùng số điện thoại vẫn có hai ID; hồ sơ thứ hai trả gợi ý `SAME_NAME`/`SAME_PHONE`, không tự gộp.
+- **AC-02-02 — PASS E2E:** tìm số điện thoại định dạng `090…` khớp dữ liệu đã chuẩn hóa từ cả `090…` và `+84…`.
+- **AC-02-03 — PASS E2E:** một khách lưu được nhiều địa chỉ; địa chỉ được lưu trữ thay vì xóa cứng.
+- **AC-02-04 — PASS E2E:** việc nhắc và cơ hội mua lại được lưu riêng và xuất hiện trong hồ sơ khách.
+- **AC-02-05 — PASS E2E:** cập nhật cùng version cũ lần thứ hai trả `409 VERSION_CONFLICT`.
+- **AC-02-06 — PASS E2E:** role kho gọi trực tiếp `/customers` nhận `403 PERMISSION_DENIED`; mọi query chi tiết bị giới hạn theo business.
+- **AC-02-07 — PASS local:** UI có trạng thái tải/rỗng/lỗi, tạo–tìm–sửa khách, thêm/lưu trữ địa chỉ, hoàn thành việc nhắc và cập nhật cơ hội bằng API thật.
+
+## 4. Bộ dữ liệu chuẩn liên module
 
 Đây là dữ liệu kiểm thử, không phải giá/tồn thật. Quy ước: phải thu phát sinh lúc xác nhận đơn; doanh thu hàng hóa theo phần giao; phí giao 30.000đ không hoàn.
 
@@ -38,7 +48,7 @@
 | Trả 2 cái đủ điều kiện, hoàn 160.000đ        | Thực tế/có thể bán 92; doanh thu hàng thuần 640.000đ; giá vốn ròng 400.000đ; lãi gộp 240.000đ; tiền ròng 670.000đ gồm phí giao |
 | Đổi bảng giá hiện tại                        | Mọi snapshot và kết quả quá khứ ở trên không đổi                                                                               |
 
-## 4. Tình huống bắt buộc trước khi dùng thật
+## 5. Tình huống bắt buộc trước khi dùng thật
 
 | ID         | Tình huống                                                 | Kết quả bắt buộc                                               |
 | ---------- | ---------------------------------------------------------- | -------------------------------------------------------------- |
@@ -57,11 +67,11 @@
 | AC-IMP-01  | Import có dòng lỗi hoặc chạy lại                           | Báo lỗi theo dòng; không nhập trùng                            |
 | AC-TIME-01 | Giao dịch gần nửa đêm UTC/VN                               | Báo cáo đúng ngày `Asia/Ho_Chi_Minh`                           |
 
-## 5. Mẫu test cho từng lát cắt
+## 6. Mẫu test cho từng lát cắt
 
 Mỗi test ghi: Given dữ liệu/role/version; When request hoặc thao tác; Then response, state DB, audit/event, side effect và hành vi retry. Với kho/tiền phải kiểm cả ledger và projection, không chỉ JSON trả về. Test UI chỉ bổ sung cho test backend, không thay thế chúng.
 
-## 6. Cổng phát hành
+## 7. Cổng phát hành
 
 - **Bản nội bộ:** hoàn thành AC liên quan Đợt 01–08, restore test, import dry-run và pilot một nhóm hàng/đơn.
 - **Đa kênh:** mỗi năng lực nhận/gửi có evidence tài khoản thử, duplicate/out-of-order/revoke test.

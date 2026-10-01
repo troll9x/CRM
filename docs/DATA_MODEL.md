@@ -105,6 +105,7 @@ Sai lệch tạo cảnh báo và quy trình sửa có chứng từ; không “fi
 
 - Đợt 01: business, staff identity, role/permission/session, audit.
 - Đợt 02: customer/contact/address/group/task.
+- Migration Đợt 02 đã triển khai `Customer`, `ContactPoint`, `Address`, `CustomerGroup`, `CustomerTask` và `SalesOpportunity`; trùng liên hệ được phép giữa các customer để chỉ gợi ý, không tự gộp.
 - Đợt 03: product/variant/unit conversion/media metadata.
 - Đợt 04: supplier/purchase/goods receipt/inventory ledger/balance.
 - Đợt 05: price list/rule/assignment, quote/revision.

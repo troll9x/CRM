@@ -20,23 +20,23 @@ Trạng thái: `DONE` tài liệu/prototype đã tạo; `WAITING` cần xác nh�
 
 ## Roadmap
 
-| Đợt | Phạm vi                                               | Phụ thuộc                   | Trạng thái                         |
-| --- | ----------------------------------------------------- | --------------------------- | ---------------------------------- |
-| 01  | Monorepo, môi trường, auth nhân viên, RBAC, audit, CI | 00 đủ quyết định core       | DONE LOCAL; chờ lần chạy CI remote |
-| 02  | Khách, nhóm sỉ/lẻ, nhiều địa chỉ, nhắc việc           | 01                          | READY sau khi chốt phạm vi         |
-| 03  | Sản phẩm, SKU, đơn vị, ảnh                            | 01 + OPEN-02                | WAITING OPEN-02                    |
-| 04  | Nhà cung cấp, nhập hàng, tồn đầu, sổ kho              | 03 + OPEN-05                | LATER                              |
-| 05  | Giá sỉ/lẻ, bậc giá, báo giá                           | 02,03 + OPEN-03             | LATER                              |
-| 06  | Đơn, xác nhận, giữ, hủy, giao một phần                | 04,05 + OPEN-04/05          | LATER                              |
-| 07  | Thu tiền, đặt cọc, công nợ, chi phí                   | 06 + chốt ghi nhận phải thu | LATER                              |
-| 08  | Đổi trả, COD tay, báo cáo, import, backup/pilot       | 06,07                       | LATER                              |
-| 09  | Hộp thư connector đã kiểm chứng                       | 00,02,06 + quyền thật       | LATER                              |
-| 10  | AI gợi ý và đơn nháp                                  | 09 + chính sách duyệt       | LATER                              |
-| 11  | Website mua lại, OTP                                  | 02,05–08                    | LATER                              |
-| 12  | Online payment + một hãng giao                        | 11 + hợp đồng provider      | LATER                              |
-| 13  | Một sàn ưu tiên rồi sàn tiếp                          | 03–08 + quyền               | LATER                              |
-| 14  | Marketing/chăm sóc/báo cáo nâng cao                   | 09–13 theo nhu cầu          | LATER                              |
-| 15  | API đối tác, dự báo, tối ưu                           | Core ổn định, đủ dữ liệu    | LATER                              |
+| Đợt | Phạm vi                                               | Phụ thuộc                   | Trạng thái                          |
+| --- | ----------------------------------------------------- | --------------------------- | ----------------------------------- |
+| 01  | Monorepo, môi trường, auth nhân viên, RBAC, audit, CI | 00 đủ quyết định core       | DONE LOCAL; chờ lần chạy CI remote  |
+| 02  | Khách, nhóm sỉ/lẻ, nhiều địa chỉ, nhắc việc           | 01                          | DONE LOCAL; chờ phản hồi người dùng |
+| 03  | Sản phẩm, SKU, đơn vị, ảnh                            | 01 + OPEN-02                | IN PROGRESS theo giả định tạm       |
+| 04  | Nhà cung cấp, nhập hàng, tồn đầu, sổ kho              | 03 + OPEN-05                | LATER                               |
+| 05  | Giá sỉ/lẻ, bậc giá, báo giá                           | 02,03 + OPEN-03             | LATER                               |
+| 06  | Đơn, xác nhận, giữ, hủy, giao một phần                | 04,05 + OPEN-04/05          | LATER                               |
+| 07  | Thu tiền, đặt cọc, công nợ, chi phí                   | 06 + chốt ghi nhận phải thu | LATER                               |
+| 08  | Đổi trả, COD tay, báo cáo, import, backup/pilot       | 06,07                       | LATER                               |
+| 09  | Hộp thư connector đã kiểm chứng                       | 00,02,06 + quyền thật       | LATER                               |
+| 10  | AI gợi ý và đơn nháp                                  | 09 + chính sách duyệt       | LATER                               |
+| 11  | Website mua lại, OTP                                  | 02,05–08                    | LATER                               |
+| 12  | Online payment + một hãng giao                        | 11 + hợp đồng provider      | LATER                               |
+| 13  | Một sàn ưu tiên rồi sàn tiếp                          | 03–08 + quyền               | LATER                               |
+| 14  | Marketing/chăm sóc/báo cáo nâng cao                   | 09–13 theo nhu cầu          | LATER                               |
+| 15  | API đối tác, dự báo, tối ưu                           | Core ổn định, đủ dữ liệu    | LATER                               |
 
 ## Kết quả Đợt 01
 
@@ -58,6 +58,15 @@ Trạng thái: `DONE` tài liệu/prototype đã tạo; `WAITING` cần xác nh�
 - **06A:** draft order backend tính tổng; **06B:** confirm + reservation cạnh tranh/idempotency; **06C:** cancel/release; **06D:** shipment từng phần và timeline.
 
 Mỗi lát cắt phải có migration + API + UI + dữ liệu lưu thật + test nghiệp vụ; không gom cả đợt vào một thay đổi khổng lồ.
+
+### Kết quả Đợt 02
+
+- `DONE` — hồ sơ khách có mã nội bộ, nhóm sỉ/lẻ, nguồn, ghi chú, marketing consent và người phụ trách.
+- `DONE` — số điện thoại/email được chuẩn hóa để tìm và gợi ý trùng; tên/trùng liên hệ không tự gộp hồ sơ.
+- `DONE` — nhiều địa chỉ; lưu trữ thay vì xóa cứng, sẵn sàng để đơn sau này snapshot địa chỉ.
+- `DONE` — việc nhắc và cơ hội mua lần đầu/mua lại có vòng đời riêng, audit và kiểm tra phạm vi business.
+- `DONE` — UI responsive, API/OpenAPI, migration, seed nhóm khách và E2E quyền/version/trùng dữ liệu.
+- `WAITING` — người dùng chính thử luồng nhập/tìm khách và phản hồi tên trường/thứ tự thao tác.
 
 ## Definition of Done cho đợt có code
 

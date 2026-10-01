@@ -13,34 +13,75 @@ enum StaffStatus {
   LOCKED
 }
 
+enum CustomerStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+enum ContactType {
+  PHONE
+  EMAIL
+}
+
+enum AddressStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+enum TaskStatus {
+  OPEN
+  DONE
+  CANCELED
+}
+
+enum OpportunityStage {
+  NEW
+  QUALIFIED
+  WON
+  LOST
+}
+
+enum OpportunityKind {
+  FIRST_PURCHASE
+  REPEAT_PURCHASE
+}
+
 model Business {
-  id        String      @id @default(cuid())
-  name      String
-  timezone  String      @default("Asia/Ho_Chi_Minh")
-  currency  String      @default("VND")
-  createdAt DateTime    @default(now()) @map("created_at")
-  updatedAt DateTime    @updatedAt @map("updated_at")
-  staff     StaffUser[]
-  roles     Role[]
-  audits    AuditLog[]
+  id               String             @id @default(cuid())
+  name             String
+  timezone         String             @default("Asia/Ho_Chi_Minh")
+  currency         String             @default("VND")
+  createdAt        DateTime           @default(now()) @map("created_at")
+  updatedAt        DateTime           @updatedAt @map("updated_at")
+  staff            StaffUser[]
+  roles            Role[]
+  audits           AuditLog[]
+  customerGroups   CustomerGroup[]
+  customers        Customer[]
+  customerContacts ContactPoint[]
+  customerTasks    CustomerTask[]
+  opportunities    SalesOpportunity[]
 
   @@map("businesses")
 }
 
 model StaffUser {
-  id              String          @id @default(cuid())
-  businessId      String          @map("business_id")
-  email           String
-  emailNormalized String          @unique @map("email_normalized")
-  displayName     String          @map("display_name")
-  passwordHash    String          @map("password_hash")
-  status          StaffStatus     @default(ACTIVE)
-  createdAt       DateTime        @default(now()) @map("created_at")
-  updatedAt       DateTime        @updatedAt @map("updated_at")
-  business        Business        @relation(fields: [businessId], references: [id], onDelete: Restrict)
-  roles           StaffUserRole[]
-  sessions        Session[]
-  audits          AuditLog[]      @relation("AuditActor")
+  id                    String             @id @default(cuid())
+  businessId            String             @map("business_id")
+  email                 String
+  emailNormalized       String             @unique @map("email_normalized")
+  displayName           String             @map("display_name")
+  passwordHash          String             @map("password_hash")
+  status                StaffStatus        @default(ACTIVE)
+  createdAt             DateTime           @default(now()) @map("created_at")
+  updatedAt             DateTime           @updatedAt @map("updated_at")
+  business              Business           @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  roles                 StaffUserRole[]
+  sessions              Session[]
+  audits                AuditLog[]         @relation("AuditActor")
+  assignedCustomers     Customer[]         @relation("CustomerAssignee")
+  assignedTasks         CustomerTask[]     @relation("TaskAssignee")
+  assignedOpportunities SalesOpportunity[] @relation("OpportunityAssignee")
 
   @@index([businessId, status])
   @@map("staff_users")
@@ -124,4 +165,132 @@ model AuditLog {
   @@index([businessId, createdAt])
   @@index([entityType, entityId])
   @@map("audit_logs")
+}
+
+model CustomerGroup {
+  id          String     @id @default(cuid())
+  businessId  String     @map("business_id")
+  code        String
+  name        String
+  description String?
+  isSystem    Boolean    @default(false) @map("is_system")
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+  business    Business   @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  customers   Customer[]
+
+  @@unique([businessId, code])
+  @@map("customer_groups")
+}
+
+model Customer {
+  id               String             @id @default(cuid())
+  businessId       String             @map("business_id")
+  customerCode     String             @map("customer_code")
+  displayName      String             @map("display_name")
+  nameNormalized   String             @map("name_normalized")
+  groupId          String             @map("group_id")
+  source           String?
+  legalName        String?            @map("legal_name")
+  taxCode          String?            @map("tax_code")
+  notes            String?
+  marketingConsent Boolean            @default(false) @map("marketing_consent")
+  assignedStaffId  String?            @map("assigned_staff_id")
+  status           CustomerStatus     @default(ACTIVE)
+  version          Int                @default(1)
+  createdAt        DateTime           @default(now()) @map("created_at")
+  updatedAt        DateTime           @updatedAt @map("updated_at")
+  business         Business           @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  group            CustomerGroup      @relation(fields: [groupId], references: [id], onDelete: Restrict)
+  assignedStaff    StaffUser?         @relation("CustomerAssignee", fields: [assignedStaffId], references: [id], onDelete: SetNull)
+  contacts         ContactPoint[]
+  addresses        Address[]
+  tasks            CustomerTask[]
+  opportunities    SalesOpportunity[]
+
+  @@unique([businessId, customerCode])
+  @@index([businessId, status, updatedAt])
+  @@index([businessId, nameNormalized])
+  @@map("customers")
+}
+
+model ContactPoint {
+  id              String      @id @default(cuid())
+  businessId      String      @map("business_id")
+  customerId      String      @map("customer_id")
+  type            ContactType
+  value           String
+  normalizedValue String      @map("normalized_value")
+  label           String?
+  isPrimary       Boolean     @default(false) @map("is_primary")
+  createdAt       DateTime    @default(now()) @map("created_at")
+  updatedAt       DateTime    @updatedAt @map("updated_at")
+  business        Business    @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  customer        Customer    @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@unique([customerId, type, normalizedValue])
+  @@index([businessId, type, normalizedValue])
+  @@map("contact_points")
+}
+
+model Address {
+  id            String        @id @default(cuid())
+  customerId    String        @map("customer_id")
+  label         String?
+  recipientName String?       @map("recipient_name")
+  phone         String?
+  line1         String
+  ward          String?
+  district      String?
+  province      String
+  countryCode   String        @default("VN") @map("country_code")
+  isDefault     Boolean       @default(false) @map("is_default")
+  status        AddressStatus @default(ACTIVE)
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+  customer      Customer      @relation(fields: [customerId], references: [id], onDelete: Restrict)
+
+  @@index([customerId, status])
+  @@map("addresses")
+}
+
+model CustomerTask {
+  id              String     @id @default(cuid())
+  businessId      String     @map("business_id")
+  customerId      String     @map("customer_id")
+  assignedStaffId String?    @map("assigned_staff_id")
+  title           String
+  description     String?
+  dueAt           DateTime?  @map("due_at")
+  status          TaskStatus @default(OPEN)
+  completedAt     DateTime?  @map("completed_at")
+  createdAt       DateTime   @default(now()) @map("created_at")
+  updatedAt       DateTime   @updatedAt @map("updated_at")
+  business        Business   @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  customer        Customer   @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  assignedStaff   StaffUser? @relation("TaskAssignee", fields: [assignedStaffId], references: [id], onDelete: SetNull)
+
+  @@index([businessId, status, dueAt])
+  @@index([customerId, createdAt])
+  @@map("customer_tasks")
+}
+
+model SalesOpportunity {
+  id              String           @id @default(cuid())
+  businessId      String           @map("business_id")
+  customerId      String           @map("customer_id")
+  assignedStaffId String?          @map("assigned_staff_id")
+  title           String
+  kind            OpportunityKind
+  stage           OpportunityStage @default(NEW)
+  note            String?
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+  business        Business         @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  customer        Customer         @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  assignedStaff   StaffUser?       @relation("OpportunityAssignee", fields: [assignedStaffId], references: [id], onDelete: SetNull)
+
+  @@index([businessId, stage, updatedAt])
+  @@index([customerId, createdAt])
+  @@map("sales_opportunities")
 }

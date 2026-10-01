@@ -1,40 +1,15 @@
 'use client';
 
 import { FormEvent, useEffect, useState } from 'react';
-
-type Staff = {
-  id: string;
-  displayName: string;
-  email: string;
-  businessId: string;
-  roles: string[];
-  permissions: string[];
-};
-
-type ApiSuccess<T> = { data: T; meta: { requestId: string } };
-type ApiFailure = { error: { code: string; message: string }; meta?: { requestId: string } };
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
-
-async function api<T>(path: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_URL}${path}`, {
-    ...options,
-    credentials: 'include',
-    headers: { 'content-type': 'application/json', ...options?.headers },
-  });
-  const payload = (await response.json()) as ApiSuccess<T> | ApiFailure;
-  if (!response.ok || !('data' in payload)) {
-    const failure = payload as ApiFailure;
-    throw new Error(failure.error?.message ?? 'Không thể kết nối API.');
-  }
-  return payload.data;
-}
+import { api, type Staff } from './api-client';
+import { CustomerWorkspace } from './customer-workspace';
 
 export default function Home() {
   const [staff, setStaff] = useState<Staff | null>(null);
   const [checking, setChecking] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState('');
+  const [view, setView] = useState<'overview' | 'customers'>('customers');
 
   useEffect(() => {
     let active = true;
@@ -154,9 +129,18 @@ export default function Home() {
           <strong>Sơn CRM</strong>
         </div>
         <nav>
-          <button className="active">Tổng quan nền tảng</button>
-          <button disabled>
-            Khách hàng <small>Đợt 02</small>
+          <button
+            className={view === 'overview' ? 'active' : ''}
+            onClick={() => setView('overview')}
+          >
+            Tổng quan
+          </button>
+          <button
+            className={view === 'customers' ? 'active' : ''}
+            onClick={() => setView('customers')}
+            disabled={!staff.permissions.includes('customers.read')}
+          >
+            Khách hàng <small>Đang dùng</small>
           </button>
           <button disabled>
             Sản phẩm <small>Đợt 03</small>
@@ -170,58 +154,64 @@ export default function Home() {
           <span>{staff.email}</span>
         </div>
       </aside>
-      <section className="dashboard-content">
-        <header>
-          <div>
-            <p className="eyebrow">ĐỢT 01 · NỀN TẢNG</p>
-            <h1>Hệ thống đã nhận diện bạn</h1>
+      {view === 'customers' ? (
+        <CustomerWorkspace staff={staff} onLogout={logout} loggingOut={submitting} />
+      ) : (
+        <section className="dashboard-content">
+          <header>
+            <div>
+              <p className="eyebrow">ĐỢT 01 · NỀN TẢNG</p>
+              <h1>Hệ thống đã nhận diện bạn</h1>
+            </div>
+            <button className="ghost" onClick={logout} disabled={submitting}>
+              Đăng xuất
+            </button>
+          </header>
+          <div className="notice">
+            <b>Chưa có dữ liệu bán hàng giả.</b>
+            <span>Các thẻ dưới đây phản ánh năng lực nền tảng thật đã được API trả về.</span>
           </div>
-          <button className="ghost" onClick={logout} disabled={submitting}>
-            Đăng xuất
-          </button>
-        </header>
-        <div className="notice">
-          <b>Chưa có dữ liệu bán hàng giả.</b>
-          <span>Các thẻ dưới đây phản ánh năng lực nền tảng thật đã được API trả về.</span>
-        </div>
-        <div className="foundation-grid">
-          <article>
-            <i>01</i>
-            <h3>Phiên nhân viên</h3>
-            <p>Cookie HttpOnly, có thời hạn và có thể thu hồi khi đăng xuất hoặc khóa tài khoản.</p>
-            <strong>Sẵn sàng</strong>
-          </article>
-          <article>
-            <i>02</i>
-            <h3>Vai trò hiện tại</h3>
-            <p>{staff.roles.length ? staff.roles.join(', ') : 'Chưa được gán vai trò'}</p>
-            <strong>{staff.roles.length} vai trò</strong>
-          </article>
-          <article>
-            <i>03</i>
-            <h3>Quyền backend</h3>
-            <p>API kiểm tra quyền trực tiếp, không chỉ ẩn nút trên giao diện.</p>
-            <strong>{staff.permissions.length} quyền</strong>
-          </article>
-          <article>
-            <i>04</i>
-            <h3>Audit</h3>
-            <p>Đăng nhập, đăng xuất, tạo/khóa nhân viên và đổi vai trò được ghi nhật ký.</p>
-            <strong>Đang hoạt động</strong>
-          </article>
-        </div>
-        <section className="permissions-card">
-          <div>
-            <p className="eyebrow">QUYỀN ĐƯỢC CẤP</p>
-            <h2>Tài khoản {staff.displayName}</h2>
+          <div className="foundation-grid">
+            <article>
+              <i>01</i>
+              <h3>Phiên nhân viên</h3>
+              <p>
+                Cookie HttpOnly, có thời hạn và có thể thu hồi khi đăng xuất hoặc khóa tài khoản.
+              </p>
+              <strong>Sẵn sàng</strong>
+            </article>
+            <article>
+              <i>02</i>
+              <h3>Vai trò hiện tại</h3>
+              <p>{staff.roles.length ? staff.roles.join(', ') : 'Chưa được gán vai trò'}</p>
+              <strong>{staff.roles.length} vai trò</strong>
+            </article>
+            <article>
+              <i>03</i>
+              <h3>Quyền backend</h3>
+              <p>API kiểm tra quyền trực tiếp, không chỉ ẩn nút trên giao diện.</p>
+              <strong>{staff.permissions.length} quyền</strong>
+            </article>
+            <article>
+              <i>04</i>
+              <h3>Audit</h3>
+              <p>Đăng nhập, đăng xuất, tạo/khóa nhân viên và đổi vai trò được ghi nhật ký.</p>
+              <strong>Đang hoạt động</strong>
+            </article>
           </div>
-          <div className="permission-list">
-            {staff.permissions.map((permission) => (
-              <span key={permission}>{permission}</span>
-            ))}
-          </div>
+          <section className="permissions-card">
+            <div>
+              <p className="eyebrow">QUYỀN ĐƯỢC CẤP</p>
+              <h2>Tài khoản {staff.displayName}</h2>
+            </div>
+            <div className="permission-list">
+              {staff.permissions.map((permission) => (
+                <span key={permission}>{permission}</span>
+              ))}
+            </div>
+          </section>
         </section>
-      </section>
+      )}
     </main>
   );
 }

@@ -7,7 +7,11 @@ export const permissionKeys = [
   'inventory.adjust',
   'payments.manage',
   'receivables.view',
+  'customers.read',
+  'customers.write',
   'customers.export',
+  'tasks.manage',
+  'opportunities.manage',
   'connectors.manage',
 ] as const;
 

@@ -15,7 +15,11 @@ const permissionDescriptions: Record<string, string> = {
   [PERMISSIONS.INVENTORY_ADJUST]: 'Lập chứng từ điều chỉnh kho',
   [PERMISSIONS.PAYMENTS_MANAGE]: 'Ghi nhận thu, chi và hoàn tiền',
   [PERMISSIONS.RECEIVABLES_VIEW]: 'Xem công nợ và báo cáo phải thu',
+  [PERMISSIONS.CUSTOMERS_READ]: 'Xem và tìm kiếm hồ sơ khách hàng',
+  [PERMISSIONS.CUSTOMERS_WRITE]: 'Tạo và cập nhật hồ sơ, liên hệ, địa chỉ khách hàng',
   [PERMISSIONS.CUSTOMERS_EXPORT]: 'Xuất danh sách khách hàng',
+  [PERMISSIONS.TASKS_MANAGE]: 'Tạo và cập nhật việc nhắc chăm sóc khách hàng',
+  [PERMISSIONS.OPPORTUNITIES_MANAGE]: 'Tạo và cập nhật cơ hội bán hàng',
   [PERMISSIONS.CONNECTORS_MANAGE]: 'Cấu hình và thu hồi connector',
 };
 
@@ -30,7 +34,13 @@ const roles = [
     code: 'sales',
     name: 'Bán hàng',
     description: 'Quyền nghiệp vụ bán hàng sẽ được bổ sung theo từng đợt',
-    permissions: [PERMISSIONS.ORDERS_CONFIRM],
+    permissions: [
+      PERMISSIONS.CUSTOMERS_READ,
+      PERMISSIONS.CUSTOMERS_WRITE,
+      PERMISSIONS.TASKS_MANAGE,
+      PERMISSIONS.OPPORTUNITIES_MANAGE,
+      PERMISSIONS.ORDERS_CONFIRM,
+    ],
   },
   {
     code: 'warehouse',
@@ -101,6 +111,18 @@ async function main(): Promise<void> {
     }
 
     const emailNormalized = ownerEmail.trim().toLocaleLowerCase('en-US');
+
+    for (const group of [
+      { code: 'retail', name: 'Khách lẻ', description: 'Khách mua lẻ mặc định' },
+      { code: 'wholesale', name: 'Khách sỉ', description: 'Khách sỉ hoặc đại lý' },
+    ]) {
+      await prisma.customerGroup.upsert({
+        where: { businessId_code: { businessId: business.id, code: group.code } },
+        update: { name: group.name, description: group.description, isSystem: true },
+        create: { businessId: business.id, ...group, isSystem: true },
+      });
+    }
+
     const existingOwner = await prisma.staffUser.findUnique({ where: { emailNormalized } });
     let ownerId: string;
     if (existingOwner) {
