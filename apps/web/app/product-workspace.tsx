@@ -343,7 +343,7 @@ export function ProductWorkspace({
     <section className="dashboard-content catalog-page">
       <header>
         <div>
-          <p className="eyebrow">ĐỢT 03 · SẢN PHẨM & SKU</p>
+          <p className="eyebrow">SẢN PHẨM & SKU</p>
           <h1>Danh mục hàng hóa</h1>
         </div>
         <div className="header-actions">
@@ -600,7 +600,7 @@ export function ProductWorkspace({
                 <p className="eyebrow">ẢNH SẢN PHẨM</p>
                 <h3>Media metadata</h3>
                 <p className="section-help">
-                  Đợt 03 chỉ lưu URL HTTPS và mô tả ảnh; chưa có kho file/upload giả.
+                  Ảnh hiện được lưu dưới dạng URL HTTPS và mô tả; chưa có chức năng tải tệp lên.
                 </p>
                 <div className="media-list">
                   {selected.media

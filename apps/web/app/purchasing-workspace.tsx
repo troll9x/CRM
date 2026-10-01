@@ -36,11 +36,13 @@ type PurchaseLine = {
   orderedQuantity: string;
   baseQuantity: string;
   expectedUnitCostVnd?: string | null;
+  receivedQuantity: string;
+  remainingQuantity: string;
 };
 type PurchaseOrder = {
   id: string;
   orderNumber: string;
-  status: 'DRAFT' | 'ORDERED' | 'CANCELED';
+  status: 'DRAFT' | 'ORDERED' | 'PARTIALLY_RECEIVED' | 'RECEIVED' | 'CANCELED';
   expectedAt?: string | null;
   notes?: string | null;
   version: number;
@@ -53,7 +55,13 @@ function field(form: FormData, name: string) {
   return String(form.get(name) ?? '').trim();
 }
 
-const statusLabel = { DRAFT: 'Nháp', ORDERED: 'Đã phát hành', CANCELED: 'Đã hủy' };
+const statusLabel = {
+  DRAFT: 'Nháp',
+  ORDERED: 'Đã phát hành',
+  PARTIALLY_RECEIVED: 'Đã nhận một phần',
+  RECEIVED: 'Đã nhận đủ',
+  CANCELED: 'Đã hủy',
+};
 
 function formatVnd(value: string) {
   return `${BigInt(value).toLocaleString('vi-VN')} ₫`;
@@ -69,6 +77,7 @@ export function PurchasingWorkspace({
   loggingOut: boolean;
 }) {
   const canWrite = staff.permissions.includes('purchasing.write');
+  const canViewCost = staff.permissions.includes('cost.view');
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [orders, setOrders] = useState<PurchaseOrder[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -235,7 +244,7 @@ export function PurchasingWorkspace({
       setSelected(updated);
       setMessage(
         action === 'order'
-          ? 'Đã phát hành đơn mua. Tồn chỉ tăng khi Đợt 04B có phiếu nhận.'
+          ? 'Đã phát hành đơn mua. Tồn chỉ tăng khi ghi nhận phiếu nhận hàng.'
           : 'Đã hủy đơn mua; không có biến động tồn.',
       );
       await load();
@@ -250,7 +259,7 @@ export function PurchasingWorkspace({
     <section className="dashboard-content purchasing-workspace">
       <header>
         <div>
-          <p className="eyebrow">ĐỢT 04A · MUA HÀNG</p>
+          <p className="eyebrow">MUA HÀNG</p>
           <h1>Nhà cung cấp & đơn mua</h1>
           <p className="muted">Đơn mua chỉ ghi nhu cầu đặt hàng; chưa làm tăng tồn hoặc giá vốn.</p>
         </div>
@@ -457,7 +466,7 @@ export function PurchasingWorkspace({
                   <h2>{selected.orderNumber}</h2>
                   <p className="muted">{selected.supplier.name}</p>
                 </div>
-                {canWrite && selected.status !== 'CANCELED' && (
+                {canWrite && ['DRAFT', 'ORDERED'].includes(selected.status) && (
                   <div className="catalog-actions">
                     {selected.status === 'DRAFT' && (
                       <button
@@ -489,12 +498,15 @@ export function PurchasingWorkspace({
                       {line.orderedQuantity} {line.unitNameSnapshot}
                     </strong>
                     <small>
-                      = {line.baseQuantity} đơn vị gốc · hệ số {line.conversionFactorSnapshot}
+                      = {line.baseQuantity} đơn vị gốc · đã nhận {line.receivedQuantity} · còn{' '}
+                      {line.remainingQuantity} {line.unitNameSnapshot}
                     </small>
                     <span>
-                      {line.expectedUnitCostVnd
-                        ? `${formatVnd(line.expectedUnitCostVnd)} / ${line.unitNameSnapshot}`
-                        : 'Chưa nhập giá dự kiến'}
+                      {!canViewCost
+                        ? 'Chi phí được ẩn theo quyền'
+                        : line.expectedUnitCostVnd
+                          ? `${formatVnd(line.expectedUnitCostVnd)} / ${line.unitNameSnapshot}`
+                          : 'Chưa nhập giá dự kiến'}
                     </span>
                   </article>
                 ))}

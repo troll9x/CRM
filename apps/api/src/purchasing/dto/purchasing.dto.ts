@@ -197,8 +197,8 @@ export class ListPurchaseOrdersQueryDto {
   query?: string;
 
   @IsOptional()
-  @IsIn(['DRAFT', 'ORDERED', 'CANCELED'])
-  status?: 'DRAFT' | 'ORDERED' | 'CANCELED';
+  @IsIn(['DRAFT', 'ORDERED', 'PARTIALLY_RECEIVED', 'RECEIVED', 'CANCELED'])
+  status?: 'DRAFT' | 'ORDERED' | 'PARTIALLY_RECEIVED' | 'RECEIVED' | 'CANCELED';
 
   @IsOptional()
   @Type(() => Number)

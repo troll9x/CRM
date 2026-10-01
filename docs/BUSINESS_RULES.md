@@ -1,6 +1,6 @@
 # Quy tắc nghiệp vụ
 
-Trạng thái: đặc tả đang triển khai tới lát cắt Đợt 04A. Mỗi quy tắc có mã ổn định để API, test và audit cùng tham chiếu. Ký hiệu **Tạm dùng** nghĩa là chưa được chủ dự án xác nhận để chạy dữ liệu thật.
+Trạng thái: đặc tả đang triển khai tới lát cắt Đợt 04B. Mỗi quy tắc có mã ổn định để API, test và audit cùng tham chiếu. Ký hiệu **Tạm dùng** nghĩa là chưa được chủ dự án xác nhận để chạy dữ liệu thật.
 
 ## 1. Khách hàng và quyền
 
@@ -37,7 +37,7 @@ Trạng thái: đặc tả đang triển khai tới lát cắt Đợt 04A. Mỗi
 - **BR-STOCK-06:** Xuất hàng giảm tồn thực tế và giảm giữ tương ứng trong cùng nghiệp vụ. Cùng idempotency key không tạo lần xuất thứ hai.
 - **BR-STOCK-07:** Hủy đơn chỉ giải phóng phần chưa xuất. Phần đã giao phải qua trả hàng/điều chỉnh.
 - **BR-STOCK-08:** Hàng trả/lỗi chỉ trở lại tồn có thể bán sau kiểm tra chất lượng.
-- **BR-COST-01 — Tạm dùng:** Giá vốn bình quân gia quyền được cập nhật khi nhận hàng; giá vốn xuất được snapshot và không đổi theo chỉnh sửa danh mục sau đó.
+- **BR-COST-01 — Tạm dùng:** Giá vốn bình quân gia quyền theo đơn vị cơ sở được cập nhật khi nhận hàng; giá vốn xuất được snapshot và không đổi theo chỉnh sửa danh mục sau đó.
 
 ## 4. Báo giá, đơn và giao hàng
 

@@ -420,7 +420,7 @@ export function CustomerWorkspace({
     <section className="dashboard-content customer-page">
       <header>
         <div>
-          <p className="eyebrow">ĐỢT 02 · KHÁCH HÀNG & CƠ HỘI</p>
+          <p className="eyebrow">KHÁCH HÀNG & CƠ HỘI</p>
           <h1>Hồ sơ khách hàng</h1>
         </div>
         <div className="header-actions">

@@ -64,7 +64,22 @@ enum SupplierStatus {
 enum PurchaseOrderStatus {
   DRAFT
   ORDERED
+  PARTIALLY_RECEIVED
+  RECEIVED
   CANCELED
+}
+
+enum WarehouseStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum GoodsReceiptStatus {
+  POSTED
+}
+
+enum StockMovementType {
+  PURCHASE_RECEIPT
 }
 
 model Business {
@@ -86,6 +101,10 @@ model Business {
   productVariants  ProductVariant[]
   suppliers        Supplier[]
   purchaseOrders   PurchaseOrder[]
+  warehouses       Warehouse[]
+  goodsReceipts    GoodsReceipt[]
+  stockBalances    StockBalance[]
+  stockMovements   StockMovement[]
 
   @@map("businesses")
 }
@@ -108,6 +127,7 @@ model StaffUser {
   assignedTasks         CustomerTask[]     @relation("TaskAssignee")
   assignedOpportunities SalesOpportunity[] @relation("OpportunityAssignee")
   createdPurchaseOrders PurchaseOrder[]    @relation("PurchaseOrderCreator")
+  createdGoodsReceipts  GoodsReceipt[]     @relation("GoodsReceiptCreator")
 
   @@index([businessId, status])
   @@map("staff_users")
@@ -360,6 +380,9 @@ model ProductVariant {
   conversions        UnitConversion[]
   media              MediaAsset[]
   purchaseOrderLines PurchaseOrderLine[]
+  goodsReceiptLines  GoodsReceiptLine[]
+  stockBalances      StockBalance[]
+  stockMovements     StockMovement[]
 
   @@unique([businessId, sku])
   @@unique([businessId, barcode])
@@ -441,6 +464,7 @@ model PurchaseOrder {
   supplier    Supplier            @relation(fields: [supplierId], references: [id], onDelete: Restrict)
   createdBy   StaffUser           @relation("PurchaseOrderCreator", fields: [createdById], references: [id], onDelete: Restrict)
   lines       PurchaseOrderLine[]
+  receipts    GoodsReceipt[]
 
   @@unique([businessId, orderNumber])
   @@index([businessId, status, updatedAt])
@@ -449,24 +473,143 @@ model PurchaseOrder {
 }
 
 model PurchaseOrderLine {
-  id                       String         @id @default(cuid())
-  purchaseOrderId          String         @map("purchase_order_id")
-  variantId                String         @map("variant_id")
-  lineNumber               Int            @map("line_number")
-  productNameSnapshot      String         @map("product_name_snapshot")
-  skuSnapshot              String         @map("sku_snapshot")
-  variantNameSnapshot      String         @map("variant_name_snapshot")
-  unitCodeSnapshot         String         @map("unit_code_snapshot")
-  unitNameSnapshot         String         @map("unit_name_snapshot")
-  conversionFactorSnapshot Decimal        @map("conversion_factor_snapshot") @db.Decimal(20, 6)
-  orderedQuantity          Decimal        @map("ordered_quantity") @db.Decimal(20, 6)
-  baseQuantity             Decimal        @map("base_quantity") @db.Decimal(20, 6)
-  expectedUnitCostVnd      Decimal?       @map("expected_unit_cost_vnd") @db.Decimal(20, 0)
-  createdAt                DateTime       @default(now()) @map("created_at")
-  purchaseOrder            PurchaseOrder  @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
-  variant                  ProductVariant @relation(fields: [variantId], references: [id], onDelete: Restrict)
+  id                       String             @id @default(cuid())
+  purchaseOrderId          String             @map("purchase_order_id")
+  variantId                String             @map("variant_id")
+  lineNumber               Int                @map("line_number")
+  productNameSnapshot      String             @map("product_name_snapshot")
+  skuSnapshot              String             @map("sku_snapshot")
+  variantNameSnapshot      String             @map("variant_name_snapshot")
+  unitCodeSnapshot         String             @map("unit_code_snapshot")
+  unitNameSnapshot         String             @map("unit_name_snapshot")
+  conversionFactorSnapshot Decimal            @map("conversion_factor_snapshot") @db.Decimal(20, 6)
+  orderedQuantity          Decimal            @map("ordered_quantity") @db.Decimal(20, 6)
+  baseQuantity             Decimal            @map("base_quantity") @db.Decimal(20, 6)
+  expectedUnitCostVnd      Decimal?           @map("expected_unit_cost_vnd") @db.Decimal(20, 0)
+  createdAt                DateTime           @default(now()) @map("created_at")
+  purchaseOrder            PurchaseOrder      @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  variant                  ProductVariant     @relation(fields: [variantId], references: [id], onDelete: Restrict)
+  receiptLines             GoodsReceiptLine[]
 
   @@unique([purchaseOrderId, lineNumber])
   @@index([variantId, createdAt])
   @@map("purchase_order_lines")
+}
+
+model Warehouse {
+  id             String          @id @default(cuid())
+  businessId     String          @map("business_id")
+  code           String
+  name           String
+  status         WarehouseStatus @default(ACTIVE)
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
+  business       Business        @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  goodsReceipts  GoodsReceipt[]
+  stockBalances  StockBalance[]
+  stockMovements StockMovement[]
+
+  @@unique([businessId, code])
+  @@index([businessId, status, name])
+  @@map("warehouses")
+}
+
+model GoodsReceipt {
+  id              String             @id @default(cuid())
+  businessId      String             @map("business_id")
+  warehouseId     String             @map("warehouse_id")
+  purchaseOrderId String             @map("purchase_order_id")
+  receiptNumber   String             @map("receipt_number")
+  idempotencyKey  String             @map("idempotency_key")
+  requestHash     String             @map("request_hash")
+  status          GoodsReceiptStatus @default(POSTED)
+  receivedAt      DateTime           @map("received_at")
+  notes           String?
+  createdById     String             @map("created_by_id")
+  createdAt       DateTime           @default(now()) @map("created_at")
+  business        Business           @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  warehouse       Warehouse          @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  purchaseOrder   PurchaseOrder      @relation(fields: [purchaseOrderId], references: [id], onDelete: Restrict)
+  createdBy       StaffUser          @relation("GoodsReceiptCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  lines           GoodsReceiptLine[]
+
+  @@unique([businessId, receiptNumber])
+  @@unique([businessId, idempotencyKey])
+  @@index([businessId, receivedAt])
+  @@index([purchaseOrderId, receivedAt])
+  @@map("goods_receipts")
+}
+
+model GoodsReceiptLine {
+  id                       String            @id @default(cuid())
+  goodsReceiptId           String            @map("goods_receipt_id")
+  purchaseOrderLineId      String            @map("purchase_order_line_id")
+  variantId                String            @map("variant_id")
+  lineNumber               Int               @map("line_number")
+  productNameSnapshot      String            @map("product_name_snapshot")
+  skuSnapshot              String            @map("sku_snapshot")
+  variantNameSnapshot      String            @map("variant_name_snapshot")
+  unitCodeSnapshot         String            @map("unit_code_snapshot")
+  unitNameSnapshot         String            @map("unit_name_snapshot")
+  conversionFactorSnapshot Decimal           @map("conversion_factor_snapshot") @db.Decimal(20, 6)
+  receivedQuantity         Decimal           @map("received_quantity") @db.Decimal(20, 6)
+  baseQuantity             Decimal           @map("base_quantity") @db.Decimal(20, 6)
+  actualUnitCostVnd        Decimal           @map("actual_unit_cost_vnd") @db.Decimal(20, 0)
+  lineValueVnd             Decimal           @map("line_value_vnd") @db.Decimal(20, 0)
+  createdAt                DateTime          @default(now()) @map("created_at")
+  goodsReceipt             GoodsReceipt      @relation(fields: [goodsReceiptId], references: [id], onDelete: Restrict)
+  purchaseOrderLine        PurchaseOrderLine @relation(fields: [purchaseOrderLineId], references: [id], onDelete: Restrict)
+  variant                  ProductVariant    @relation(fields: [variantId], references: [id], onDelete: Restrict)
+  stockMovement            StockMovement?
+
+  @@unique([goodsReceiptId, purchaseOrderLineId])
+  @@index([purchaseOrderLineId, createdAt])
+  @@index([variantId, createdAt])
+  @@map("goods_receipt_lines")
+}
+
+model StockBalance {
+  id                  String         @id @default(cuid())
+  businessId          String         @map("business_id")
+  warehouseId         String         @map("warehouse_id")
+  variantId           String         @map("variant_id")
+  onHandQuantity      Decimal        @default(0) @map("on_hand_quantity") @db.Decimal(20, 6)
+  reservedQuantity    Decimal        @default(0) @map("reserved_quantity") @db.Decimal(20, 6)
+  unavailableQuantity Decimal        @default(0) @map("unavailable_quantity") @db.Decimal(20, 6)
+  averageCostVnd      Decimal        @default(0) @map("average_cost_vnd") @db.Decimal(20, 6)
+  version             Int            @default(1)
+  createdAt           DateTime       @default(now()) @map("created_at")
+  updatedAt           DateTime       @updatedAt @map("updated_at")
+  business            Business       @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  warehouse           Warehouse      @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  variant             ProductVariant @relation(fields: [variantId], references: [id], onDelete: Restrict)
+
+  @@unique([businessId, warehouseId, variantId])
+  @@index([businessId, updatedAt])
+  @@map("stock_balances")
+}
+
+model StockMovement {
+  id                  String            @id @default(cuid())
+  businessId          String            @map("business_id")
+  warehouseId         String            @map("warehouse_id")
+  variantId           String            @map("variant_id")
+  goodsReceiptLineId  String            @unique @map("goods_receipt_line_id")
+  movementKey         String            @map("movement_key")
+  type                StockMovementType
+  quantityDelta       Decimal           @map("quantity_delta") @db.Decimal(20, 6)
+  valueDeltaVnd       Decimal           @map("value_delta_vnd") @db.Decimal(20, 0)
+  onHandAfter         Decimal           @map("on_hand_after") @db.Decimal(20, 6)
+  averageCostAfterVnd Decimal           @map("average_cost_after_vnd") @db.Decimal(20, 6)
+  occurredAt          DateTime          @map("occurred_at")
+  createdAt           DateTime          @default(now()) @map("created_at")
+  business            Business          @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  warehouse           Warehouse         @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  variant             ProductVariant    @relation(fields: [variantId], references: [id], onDelete: Restrict)
+  goodsReceiptLine    GoodsReceiptLine  @relation(fields: [goodsReceiptLineId], references: [id], onDelete: Restrict)
+
+  @@unique([businessId, movementKey])
+  @@index([businessId, warehouseId, variantId, occurredAt])
+  @@index([businessId, occurredAt])
+  @@map("stock_movements")
 }

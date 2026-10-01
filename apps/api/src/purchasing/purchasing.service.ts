@@ -45,9 +45,14 @@ const purchaseOrderSelect = {
       orderedQuantity: true,
       baseQuantity: true,
       expectedUnitCostVnd: true,
+      receiptLines: { select: { receivedQuantity: true } },
     },
   },
 } satisfies PrismaTypes.PurchaseOrderSelect;
+
+type PurchaseOrderRecord = PrismaTypes.PurchaseOrderGetPayload<{
+  select: typeof purchaseOrderSelect;
+}>;
 
 type ResolvedLine = {
   id: string;
@@ -79,6 +84,27 @@ export class PurchasingService {
 
   private cleanOptional(value?: string) {
     return value?.trim() || null;
+  }
+
+  private presentPurchaseOrder(order: PurchaseOrderRecord, actor: RequestStaff) {
+    const canViewCost = actor.permissions.includes('cost.view');
+    return {
+      ...order,
+      lines: order.lines.map((line) => {
+        const receivedQuantity = line.receiptLines.reduce(
+          (sum, receiptLine) => sum.add(receiptLine.receivedQuantity),
+          new Prisma.Decimal(0),
+        );
+        const { receiptLines: _receiptLines, expectedUnitCostVnd, ...visible } = line;
+        void _receiptLines;
+        return {
+          ...visible,
+          ...(canViewCost ? { expectedUnitCostVnd } : {}),
+          receivedQuantity,
+          remainingQuantity: line.orderedQuantity.sub(receivedQuantity),
+        };
+      }),
+    };
   }
 
   private async ensureActiveSupplier(supplierId: string, businessId: string) {
@@ -295,11 +321,11 @@ export class PurchasingService {
     return this.prisma.supplier.findFirstOrThrow({ where: { id, businessId: actor.businessId } });
   }
 
-  async listPurchaseOrders(businessId: string, query: ListPurchaseOrdersQueryDto) {
+  async listPurchaseOrders(actor: RequestStaff, query: ListPurchaseOrdersQueryDto) {
     const search = query.query?.trim();
-    return this.prisma.purchaseOrder.findMany({
+    const orders = await this.prisma.purchaseOrder.findMany({
       where: {
-        businessId,
+        businessId: actor.businessId,
         ...(query.status ? { status: query.status } : {}),
         ...(search
           ? {
@@ -315,17 +341,18 @@ export class PurchasingService {
       orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
       select: purchaseOrderSelect,
     });
+    return orders.map((order) => this.presentPurchaseOrder(order, actor));
   }
 
-  async getPurchaseOrder(id: string, businessId: string) {
+  async getPurchaseOrder(id: string, actor: RequestStaff) {
     const order = await this.prisma.purchaseOrder.findFirst({
-      where: { id, businessId },
+      where: { id, businessId: actor.businessId },
       select: purchaseOrderSelect,
     });
     if (!order) {
       throw new ProblemException(404, 'RESOURCE_NOT_FOUND', 'Không tìm thấy đơn mua.');
     }
-    return order;
+    return this.presentPurchaseOrder(order, actor);
   }
 
   async createPurchaseOrder(dto: CreatePurchaseOrderDto, actor: RequestStaff, requestId: string) {
@@ -358,7 +385,7 @@ export class PurchasingService {
         },
       });
     });
-    return this.getPurchaseOrder(id, actor.businessId);
+    return this.getPurchaseOrder(id, actor);
   }
 
   async updatePurchaseOrder(
@@ -420,7 +447,7 @@ export class PurchasingService {
         },
       });
     });
-    return this.getPurchaseOrder(id, actor.businessId);
+    return this.getPurchaseOrder(id, actor);
   }
 
   async orderPurchaseOrder(
@@ -430,7 +457,7 @@ export class PurchasingService {
     requestId: string,
   ) {
     await this.changeOrderStatus(id, dto, actor, requestId, 'DRAFT', 'ORDERED');
-    return this.getPurchaseOrder(id, actor.businessId);
+    return this.getPurchaseOrder(id, actor);
   }
 
   async cancelPurchaseOrder(
@@ -440,7 +467,7 @@ export class PurchasingService {
     requestId: string,
   ) {
     await this.changeOrderStatus(id, dto, actor, requestId, ['DRAFT', 'ORDERED'], 'CANCELED');
-    return this.getPurchaseOrder(id, actor.businessId);
+    return this.getPurchaseOrder(id, actor);
   }
 
   private async changeOrderStatus(

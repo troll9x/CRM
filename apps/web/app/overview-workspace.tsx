@@ -7,25 +7,25 @@ type ComparisonItem = { key: string; label?: string; value: number };
 type Overview = {
   generatedAt: string;
   kpis: {
-    activeCustomers: number;
-    openTasks: number;
-    overdueTasks: number;
-    activeProducts: number;
-    activeVariants: number;
-    activeSuppliers: number;
-    draftPurchaseOrders: number;
-    orderedPurchaseOrders: number;
+    activeCustomers?: number;
+    openTasks?: number;
+    overdueTasks?: number;
+    activeProducts?: number;
+    activeVariants?: number;
+    activeSuppliers?: number;
+    draftPurchaseOrders?: number;
+    orderedPurchaseOrders?: number;
   };
   comparisons: {
-    customersByGroup: ComparisonItem[];
-    opportunitiesByStage: ComparisonItem[];
-    catalog: ComparisonItem[];
-    purchasing: ComparisonItem[];
+    customersByGroup?: ComparisonItem[];
+    opportunitiesByStage?: ComparisonItem[];
+    catalog?: ComparisonItem[];
+    purchasing?: ComparisonItem[];
   };
-  recentPurchaseOrders: Array<{
+  recentPurchaseOrders?: Array<{
     id: string;
     orderNumber: string;
-    status: 'DRAFT' | 'ORDERED' | 'CANCELED';
+    status: 'DRAFT' | 'ORDERED' | 'PARTIALLY_RECEIVED' | 'RECEIVED' | 'CANCELED';
     updatedAt: string;
     supplier: { name: string };
     _count: { lines: number };
@@ -38,7 +38,13 @@ const opportunityLabels: Record<string, string> = {
   WON: 'Thành công',
   LOST: 'Không thành công',
 };
-const purchaseLabels = { DRAFT: 'Nháp', ORDERED: 'Đã phát hành', CANCELED: 'Đã hủy' };
+const purchaseLabels = {
+  DRAFT: 'Nháp',
+  ORDERED: 'Đã phát hành',
+  PARTIALLY_RECEIVED: 'Đã nhận một phần',
+  RECEIVED: 'Đã nhận đủ',
+  CANCELED: 'Đã hủy',
+};
 
 function Comparison({ title, items }: { title: string; items: ComparisonItem[] }) {
   const maximum = Math.max(1, ...items.map((item) => item.value));
@@ -118,98 +124,122 @@ export function OverviewWorkspace({
       {overview && (
         <>
           <div className="business-kpis">
-            <button onClick={() => onNavigate('customers')}>
-              <span>Khách đang hoạt động</span>
-              <strong>{overview.kpis.activeCustomers.toLocaleString('vi-VN')}</strong>
-              <small>{overview.kpis.openTasks} việc cần xử lý</small>
-            </button>
-            <button
-              onClick={() => onNavigate('customers')}
-              className={overview.kpis.overdueTasks ? 'alert' : ''}
-            >
-              <span>Việc quá hạn</span>
-              <strong>{overview.kpis.overdueTasks.toLocaleString('vi-VN')}</strong>
-              <small>Cần ưu tiên hôm nay</small>
-            </button>
-            <button onClick={() => onNavigate('products')}>
-              <span>Danh mục đang bán</span>
-              <strong>{overview.kpis.activeVariants.toLocaleString('vi-VN')} SKU</strong>
-              <small>{overview.kpis.activeProducts} sản phẩm</small>
-            </button>
-            <button onClick={() => onNavigate('purchasing')}>
-              <span>Đơn mua đang mở</span>
-              <strong>{overview.kpis.orderedPurchaseOrders.toLocaleString('vi-VN')}</strong>
-              <small>{overview.kpis.draftPurchaseOrders} đơn nháp</small>
-            </button>
+            {overview.kpis.activeCustomers !== undefined && (
+              <button onClick={() => onNavigate('customers')}>
+                <span>Khách đang hoạt động</span>
+                <strong>{overview.kpis.activeCustomers.toLocaleString('vi-VN')}</strong>
+                <small>{overview.kpis.openTasks} việc cần xử lý</small>
+              </button>
+            )}
+            {overview.kpis.overdueTasks !== undefined && (
+              <button
+                onClick={() => onNavigate('customers')}
+                className={overview.kpis.overdueTasks ? 'alert' : ''}
+              >
+                <span>Việc quá hạn</span>
+                <strong>{overview.kpis.overdueTasks.toLocaleString('vi-VN')}</strong>
+                <small>Cần ưu tiên hôm nay</small>
+              </button>
+            )}
+            {overview.kpis.activeVariants !== undefined && (
+              <button onClick={() => onNavigate('products')}>
+                <span>Danh mục đang bán</span>
+                <strong>{overview.kpis.activeVariants.toLocaleString('vi-VN')} SKU</strong>
+                <small>{overview.kpis.activeProducts} sản phẩm</small>
+              </button>
+            )}
+            {overview.kpis.orderedPurchaseOrders !== undefined && (
+              <button onClick={() => onNavigate('purchasing')}>
+                <span>Đơn mua đang mở</span>
+                <strong>{overview.kpis.orderedPurchaseOrders.toLocaleString('vi-VN')}</strong>
+                <small>{overview.kpis.draftPurchaseOrders} đơn nháp</small>
+              </button>
+            )}
           </div>
 
           <div className="overview-grid">
-            <Comparison
-              title="Khách hàng theo nhóm"
-              items={overview.comparisons.customersByGroup}
-            />
-            <Comparison title="Cơ hội bán hàng" items={overview.comparisons.opportunitiesByStage} />
-            <Comparison title="So sánh danh mục" items={overview.comparisons.catalog} />
-            <Comparison title="So sánh mua hàng" items={overview.comparisons.purchasing} />
+            {overview.comparisons.customersByGroup && (
+              <Comparison
+                title="Khách hàng theo nhóm"
+                items={overview.comparisons.customersByGroup}
+              />
+            )}
+            {overview.comparisons.opportunitiesByStage && (
+              <Comparison
+                title="Cơ hội bán hàng"
+                items={overview.comparisons.opportunitiesByStage}
+              />
+            )}
+            {overview.comparisons.catalog && (
+              <Comparison title="So sánh danh mục" items={overview.comparisons.catalog} />
+            )}
+            {overview.comparisons.purchasing && (
+              <Comparison title="So sánh mua hàng" items={overview.comparisons.purchasing} />
+            )}
           </div>
 
-          <section className="overview-card recent-table">
-            <div className="overview-card-head">
-              <div>
-                <p className="eyebrow">MUA HÀNG GẦN ĐÂY</p>
-                <h2>Đơn mua mới cập nhật</h2>
+          {overview.recentPurchaseOrders && (
+            <section className="overview-card recent-table">
+              <div className="overview-card-head">
+                <div>
+                  <p className="eyebrow">MUA HÀNG GẦN ĐÂY</p>
+                  <h2>Đơn mua mới cập nhật</h2>
+                </div>
+                <button className="ghost" onClick={() => onNavigate('purchasing')}>
+                  Xem mua hàng
+                </button>
               </div>
-              <button className="ghost" onClick={() => onNavigate('purchasing')}>
-                Xem mua hàng
-              </button>
-            </div>
-            {overview.recentPurchaseOrders.length === 0 ? (
-              <p className="empty-copy">
-                Chưa có đơn mua. Số liệu sẽ xuất hiện ngay khi tạo chứng từ thật.
-              </p>
-            ) : (
-              <div className="table-scroll">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Mã đơn</th>
-                      <th>Nhà cung cấp</th>
-                      <th>Số dòng</th>
-                      <th>Trạng thái</th>
-                      <th>Cập nhật</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {overview.recentPurchaseOrders.map((order) => (
-                      <tr key={order.id}>
-                        <td>
-                          <code>{order.orderNumber}</code>
-                        </td>
-                        <td>{order.supplier.name}</td>
-                        <td>{order._count.lines}</td>
-                        <td>
-                          <span className={`status-pill ${order.status.toLowerCase()}`}>
-                            {purchaseLabels[order.status]}
-                          </span>
-                        </td>
-                        <td>
-                          {new Date(order.updatedAt).toLocaleString('vi-VN', {
-                            timeZone: 'Asia/Ho_Chi_Minh',
-                          })}
-                        </td>
+              {overview.recentPurchaseOrders.length === 0 ? (
+                <p className="empty-copy">
+                  Chưa có đơn mua. Số liệu sẽ xuất hiện ngay khi tạo chứng từ thật.
+                </p>
+              ) : (
+                <div className="table-scroll">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Mã đơn</th>
+                        <th>Nhà cung cấp</th>
+                        <th>Số dòng</th>
+                        <th>Trạng thái</th>
+                        <th>Cập nhật</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-            <small className="data-time">
-              Tổng hợp lúc{' '}
-              {new Date(overview.generatedAt).toLocaleString('vi-VN', {
-                timeZone: 'Asia/Ho_Chi_Minh',
-              })}
-            </small>
-          </section>
+                    </thead>
+                    <tbody>
+                      {overview.recentPurchaseOrders.map((order) => (
+                        <tr key={order.id}>
+                          <td>
+                            <code>{order.orderNumber}</code>
+                          </td>
+                          <td>{order.supplier.name}</td>
+                          <td>{order._count.lines}</td>
+                          <td>
+                            <span className={`status-pill ${order.status.toLowerCase()}`}>
+                              {purchaseLabels[order.status]}
+                            </span>
+                          </td>
+                          <td>
+                            {new Date(order.updatedAt).toLocaleString('vi-VN', {
+                              timeZone: 'Asia/Ho_Chi_Minh',
+                            })}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              <small className="data-time">
+                Tổng hợp lúc{' '}
+                {new Date(overview.generatedAt).toLocaleString('vi-VN', {
+                  timeZone: 'Asia/Ho_Chi_Minh',
+                })}
+              </small>
+            </section>
+          )}
+          {Object.keys(overview.kpis).length === 0 && (
+            <p className="empty-copy">Chưa có chỉ số phù hợp với quyền hiện tại.</p>
+          )}
         </>
       )}
     </section>

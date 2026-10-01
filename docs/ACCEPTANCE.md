@@ -54,6 +54,16 @@
 - **AC-04A-07 — PASS migration:** DB kiểm tra line number, hệ số, số lượng đặt và số lượng cơ sở dương; giá dự kiến không âm.
 - **AC-04A-08 — PASS local:** UI tạo/lưu trữ nhà cung cấp, tạo/phát hành/hủy đơn mua bằng API thật và luôn cảnh báo chưa nhập kho.
 
+## 5B. Nghiệm thu Đợt 04B
+
+- **AC-04B-01 — PASS E2E:** nhận một phần đơn mua quy đổi đúng về đơn vị gốc, cập nhật trạng thái `PARTIALLY_RECEIVED` và số còn phải nhận.
+- **AC-04B-02 — PASS E2E:** nhận đủ chuyển đơn mua sang `RECEIVED`; tồn thực tế/có thể bán và giá vốn bình quân gia quyền khớp.
+- **AC-04B-03 — PASS E2E:** gửi lại cùng `Idempotency-Key` và payload trả cùng phiếu, không thêm movement; đổi payload với cùng key trả `409 IDEMPOTENCY_KEY_REUSED`.
+- **AC-04B-04 — PASS E2E:** backend từ chối nhận vượt; hai request đồng thời cho phần cuối chỉ một request ghi sổ thành công.
+- **AC-04B-05 — PASS E2E/RBAC:** nhân viên kho đọc/nhận hàng nhưng response không có giá vốn; sales gọi kho nhận `403`; owner có `cost.view` xem được chi phí.
+- **AC-04B-06 — PASS migration:** DB khóa duy nhất balance theo business/kho/SKU, movement theo source line/key và kiểm tra số lượng/giá trị không âm.
+- **AC-04B-07 — PASS build/HTTP, cần kiểm tra thủ công:** UI Kho gọi API thật để tạo phiếu, xem tồn, phiếu nhận và sổ kho; HTTP local trả 200 và owner đăng nhập được. Chưa có bằng chứng kiểm tra màn hình bằng trình duyệt tương tác.
+
 ### Nghiệm thu giao diện và tổng quan
 
 - **AC-UI-UTF8 — PASS unit/build:** tài liệu HTML khai báo `lang=vi`, UTF-8 và font stack có glyph tiếng Việt; test quét source không có ký tự thay thế hoặc chuỗi mojibake thường gặp.

@@ -18,6 +18,8 @@ export const PERMISSIONS = {
   MEDIA_MANAGE: 'media.manage',
   PURCHASING_READ: 'purchasing.read',
   PURCHASING_WRITE: 'purchasing.write',
+  INVENTORY_READ: 'inventory.read',
+  INVENTORY_RECEIVE: 'inventory.receive',
   CONNECTORS_MANAGE: 'connectors.manage',
 } as const;
 

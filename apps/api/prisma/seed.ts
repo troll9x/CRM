@@ -26,6 +26,8 @@ const permissionDescriptions: Record<string, string> = {
   [PERMISSIONS.MEDIA_MANAGE]: 'Quản lý metadata ảnh sản phẩm',
   [PERMISSIONS.PURCHASING_READ]: 'Xem nhà cung cấp và đơn mua',
   [PERMISSIONS.PURCHASING_WRITE]: 'Tạo, sửa và phát hành đơn mua',
+  [PERMISSIONS.INVENTORY_READ]: 'Xem số lượng tồn và sổ kho',
+  [PERMISSIONS.INVENTORY_RECEIVE]: 'Nhận hàng theo đơn mua đã phát hành',
   [PERMISSIONS.CONNECTORS_MANAGE]: 'Cấu hình và thu hồi connector',
 };
 
@@ -59,6 +61,8 @@ const roles = [
       PERMISSIONS.CATALOG_READ,
       PERMISSIONS.PURCHASING_READ,
       PERMISSIONS.PURCHASING_WRITE,
+      PERMISSIONS.INVENTORY_READ,
+      PERMISSIONS.INVENTORY_RECEIVE,
       PERMISSIONS.INVENTORY_ADJUST,
     ],
   },
@@ -107,6 +111,16 @@ async function main(): Promise<void> {
         create: { key, description: permissionDescriptions[key] ?? key },
       });
     }
+
+    await prisma.warehouse.upsert({
+      where: { businessId_code: { businessId: business.id, code: 'KHO-CHINH' } },
+      update: { name: 'Kho chính', status: 'ACTIVE' },
+      create: {
+        businessId: business.id,
+        code: 'KHO-CHINH',
+        name: 'Kho chính',
+      },
+    });
 
     const seededRoles = new Map<string, string>();
     for (const definition of roles) {

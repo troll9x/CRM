@@ -1,6 +1,6 @@
 # Hợp đồng API v1
 
-Tài liệu này khóa quy ước chung. Endpoint Đợt 01–03 đã chạy và OpenAPI sinh từ code tại `/docs-json` là hợp đồng máy đọc được; endpoint các đợt sau trong inventory vẫn chỉ là dự kiến. Thay đổi phá vỡ phải tạo version mới hoặc có kế hoạch chuyển đổi.
+Tài liệu này khóa quy ước chung. Endpoint Đợt 01–04B đã chạy và OpenAPI sinh từ code tại `/docs-json` là hợp đồng máy đọc được; endpoint các đợt sau trong inventory vẫn chỉ là dự kiến. Thay đổi phá vỡ phải tạo version mới hoặc có kế hoạch chuyển đổi.
 
 ## 1. Quy ước giao tiếp
 
@@ -110,9 +110,9 @@ POST /api/v1/returns/{returnId}/receive
 
 Mỗi command khai báo quyền, trạng thái trước/sau, idempotency, transaction boundary, audit event và lỗi nghiệp vụ.
 
-## 7. Inventory endpoint dự kiến theo đợt
+## 7. Inventory endpoint theo đợt
 
-Ký hiệu `R` đọc, `C` tạo, `U` sửa master data, `CMD` lệnh nghiệp vụ. Đây là inventory hợp đồng, không phải endpoint đã triển khai.
+Ký hiệu `R` đọc, `C` tạo, `U` sửa master data, `CMD` lệnh nghiệp vụ. Các dòng tới 04B đã triển khai; các đợt sau vẫn là inventory hợp đồng dự kiến.
 
 | Đợt   | Resource/operation                                                                                                                                                          | Quyền chính                                                                           |
 | ----- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
@@ -121,11 +121,14 @@ Ký hiệu `R` đọc, `C` tạo, `U` sửa master data, `CMD` lệnh nghiệp v
 | 03    | `GET/POST/PATCH /products`, `POST /products/{id}/variants`, `PATCH /variants/{id}`, `PUT /variants/{id}/unit-conversions`, `POST /products/{id}/media`, `PATCH /media/{id}` | `catalog.read/write`, `media.manage`                                                  |
 | UI    | `GET /overview`                                                                                                                                                             | `overview.read`; KPI, bảng so sánh và đơn mua gần đây từ dữ liệu thật                 |
 | 04A   | `GET/POST/PATCH /suppliers`, `GET/POST/PATCH /purchase-orders`, `POST /purchase-orders/{id}/order`, `POST /purchase-orders/{id}/cancel`                                     | `purchasing.read/write`; đơn mua không tăng tồn                                       |
-| 04B–C | `/goods-receipts` CMD, `/stock-balances`, `/stock-movements`, `/stock-adjustments` CMD                                                                                      | chưa triển khai; chờ `OPEN-02/05`, inventory adjust / cost view                       |
+| 04B   | `GET/POST /goods-receipts`, `GET /warehouses`, `GET /stock-balances`, `GET /stock-movements`                                                                                  | `inventory.read/receive`; trường giá vốn chỉ có với `cost.view`                        |
+| 04C   | `/stock-adjustments` CMD, tồn đầu/kiểm kê                                                                                                                                     | chưa triển khai; `inventory.adjust`, bắt buộc chứng từ và chống trùng                  |
 | 05    | `/price-lists`, `/price-rules`, `/quotes`, `/quotes/{id}/send`, `/quotes/{id}/convert`                                                                                      | price edit / discount approve / quote                                                 |
 | 06    | `/orders`, `/orders/{id}/confirm`, `/orders/{id}/cancel`, `/shipments`                                                                                                      | order create/confirm / fulfillment                                                    |
 | 07    | `/payments`, `/payment-allocations`, `/receivables`, `/expenses`, `/refunds`                                                                                                | collect/pay/refund / receivable view                                                  |
 | 08    | `/returns`, `/reports/*`, `/imports`                                                                                                                                        | returns / report permission / import                                                  |
+
+Lệnh `POST /goods-receipts` nhận `purchaseOrderId`, `warehouseId`, `notes?` và 1–100 dòng `{ purchaseOrderLineId, receivedQuantity, actualUnitCostVnd }`. Header `Idempotency-Key` bắt buộc; khóa duy nhất theo business, payload khác trả `409 IDEMPOTENCY_KEY_REUSED`. Server ấn định `receivedAt` ở UTC, tính quy đổi/thành tiền/tồn/giá vốn và ghi audit/sổ kho trong một transaction. Dòng nhận vượt số còn lại trả `422 PURCHASE_QUANTITY_EXCEEDED`. Giá vốn trên response bị bỏ nếu không có `cost.view`.
 
 ## 8. Ví dụ hợp đồng xác nhận đơn
 

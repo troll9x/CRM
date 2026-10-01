@@ -15,6 +15,6 @@ export class OverviewController {
   @RequirePermissions(PERMISSIONS.OVERVIEW_READ)
   @ApiOperation({ summary: 'Tổng quan nghiệp vụ và bảng so sánh từ dữ liệu thật' })
   get(@CurrentStaff() actor: RequestStaff) {
-    return this.overview.get(actor.businessId);
+    return this.overview.get(actor);
   }
 }

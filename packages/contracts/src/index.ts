@@ -18,6 +18,8 @@ export const permissionKeys = [
   'media.manage',
   'purchasing.read',
   'purchasing.write',
+  'inventory.read',
+  'inventory.receive',
   'connectors.manage',
 ] as const;
 

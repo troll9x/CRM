@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { api, type Staff } from './api-client';
 import { CustomerWorkspace } from './customer-workspace';
+import { InventoryWorkspace } from './inventory-workspace';
 import { OverviewWorkspace } from './overview-workspace';
 import { ProductWorkspace } from './product-workspace';
 import { PurchasingWorkspace } from './purchasing-workspace';
@@ -12,9 +13,9 @@ export default function Home() {
   const [checking, setChecking] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState('');
-  const [view, setView] = useState<'overview' | 'customers' | 'products' | 'purchasing'>(
-    'overview',
-  );
+  const [view, setView] = useState<
+    'overview' | 'customers' | 'products' | 'purchasing' | 'inventory'
+  >('overview');
 
   useEffect(() => {
     let active = true;
@@ -79,8 +80,7 @@ export default function Home() {
           <p className="eyebrow">CRM BÁN SỈ & BÁN LẺ</p>
           <h1>Một nơi để theo dõi khách, đơn, kho và công nợ.</h1>
           <p className="brand-copy">
-            Đợt 01 đang kích hoạt nền tảng bảo mật và phân quyền. Dữ liệu bán hàng sẽ chỉ xuất hiện
-            khi các module tương ứng dùng API và cơ sở dữ liệu thật.
+            Theo dõi khách hàng, sản phẩm, mua hàng và tồn kho trong cùng một hệ thống.
           </p>
           <div className="security-note">
             <span>✓</span> Phiên đăng nhập HttpOnly · Quyền kiểm tra tại backend · Có nhật ký
@@ -90,7 +90,7 @@ export default function Home() {
           <form className="login-card" onSubmit={login}>
             <p className="eyebrow">KHU VỰC NHÂN VIÊN</p>
             <h2>Đăng nhập Sơn CRM</h2>
-            <p className="muted">Dùng tài khoản owner được tạo bằng lệnh seed local.</p>
+            <p className="muted">Dùng tài khoản nhân viên đã được cấp.</p>
             <label>
               Email
               <input
@@ -145,21 +145,28 @@ export default function Home() {
             onClick={() => setView('customers')}
             disabled={!staff.permissions.includes('customers.read')}
           >
-            Khách hàng <small>Đang dùng</small>
+            Khách hàng
           </button>
           <button
             className={view === 'products' ? 'active' : ''}
             onClick={() => setView('products')}
             disabled={!staff.permissions.includes('catalog.read')}
           >
-            Sản phẩm <small>Đang dùng</small>
+            Sản phẩm
           </button>
           <button
             className={view === 'purchasing' ? 'active' : ''}
             onClick={() => setView('purchasing')}
             disabled={!staff.permissions.includes('purchasing.read')}
           >
-            Mua hàng <small>04A</small>
+            Mua hàng
+          </button>
+          <button
+            className={view === 'inventory' ? 'active' : ''}
+            onClick={() => setView('inventory')}
+            disabled={!staff.permissions.includes('inventory.read')}
+          >
+            Kho
           </button>
         </nav>
         <div className="staff-mini">
@@ -173,6 +180,8 @@ export default function Home() {
         <ProductWorkspace staff={staff} onLogout={logout} loggingOut={submitting} />
       ) : view === 'purchasing' ? (
         <PurchasingWorkspace staff={staff} onLogout={logout} loggingOut={submitting} />
+      ) : view === 'inventory' ? (
+        <InventoryWorkspace staff={staff} onLogout={logout} loggingOut={submitting} />
       ) : (
         <OverviewWorkspace
           staff={staff}

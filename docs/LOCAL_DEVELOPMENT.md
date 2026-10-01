@@ -67,7 +67,7 @@ E2E cần PostgreSQL đã migrate và seed. Bài kiểm tra chứng minh: endpoi
 
 Đợt 03 bổ sung E2E cho SKU/barcode duy nhất, tìm theo SKU, hệ số quy đổi, optimistic version, metadata ảnh HTTPS và quyền role kho chỉ đọc catalog. Dữ liệu sản phẩm có tên bắt đầu bằng `E2E Catalog` được tự dọn sau test.
 
-Đợt 04A bổ sung E2E cho nhà cung cấp, snapshot quy đổi trên đơn mua, phát hành không tăng tồn, khóa sửa sau phát hành và quyền kho/sales. Dữ liệu có nhãn `E2E Supplier`, SKU `E2E-PO-SKU` và tài khoản `purchasing-*` được tự dọn sau test.
+Đợt 04A bổ sung E2E cho nhà cung cấp, snapshot quy đổi trên đơn mua, phát hành không tăng tồn, khóa sửa sau phát hành và quyền kho/sales. Đợt 04B kiểm tra nhận từng phần, bình quân gia quyền, idempotency, nhận vượt, cạnh tranh đồng thời và ẩn giá vốn. Dữ liệu có nhãn `E2E Supplier`, SKU `E2E-PO-SKU`/`E2E-INV-*` và tài khoản `purchasing-*`/`inventory-*` được tự dọn sau test.
 
 ## Migration mới
 

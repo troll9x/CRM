@@ -1206,6 +1206,105 @@ button {
   font-size: 8px;
 }
 
+.inventory-receipt-form {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.inventory-receipt-form label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 9px;
+}
+.inventory-receipt-form button {
+  align-self: end;
+}
+.form-warning {
+  grid-column: span 2;
+  align-self: center;
+  color: #8b6252;
+  line-height: 1.55;
+}
+.inventory-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.inventory-kpis article {
+  padding: 16px;
+  display: grid;
+  gap: 6px;
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+}
+.inventory-kpis span {
+  color: var(--muted);
+  font-size: 9px;
+}
+.inventory-kpis strong {
+  color: var(--green-2);
+  font-size: 22px;
+}
+.inventory-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 9px;
+}
+.inventory-table th,
+.inventory-table td {
+  padding: 11px 9px;
+  text-align: left;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+.inventory-table th {
+  color: var(--muted);
+  font-size: 8px;
+  text-transform: uppercase;
+}
+.inventory-table td small {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+}
+.inventory-history-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-top: 14px;
+}
+.history-list {
+  display: grid;
+  gap: 8px;
+}
+.history-list article {
+  padding: 11px 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--line);
+}
+.history-list b,
+.history-list small {
+  display: block;
+}
+.history-list small,
+.history-list span {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 8px;
+}
+.quantity-in {
+  color: var(--green-2);
+  white-space: nowrap;
+}
+
 @media (max-width: 1000px) {
   .foundation-grid {
     grid-template-columns: 1fr 1fr;
@@ -1316,7 +1415,13 @@ button {
     grid-column: auto;
   }
   .business-kpis,
-  .overview-grid {
+  .overview-grid,
+  .inventory-kpis,
+  .inventory-history-grid,
+  .inventory-receipt-form {
     grid-template-columns: 1fr;
+  }
+  .form-warning {
+    grid-column: auto;
   }
 }

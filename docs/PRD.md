@@ -1,13 +1,13 @@
 # PRD — CRM bán sỉ và bán lẻ
 
-Trạng thái: đặc tả đang triển khai — Đợt 01–03 và lát cắt 04A đã có code và nghiệm thu local
+Trạng thái: đặc tả đang triển khai — Đợt 01–03 và lát cắt 04A–04B đã có code và nghiệm thu local
 Nguồn: `ke-hoach-vibe-code-crm.md` phiên bản 1.0, ngày 30/09/2026
 
 ## 1. Bài toán
 
 Chủ cửa hàng cần một luồng thống nhất để biết khách nào cần trả lời, đơn nào cần giao, hàng nào còn bán được, tiền nào đã nhận và ai đang nợ. Người dùng chính là em gái anh Sơn; cửa hàng bán sỉ và bán lẻ, ưu tiên nguồn khách Facebook và Zalo.
 
-Đã có mã nguồn nền tảng, module khách hàng, danh mục sản phẩm/SKU, nhà cung cấp và đơn mua dùng PostgreSQL thật trong môi trường local. Đơn mua chưa phải phiếu nhận và không tăng tồn. Chưa có dữ liệu vận hành thật hoặc connector đã kiểm chứng; mọi nội dung về kênh bên ngoài vẫn là mục tiêu/điều kiện thử, không phải chức năng đã hoạt động.
+Đã có mã nguồn nền tảng, module khách hàng, danh mục sản phẩm/SKU, nhà cung cấp, đơn mua và nhận hàng/tồn kho dùng PostgreSQL thật trong môi trường local. Đơn mua không tăng tồn; phiếu nhận đã ghi tồn, giá vốn bình quân và sổ kho trong một giao dịch. Chưa có dữ liệu vận hành thật hoặc connector đã kiểm chứng; mọi nội dung về kênh bên ngoài vẫn là mục tiêu/điều kiện thử, không phải chức năng đã hoạt động.
 
 ## 2. Kết quả mong muốn
 
@@ -72,7 +72,7 @@ Một nhân viên có thể giữ nhiều vai trò. Backend phải kiểm tra qu
 
 - Một chủ cửa hàng, có thể thêm nhân viên.
 - Hàng có sẵn; chưa xử lý sản xuất/gia công/đặt trước.
-- Giá vốn bình quân gia quyền; Facebook Fanpage và Zalo OA là tuyến tích hợp dự kiến.
+- Facebook Fanpage và Zalo OA là tuyến tích hợp dự kiến.
 - Giá sỉ theo nhóm khách, có thể thêm bậc số lượng.
 
 ### Cần xác nhận
@@ -82,7 +82,7 @@ Chỉ giữ 5 quyết định chặn Đợt 01–06 tại `docs/DECISIONS.md`: `
 ## 7. Ngoài phạm vi hiện tại
 
 - Kế toán pháp định/hóa đơn điện tử khi chưa rõ mô hình pháp nhân và nhà cung cấp.
-- Sản xuất, gia công, cân nặng, lô/hạn dùng/serial nếu `OPEN-02` chưa yêu cầu.
+- Sản xuất, gia công, cân nặng, lô/hạn dùng/serial; cần xác nhận nhu cầu ngành hàng thật qua `OPEN-02` trước pilot.
 - Tự động gửi tin, tự đổi giá/chính sách, tự cấp nợ.
 - Website, AI nâng cao, Shopee, TikTok Shop, marketing và production deployment trong Đợt 00.
 - Cam kết connector khi chưa có tài khoản thử, quyền được cấp và bằng chứng API thật.

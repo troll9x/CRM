@@ -23,9 +23,9 @@
 
 Các mục sau đủ để viết tài liệu/prototype nhưng **không tự động trở thành cấu hình production**: một đơn vị kinh doanh, một kho; báo giá không giữ hàng; giá vốn bình quân gia quyền; giá sỉ theo nhóm/bậc; vận đơn nhập tay; AI chỉ gợi ý có duyệt.
 
-Đợt 03 dùng đơn vị gốc và quy đổi cái/hộp/thùng, thuộc tính biến thể dạng metadata, chưa có lô/hạn dùng/serial. Ảnh chỉ lưu metadata URL HTTPS; không tuyên bố có upload/kho file. Các lựa chọn này phải được thay thế hoặc xác nhận khi đóng `OPEN-02`.
+Đợt 03 dùng đơn vị gốc và quy đổi cái/hộp/thùng, thuộc tính biến thể dạng metadata, chưa có lô/hạn dùng/serial. Ảnh chỉ lưu metadata URL HTTPS; không tuyên bố có upload/kho file.
 
-Đợt 04A chỉ triển khai nhà cung cấp và đơn mua theo các quy đổi đã có; giá dự kiến trên dòng là metadata số nguyên VND, không cập nhật giá vốn. Không tạo phiếu nhận, balance hay ledger trước khi đóng `OPEN-02` và `OPEN-05`.
+Đợt 04A chỉ triển khai nhà cung cấp và đơn mua theo các quy đổi đã có; giá dự kiến trên dòng là metadata số nguyên VND, không cập nhật giá vốn. Đợt 04B dùng giả định kỹ thuật một kho, SKU đóng gói, số lượng tối đa 6 số lẻ, nhận từng phần và giá vốn bình quân gia quyền để kiểm chứng luồng local. Đây chưa phải xác nhận chính sách hàng thật; cần đối chiếu `OPEN-02/05` trước pilot.
 
 ## 3. Năm quyết định cần chủ dự án xác nhận trước Đợt 01–06
 
@@ -39,6 +39,8 @@ Không thêm câu hỏi chặn mới vào danh sách này; câu hỏi phát sinh
 - Không tự làm: không dùng cách tự động hóa tài khoản cá nhân và không tuyên bố đã tích hợp khi chưa có test API thật.
 
 ### OPEN-02 — Ngành hàng, SKU và cách quản lý đơn vị/lô
+
+- Trạng thái: **Chưa xác nhận cho dữ liệu thật**. Đợt 04B chạy local theo giả định kỹ thuật ở mục 2; nếu hàng thật cần cân nặng, lô, hạn dùng hoặc serial thì phải thiết kế bổ sung trước pilot.
 
 - Cần trả lời: bán mặt hàng gì, khoảng bao nhiêu SKU, dùng cái/hộp/thùng hay cân nặng, có màu/size, hạn dùng, lô hoặc serial không?
 - Tạm dùng: hàng có sẵn; SKU biến thể; một đơn vị cơ sở và quy đổi cái/hộp/thùng; không lô/hạn dùng/serial.
@@ -57,6 +59,8 @@ Không thêm câu hỏi chặn mới vào danh sách này; câu hỏi phát sinh
 - Ảnh hưởng: xác nhận đơn, đặt cọc, công nợ, tuổi nợ và quyền override.
 
 ### OPEN-05 — Giữ hàng, giao một phần và giá vốn
+
+- Trạng thái: **Chưa xác nhận cho vận hành thật**. Đợt 04B chỉ kiểm chứng phần nhận hàng/giá vốn local theo giả định kỹ thuật ở mục 2.
 
 - Cần trả lời: chỉ giữ khi xác nhận hay giữ từ báo giá; reservation hết hạn khi nào; có cho giao nhiều đợt/backorder; dùng bình quân gia quyền hay FIFO; hàng trả đủ điều kiện nhập lại thế nào?
 - Tạm dùng: đơn xác nhận mới giữ; không tự hết hạn; cho giao nhiều đợt; giá vốn bình quân gia quyền; hàng trả qua kiểm tra chất lượng.

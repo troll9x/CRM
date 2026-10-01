@@ -21,14 +21,14 @@ export class PurchaseOrdersController {
   @RequirePermissions(PERMISSIONS.PURCHASING_READ)
   @ApiOperation({ summary: 'Danh sách đơn mua; không làm thay đổi tồn kho' })
   list(@CurrentStaff() actor: RequestStaff, @Query() query: ListPurchaseOrdersQueryDto) {
-    return this.purchasing.listPurchaseOrders(actor.businessId, query);
+    return this.purchasing.listPurchaseOrders(actor, query);
   }
 
   @Get(':id')
   @RequirePermissions(PERMISSIONS.PURCHASING_READ)
   @ApiOperation({ summary: 'Chi tiết đơn mua và snapshot dòng hàng' })
   get(@Param('id') id: string, @CurrentStaff() actor: RequestStaff) {
-    return this.purchasing.getPurchaseOrder(id, actor.businessId);
+    return this.purchasing.getPurchaseOrder(id, actor);
   }
 
   @Post()
