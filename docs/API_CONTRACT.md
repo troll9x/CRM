@@ -1,6 +1,6 @@
 # Hợp đồng API v1
 
-Tài liệu này khóa quy ước chung. Endpoint Đợt 01 đã chạy và OpenAPI sinh từ code tại `/docs-json` là hợp đồng máy đọc được; endpoint các đợt sau trong inventory vẫn chỉ là dự kiến. Thay đổi phá vỡ phải tạo version mới hoặc có kế hoạch chuyển đổi.
+Tài liệu này khóa quy ước chung. Endpoint Đợt 01–03 đã chạy và OpenAPI sinh từ code tại `/docs-json` là hợp đồng máy đọc được; endpoint các đợt sau trong inventory vẫn chỉ là dự kiến. Thay đổi phá vỡ phải tạo version mới hoặc có kế hoạch chuyển đổi.
 
 ## 1. Quy ước giao tiếp
 
@@ -114,16 +114,16 @@ Mỗi command khai báo quyền, trạng thái trước/sau, idempotency, transa
 
 Ký hiệu `R` đọc, `C` tạo, `U` sửa master data, `CMD` lệnh nghiệp vụ. Đây là inventory hợp đồng, không phải endpoint đã triển khai.
 
-| Đợt | Resource/operation                                                                                                                           | Quyền chính                                                                           |
-| --- | -------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| 01  | `POST /auth/sessions`, `DELETE /auth/session`, `GET /me`, `GET/POST/PATCH /staff`, `PUT /staff/{id}/roles`, `GET /roles`, `/health/*`        | public login / authenticated / `staff.manage`                                         |
-| 02  | `GET/POST/PATCH /customers`, `/customers/{id}/addresses`, `/customers/groups`, `/customers/duplicate-candidates`, `/tasks`, `/opportunities` | `customers.read/write`, `tasks.manage`, `opportunities.manage`; export vẫn tách riêng |
-| 03  | `/products`, `/variants`, `/variants/{id}/unit-conversions`, `/media`                                                                        | catalog read/write                                                                    |
-| 04  | `/suppliers`, `/purchase-orders`, `/goods-receipts` CMD, `/stock-balances`, `/stock-movements`, `/stock-adjustments` CMD                     | purchasing / inventory adjust / cost view                                             |
-| 05  | `/price-lists`, `/price-rules`, `/quotes`, `/quotes/{id}/send`, `/quotes/{id}/convert`                                                       | price edit / discount approve / quote                                                 |
-| 06  | `/orders`, `/orders/{id}/confirm`, `/orders/{id}/cancel`, `/shipments`                                                                       | order create/confirm / fulfillment                                                    |
-| 07  | `/payments`, `/payment-allocations`, `/receivables`, `/expenses`, `/refunds`                                                                 | collect/pay/refund / receivable view                                                  |
-| 08  | `/returns`, `/reports/*`, `/imports`                                                                                                         | returns / report permission / import                                                  |
+| Đợt | Resource/operation                                                                                                                                                          | Quyền chính                                                                           |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| 01  | `POST /auth/sessions`, `DELETE /auth/session`, `GET /me`, `GET/POST/PATCH /staff`, `PUT /staff/{id}/roles`, `GET /roles`, `/health/*`                                       | public login / authenticated / `staff.manage`                                         |
+| 02  | `GET/POST/PATCH /customers`, `/customers/{id}/addresses`, `/customers/groups`, `/customers/duplicate-candidates`, `/tasks`, `/opportunities`                                | `customers.read/write`, `tasks.manage`, `opportunities.manage`; export vẫn tách riêng |
+| 03  | `GET/POST/PATCH /products`, `POST /products/{id}/variants`, `PATCH /variants/{id}`, `PUT /variants/{id}/unit-conversions`, `POST /products/{id}/media`, `PATCH /media/{id}` | `catalog.read/write`, `media.manage`                                                  |
+| 04  | `/suppliers`, `/purchase-orders`, `/goods-receipts` CMD, `/stock-balances`, `/stock-movements`, `/stock-adjustments` CMD                                                    | purchasing / inventory adjust / cost view                                             |
+| 05  | `/price-lists`, `/price-rules`, `/quotes`, `/quotes/{id}/send`, `/quotes/{id}/convert`                                                                                      | price edit / discount approve / quote                                                 |
+| 06  | `/orders`, `/orders/{id}/confirm`, `/orders/{id}/cancel`, `/shipments`                                                                                                      | order create/confirm / fulfillment                                                    |
+| 07  | `/payments`, `/payment-allocations`, `/receivables`, `/expenses`, `/refunds`                                                                                                | collect/pay/refund / receivable view                                                  |
+| 08  | `/returns`, `/reports/*`, `/imports`                                                                                                                                        | returns / report permission / import                                                  |
 
 ## 8. Ví dụ hợp đồng xác nhận đơn
 

@@ -24,8 +24,8 @@ Trạng thái: `DONE` tài liệu/prototype đã tạo; `WAITING` cần xác nh�
 | --- | ----------------------------------------------------- | --------------------------- | ----------------------------------- |
 | 01  | Monorepo, môi trường, auth nhân viên, RBAC, audit, CI | 00 đủ quyết định core       | DONE LOCAL; chờ lần chạy CI remote  |
 | 02  | Khách, nhóm sỉ/lẻ, nhiều địa chỉ, nhắc việc           | 01                          | DONE LOCAL; chờ phản hồi người dùng |
-| 03  | Sản phẩm, SKU, đơn vị, ảnh                            | 01 + OPEN-02                | IN PROGRESS theo giả định tạm       |
-| 04  | Nhà cung cấp, nhập hàng, tồn đầu, sổ kho              | 03 + OPEN-05                | LATER                               |
+| 03  | Sản phẩm, SKU, đơn vị, ảnh                            | 01 + OPEN-02                | DONE LOCAL theo giả định tạm        |
+| 04  | Nhà cung cấp, nhập hàng, tồn đầu, sổ kho              | 03 + OPEN-05                | WAITING OPEN-02/05                  |
 | 05  | Giá sỉ/lẻ, bậc giá, báo giá                           | 02,03 + OPEN-03             | LATER                               |
 | 06  | Đơn, xác nhận, giữ, hủy, giao một phần                | 04,05 + OPEN-04/05          | LATER                               |
 | 07  | Thu tiền, đặt cọc, công nợ, chi phí                   | 06 + chốt ghi nhận phải thu | LATER                               |
@@ -67,6 +67,16 @@ Mỗi lát cắt phải có migration + API + UI + dữ liệu lưu thật + tes
 - `DONE` — việc nhắc và cơ hội mua lần đầu/mua lại có vòng đời riêng, audit và kiểm tra phạm vi business.
 - `DONE` — UI responsive, API/OpenAPI, migration, seed nhóm khách và E2E quyền/version/trùng dữ liệu.
 - `WAITING` — người dùng chính thử luồng nhập/tìm khách và phản hồi tên trường/thứ tự thao tác.
+
+### Kết quả Đợt 03
+
+- `DONE` — sản phẩm có danh mục/thương hiệu/mô tả/trạng thái và optimistic version.
+- `DONE` — SKU/barcode duy nhất theo business, biến thể có metadata màu/size tùy chọn.
+- `DONE` — mỗi SKU có đơn vị gốc hệ số 1; quy đổi khác dương, mã không trùng và có DB check.
+- `DONE` — thêm/sửa/ngừng bán sản phẩm hoặc SKU; không có endpoint xóa cứng.
+- `DONE` — metadata ảnh chỉ nhận URL HTTPS, alt text, thứ tự và lưu trữ; chưa giả lập kho file/upload.
+- `DONE` — UI responsive, API/OpenAPI, migration và E2E quyền/SKU/quy đổi/media.
+- `WAITING` — xác nhận `OPEN-02` trước khi nhập dữ liệu hàng thật hoặc xây kho Đợt 04.
 
 ## Definition of Done cho đợt có code
 

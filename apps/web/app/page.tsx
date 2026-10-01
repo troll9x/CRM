@@ -3,13 +3,14 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { api, type Staff } from './api-client';
 import { CustomerWorkspace } from './customer-workspace';
+import { ProductWorkspace } from './product-workspace';
 
 export default function Home() {
   const [staff, setStaff] = useState<Staff | null>(null);
   const [checking, setChecking] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState('');
-  const [view, setView] = useState<'overview' | 'customers'>('customers');
+  const [view, setView] = useState<'overview' | 'customers' | 'products'>('products');
 
   useEffect(() => {
     let active = true;
@@ -142,8 +143,12 @@ export default function Home() {
           >
             Khách hàng <small>Đang dùng</small>
           </button>
-          <button disabled>
-            Sản phẩm <small>Đợt 03</small>
+          <button
+            className={view === 'products' ? 'active' : ''}
+            onClick={() => setView('products')}
+            disabled={!staff.permissions.includes('catalog.read')}
+          >
+            Sản phẩm <small>Đang dùng</small>
           </button>
           <button disabled>
             Kho <small>Đợt 04</small>
@@ -156,6 +161,8 @@ export default function Home() {
       </aside>
       {view === 'customers' ? (
         <CustomerWorkspace staff={staff} onLogout={logout} loggingOut={submitting} />
+      ) : view === 'products' ? (
+        <ProductWorkspace staff={staff} onLogout={logout} loggingOut={submitting} />
       ) : (
         <section className="dashboard-content">
           <header>

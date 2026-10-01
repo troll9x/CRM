@@ -12,6 +12,9 @@ export const PERMISSIONS = {
   CUSTOMERS_EXPORT: 'customers.export',
   TASKS_MANAGE: 'tasks.manage',
   OPPORTUNITIES_MANAGE: 'opportunities.manage',
+  CATALOG_READ: 'catalog.read',
+  CATALOG_WRITE: 'catalog.write',
+  MEDIA_MANAGE: 'media.manage',
   CONNECTORS_MANAGE: 'connectors.manage',
 } as const;
 

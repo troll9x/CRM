@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
+import { CatalogModule } from './catalog/catalog.module';
 import { HealthModule } from './health/health.module';
 import { CustomersModule } from './customers/customers.module';
 import { AuthenticationGuard } from './identity/authentication.guard';
@@ -15,6 +16,7 @@ import { PrismaModule } from './prisma/prisma.module';
     HealthModule,
     IdentityModule,
     CustomersModule,
+    CatalogModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: AuthenticationGuard },

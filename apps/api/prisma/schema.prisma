@@ -46,6 +46,16 @@ enum OpportunityKind {
   REPEAT_PURCHASE
 }
 
+enum CatalogStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum MediaStatus {
+  ACTIVE
+  ARCHIVED
+}
+
 model Business {
   id               String             @id @default(cuid())
   name             String
@@ -61,6 +71,8 @@ model Business {
   customerContacts ContactPoint[]
   customerTasks    CustomerTask[]
   opportunities    SalesOpportunity[]
+  products         Product[]
+  productVariants  ProductVariant[]
 
   @@map("businesses")
 }
@@ -293,4 +305,81 @@ model SalesOpportunity {
   @@index([businessId, stage, updatedAt])
   @@index([customerId, createdAt])
   @@map("sales_opportunities")
+}
+
+model Product {
+  id          String           @id @default(cuid())
+  businessId  String           @map("business_id")
+  name        String
+  description String?
+  category    String?
+  brand       String?
+  status      CatalogStatus    @default(ACTIVE)
+  version     Int              @default(1)
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+  business    Business         @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  variants    ProductVariant[]
+  media       MediaAsset[]
+
+  @@index([businessId, status, updatedAt])
+  @@index([businessId, name])
+  @@map("products")
+}
+
+model ProductVariant {
+  id           String           @id @default(cuid())
+  businessId   String           @map("business_id")
+  productId    String           @map("product_id")
+  sku          String
+  name         String
+  barcode      String?
+  baseUnitCode String           @map("base_unit_code")
+  baseUnitName String           @map("base_unit_name")
+  attributes   Json?
+  status       CatalogStatus    @default(ACTIVE)
+  version      Int              @default(1)
+  createdAt    DateTime         @default(now()) @map("created_at")
+  updatedAt    DateTime         @updatedAt @map("updated_at")
+  business     Business         @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  product      Product          @relation(fields: [productId], references: [id], onDelete: Restrict)
+  conversions  UnitConversion[]
+  media        MediaAsset[]
+
+  @@unique([businessId, sku])
+  @@unique([businessId, barcode])
+  @@index([productId, status])
+  @@map("product_variants")
+}
+
+model UnitConversion {
+  id        String         @id @default(cuid())
+  variantId String         @map("variant_id")
+  unitCode  String         @map("unit_code")
+  unitName  String         @map("unit_name")
+  factor    Decimal        @db.Decimal(20, 6)
+  createdAt DateTime       @default(now()) @map("created_at")
+  updatedAt DateTime       @updatedAt @map("updated_at")
+  variant   ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  @@unique([variantId, unitCode])
+  @@map("unit_conversions")
+}
+
+model MediaAsset {
+  id        String          @id @default(cuid())
+  productId String          @map("product_id")
+  variantId String?         @map("variant_id")
+  url       String
+  altText   String?         @map("alt_text")
+  sortOrder Int             @default(0) @map("sort_order")
+  status    MediaStatus     @default(ACTIVE)
+  createdAt DateTime        @default(now()) @map("created_at")
+  updatedAt DateTime        @updatedAt @map("updated_at")
+  product   Product         @relation(fields: [productId], references: [id], onDelete: Restrict)
+  variant   ProductVariant? @relation(fields: [variantId], references: [id], onDelete: Restrict)
+
+  @@index([productId, status, sortOrder])
+  @@index([variantId, status])
+  @@map("media_assets")
 }

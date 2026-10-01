@@ -20,6 +20,9 @@ const permissionDescriptions: Record<string, string> = {
   [PERMISSIONS.CUSTOMERS_EXPORT]: 'Xuất danh sách khách hàng',
   [PERMISSIONS.TASKS_MANAGE]: 'Tạo và cập nhật việc nhắc chăm sóc khách hàng',
   [PERMISSIONS.OPPORTUNITIES_MANAGE]: 'Tạo và cập nhật cơ hội bán hàng',
+  [PERMISSIONS.CATALOG_READ]: 'Xem và tìm kiếm sản phẩm, SKU, đơn vị',
+  [PERMISSIONS.CATALOG_WRITE]: 'Tạo, sửa và ngừng bán sản phẩm, SKU, quy đổi đơn vị',
+  [PERMISSIONS.MEDIA_MANAGE]: 'Quản lý metadata ảnh sản phẩm',
   [PERMISSIONS.CONNECTORS_MANAGE]: 'Cấu hình và thu hồi connector',
 };
 
@@ -39,6 +42,7 @@ const roles = [
       PERMISSIONS.CUSTOMERS_WRITE,
       PERMISSIONS.TASKS_MANAGE,
       PERMISSIONS.OPPORTUNITIES_MANAGE,
+      PERMISSIONS.CATALOG_READ,
       PERMISSIONS.ORDERS_CONFIRM,
     ],
   },
@@ -46,7 +50,7 @@ const roles = [
     code: 'warehouse',
     name: 'Kho',
     description: 'Thao tác kho theo chứng từ',
-    permissions: [PERMISSIONS.INVENTORY_ADJUST],
+    permissions: [PERMISSIONS.CATALOG_READ, PERMISSIONS.INVENTORY_ADJUST],
   },
   {
     code: 'finance',

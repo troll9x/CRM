@@ -1,4 +1,4 @@
-# Chạy môi trường local — Đợt 01
+# Chạy môi trường local — Đợt 01–03
 
 ## Yêu cầu
 
@@ -64,6 +64,8 @@ npm run test:e2e
 E2E cần PostgreSQL đã migrate và seed. Bài kiểm tra chứng minh: endpoint bảo vệ trả 401, đăng nhập đặt cookie HttpOnly, owner đọc được quyền, nhân viên sales bị từ chối gọi API quản trị, logout thu hồi phiên và DTO từ chối field ngoài schema.
 
 Đợt 02 bổ sung E2E cho hai hồ sơ trùng không bị tự gộp, tìm theo liên hệ chuẩn hóa, nhiều địa chỉ, task/cơ hội, optimistic version và role kho bị từ chối gọi API khách hàng. E2E tự dọn dữ liệu mang nhãn `E2E` sau khi chạy.
+
+Đợt 03 bổ sung E2E cho SKU/barcode duy nhất, tìm theo SKU, hệ số quy đổi, optimistic version, metadata ảnh HTTPS và quyền role kho chỉ đọc catalog. Dữ liệu sản phẩm có tên bắt đầu bằng `E2E Catalog` được tự dọn sau test.
 
 ## Migration mới
 

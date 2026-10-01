@@ -31,7 +31,18 @@
 - **AC-02-06 — PASS E2E:** role kho gọi trực tiếp `/customers` nhận `403 PERMISSION_DENIED`; mọi query chi tiết bị giới hạn theo business.
 - **AC-02-07 — PASS local:** UI có trạng thái tải/rỗng/lỗi, tạo–tìm–sửa khách, thêm/lưu trữ địa chỉ, hoàn thành việc nhắc và cập nhật cơ hội bằng API thật.
 
-## 4. Bộ dữ liệu chuẩn liên module
+## 4. Nghiệm thu Đợt 03
+
+- **AC-03-01 — PASS E2E:** tạo sản phẩm cùng SKU; SKU được chuẩn hóa chữ hoa và tìm được theo mã.
+- **AC-03-02 — PASS E2E:** SKU trùng trong cùng business trả `409 SKU_ALREADY_EXISTS`; barcode có unique constraint riêng.
+- **AC-03-03 — PASS E2E:** đơn vị gốc luôn có hệ số 1; API từ chối lặp đơn vị gốc, factor không dương và mã quy đổi trùng.
+- **AC-03-04 — PASS migration:** database có check `factor > 0` và `sort_order >= 0`, ngoài validation API.
+- **AC-03-05 — PASS E2E:** cập nhật quy đổi dùng optimistic version; ngừng bán SKU giữ nguyên hồ sơ thay vì xóa.
+- **AC-03-06 — PASS E2E:** media chỉ nhận URL HTTPS, liên kết đúng product/variant và được lưu trữ thay vì xóa cứng.
+- **AC-03-07 — PASS E2E:** role kho đọc được catalog nhưng gọi API tạo sản phẩm nhận `403 PERMISSION_DENIED`.
+- **AC-03-08 — PASS local:** UI tạo/tìm/sửa/ngừng bán sản phẩm, thêm SKU, sửa quy đổi và quản lý metadata ảnh bằng API thật.
+
+## 5. Bộ dữ liệu chuẩn liên module
 
 Đây là dữ liệu kiểm thử, không phải giá/tồn thật. Quy ước: phải thu phát sinh lúc xác nhận đơn; doanh thu hàng hóa theo phần giao; phí giao 30.000đ không hoàn.
 
@@ -48,7 +59,7 @@
 | Trả 2 cái đủ điều kiện, hoàn 160.000đ        | Thực tế/có thể bán 92; doanh thu hàng thuần 640.000đ; giá vốn ròng 400.000đ; lãi gộp 240.000đ; tiền ròng 670.000đ gồm phí giao |
 | Đổi bảng giá hiện tại                        | Mọi snapshot và kết quả quá khứ ở trên không đổi                                                                               |
 
-## 5. Tình huống bắt buộc trước khi dùng thật
+## 6. Tình huống bắt buộc trước khi dùng thật
 
 | ID         | Tình huống                                                 | Kết quả bắt buộc                                               |
 | ---------- | ---------------------------------------------------------- | -------------------------------------------------------------- |
@@ -67,11 +78,11 @@
 | AC-IMP-01  | Import có dòng lỗi hoặc chạy lại                           | Báo lỗi theo dòng; không nhập trùng                            |
 | AC-TIME-01 | Giao dịch gần nửa đêm UTC/VN                               | Báo cáo đúng ngày `Asia/Ho_Chi_Minh`                           |
 
-## 6. Mẫu test cho từng lát cắt
+## 7. Mẫu test cho từng lát cắt
 
 Mỗi test ghi: Given dữ liệu/role/version; When request hoặc thao tác; Then response, state DB, audit/event, side effect và hành vi retry. Với kho/tiền phải kiểm cả ledger và projection, không chỉ JSON trả về. Test UI chỉ bổ sung cho test backend, không thay thế chúng.
 
-## 7. Cổng phát hành
+## 8. Cổng phát hành
 
 - **Bản nội bộ:** hoàn thành AC liên quan Đợt 01–08, restore test, import dry-run và pilot một nhóm hàng/đơn.
 - **Đa kênh:** mỗi năng lực nhận/gửi có evidence tài khoản thử, duplicate/out-of-order/revoke test.

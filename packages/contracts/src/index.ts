@@ -12,6 +12,9 @@ export const permissionKeys = [
   'customers.export',
   'tasks.manage',
   'opportunities.manage',
+  'catalog.read',
+  'catalog.write',
+  'media.manage',
   'connectors.manage',
 ] as const;
 

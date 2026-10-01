@@ -1,6 +1,6 @@
 # Quy tắc nghiệp vụ
 
-Trạng thái: đặc tả nền Đợt 00. Mỗi quy tắc có mã ổn định để API, test và audit cùng tham chiếu. Ký hiệu **Tạm dùng** nghĩa là chưa được chủ dự án xác nhận để chạy dữ liệu thật.
+Trạng thái: đặc tả đang triển khai tới Đợt 03. Mỗi quy tắc có mã ổn định để API, test và audit cùng tham chiếu. Ký hiệu **Tạm dùng** nghĩa là chưa được chủ dự án xác nhận để chạy dữ liệu thật.
 
 ## 1. Khách hàng và quyền
 
@@ -22,8 +22,11 @@ Trạng thái: đặc tả nền Đợt 00. Mỗi quy tắc có mã ổn định
 
 ## 3. Đơn vị và kho
 
+- **BR-CAT-01:** SKU là duy nhất trong một đơn vị kinh doanh; SKU/sản phẩm đã có lịch sử được ngừng bán thay vì xóa.
+- **BR-CAT-02:** Barcode nếu có là duy nhất trong một đơn vị kinh doanh; thuộc tính biến thể là metadata, không thay thế SKU nội bộ.
 - **BR-UOM-01:** Mỗi SKU có một đơn vị cơ sở. Biến động kho quy về đơn vị cơ sở và lưu hệ số tại thời điểm giao dịch.
 - **BR-UOM-02:** Không đổi/xóa quy đổi đã được chứng từ tham chiếu; tạo phiên bản/hiệu lực mới.
+- **BR-UOM-03:** Đơn vị gốc luôn có hệ số 1; quy đổi khác phải có mã riêng và hệ số dương. Đợt 03 cho thay danh sách vì chưa có chứng từ tham chiếu; từ Đợt 04 trở đi phải áp dụng `BR-UOM-02`.
 - **BR-STOCK-01:** `có thể bán = thực tế - giữ hàng - không đủ điều kiện bán`; ba đại lượng được theo dõi riêng.
 - **BR-STOCK-02:** Mọi nhận, xuất, trả và điều chỉnh phải có chứng từ và dòng sổ kho bất biến; không sửa thẳng số tồn thay cho chứng từ.
 - **BR-STOCK-03:** Tạo đơn mua không tăng tồn. Chỉ phiếu nhận thực tế tăng tồn; nhận nhiều đợt không vượt phần được phép nhận.

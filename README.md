@@ -1,6 +1,6 @@
 # CRM bán sỉ và bán lẻ
 
-Đợt 02 đã có luồng **web → API → PostgreSQL** cho đăng nhập nhân viên, RBAC, hồ sơ khách, liên hệ chuẩn hóa, nhiều địa chỉ, nhóm sỉ/lẻ, việc nhắc và cơ hội mua lần đầu/mua lại. Chưa triển khai hàng hóa, kho, đơn, tiền hay connector; prototype trong `prototype/` vẫn chỉ là dữ liệu mẫu của Đợt 00.
+Đợt 03 đã có luồng **web → API → PostgreSQL** cho đăng nhập/RBAC, CRM khách hàng và danh mục sản phẩm: SKU duy nhất, biến thể, đơn vị gốc, quy đổi cái/hộp/thùng, ngừng bán và metadata ảnh HTTPS. Chưa triển khai tồn kho, nhập hàng, giá bán, đơn, tiền hay connector; prototype trong `prototype/` vẫn chỉ là dữ liệu mẫu của Đợt 00.
 
 ## Chạy nhanh
 
@@ -27,13 +27,13 @@ docker compose up -d api web
 - [PRD](docs/PRD.md): mục tiêu, người dùng, phạm vi và yêu cầu.
 - [Quy tắc nghiệp vụ](docs/BUSINESS_RULES.md): nguồn sự thật cho giá, kho, đơn và tiền.
 - [Mô hình dữ liệu](docs/DATA_MODEL.md): thực thể, quan hệ, quyền sở hữu dữ liệu và bất biến.
-- [Hợp đồng API](docs/API_CONTRACT.md): quy ước API v1 ở mức khung.
+- [Hợp đồng API](docs/API_CONTRACT.md): quy ước API v1 và inventory endpoint theo đợt.
 - [Backlog](docs/BACKLOG.md): thứ tự các đợt và lát cắt triển khai.
 - [Nghiệm thu](docs/ACCEPTANCE.md): dữ liệu mẫu và tình huống bắt buộc.
 - [Quyết định](docs/DECISIONS.md): quyết định đã chốt, tạm dùng và tối đa 5 câu hỏi cần xác nhận.
 - [Sẵn sàng tích hợp](docs/INTEGRATION_READINESS.md): quyền, bằng chứng và trạng thái Facebook/Zalo cùng các kênh sau.
 - [Hướng dẫn prototype](docs/UI_PROTOTYPE.md): kịch bản thử sáu màn hình.
-- [Phát triển local](docs/LOCAL_DEVELOPMENT.md): cài đặt, migration, seed, chạy và kiểm tra Đợt 01.
+- [Phát triển local](docs/LOCAL_DEVELOPMENT.md): cài đặt, migration, seed, chạy và kiểm tra Đợt 01–03.
 
 ## Xem prototype Đợt 00
 
@@ -47,7 +47,7 @@ Sau đó mở `http://localhost:4173/prototype/`. Mọi số liệu đều có n
 
 ## Trạng thái và bước tiếp theo
 
-1. Nền tảng Đợt 01 và CRM khách hàng Đợt 02 đã hoàn thành, được kiểm tra local; workflow CI đã cấu hình, cần một remote Git để có lần chạy CI đầu tiên.
+1. Đợt 01–03 đã hoàn thành và được kiểm tra local; workflow CI đã cấu hình, cần một remote Git để có lần chạy CI đầu tiên.
 2. Chủ dự án vẫn cần trả lời 5 mục `OPEN-01` đến `OPEN-05` trong `docs/DECISIONS.md`; các giả định tạm không phải cấu hình production.
 3. Em gái anh Sơn thử prototype theo `docs/UI_PROTOTYPE.md` và giao diện đăng nhập thật, rồi ghi phản hồi vào backlog.
-4. Tiếp tục Đợt 03 với giả định tạm của `OPEN-02`; không nhập dữ liệu hàng thật cho tới khi chốt ngành hàng, đơn vị, lô/hạn dùng/serial. Không đưa token Facebook/Zalo vào repo.
+4. Trước khi nhập hàng thật/Đợt 04, cần chốt `OPEN-02` và `OPEN-05` về ngành hàng, precision, lô/hạn dùng/serial và giá vốn. Không đưa token Facebook/Zalo vào repo.

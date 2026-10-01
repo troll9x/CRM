@@ -23,6 +23,8 @@
 
 Các mục sau đủ để viết tài liệu/prototype nhưng **không tự động trở thành cấu hình production**: một đơn vị kinh doanh, một kho; báo giá không giữ hàng; giá vốn bình quân gia quyền; giá sỉ theo nhóm/bậc; vận đơn nhập tay; AI chỉ gợi ý có duyệt.
 
+Đợt 03 dùng đơn vị gốc và quy đổi cái/hộp/thùng, thuộc tính biến thể dạng metadata, chưa có lô/hạn dùng/serial. Ảnh chỉ lưu metadata URL HTTPS; không tuyên bố có upload/kho file. Các lựa chọn này phải được thay thế hoặc xác nhận khi đóng `OPEN-02`.
+
 ## 3. Năm quyết định cần chủ dự án xác nhận trước Đợt 01–06
 
 Không thêm câu hỏi chặn mới vào danh sách này; câu hỏi phát sinh phải gộp vào mục phù hợp hoặc đưa sang backlog của đợt sau.

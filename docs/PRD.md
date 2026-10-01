@@ -1,13 +1,13 @@
 # PRD — CRM bán sỉ và bán lẻ
 
-Trạng thái: đặc tả đang triển khai — Đợt 01–02 đã có code và nghiệm thu local
+Trạng thái: đặc tả đang triển khai — Đợt 01–03 đã có code và nghiệm thu local
 Nguồn: `ke-hoach-vibe-code-crm.md` phiên bản 1.0, ngày 30/09/2026
 
 ## 1. Bài toán
 
 Chủ cửa hàng cần một luồng thống nhất để biết khách nào cần trả lời, đơn nào cần giao, hàng nào còn bán được, tiền nào đã nhận và ai đang nợ. Người dùng chính là em gái anh Sơn; cửa hàng bán sỉ và bán lẻ, ưu tiên nguồn khách Facebook và Zalo.
 
-Đã có mã nguồn nền tảng và module khách hàng dùng PostgreSQL thật trong môi trường local. Chưa có dữ liệu vận hành thật hoặc connector đã kiểm chứng; mọi nội dung về kênh bên ngoài vẫn là mục tiêu/điều kiện thử, không phải chức năng đã hoạt động.
+Đã có mã nguồn nền tảng, module khách hàng và danh mục sản phẩm/SKU dùng PostgreSQL thật trong môi trường local. Chưa có dữ liệu vận hành thật hoặc connector đã kiểm chứng; mọi nội dung về kênh bên ngoài vẫn là mục tiêu/điều kiện thử, không phải chức năng đã hoạt động.
 
 ## 2. Kết quả mong muốn
 
