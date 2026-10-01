@@ -7,6 +7,7 @@ import { ALL_PERMISSION_KEYS, PERMISSIONS } from '../src/identity/permissions';
 loadEnv({ path: '../../.env', quiet: true });
 
 const permissionDescriptions: Record<string, string> = {
+  [PERMISSIONS.OVERVIEW_READ]: 'Xem tổng quan và bảng so sánh nghiệp vụ',
   [PERMISSIONS.STAFF_MANAGE]: 'Tạo, xem, khóa và mở khóa nhân viên',
   [PERMISSIONS.ROLES_MANAGE]: 'Xem và gán vai trò cho nhân viên',
   [PERMISSIONS.COST_VIEW]: 'Xem giá vốn và dữ liệu lợi nhuận liên quan',
@@ -40,6 +41,7 @@ const roles = [
     name: 'Bán hàng',
     description: 'Quyền nghiệp vụ bán hàng sẽ được bổ sung theo từng đợt',
     permissions: [
+      PERMISSIONS.OVERVIEW_READ,
       PERMISSIONS.CUSTOMERS_READ,
       PERMISSIONS.CUSTOMERS_WRITE,
       PERMISSIONS.TASKS_MANAGE,
@@ -53,6 +55,7 @@ const roles = [
     name: 'Kho',
     description: 'Thao tác kho theo chứng từ',
     permissions: [
+      PERMISSIONS.OVERVIEW_READ,
       PERMISSIONS.CATALOG_READ,
       PERMISSIONS.PURCHASING_READ,
       PERMISSIONS.PURCHASING_WRITE,
@@ -63,7 +66,11 @@ const roles = [
     code: 'finance',
     name: 'Theo dõi thu chi',
     description: 'Thu chi và công nợ, không mặc định xác nhận đơn',
-    permissions: [PERMISSIONS.PAYMENTS_MANAGE, PERMISSIONS.RECEIVABLES_VIEW],
+    permissions: [
+      PERMISSIONS.OVERVIEW_READ,
+      PERMISSIONS.PAYMENTS_MANAGE,
+      PERMISSIONS.RECEIVABLES_VIEW,
+    ],
   },
 ];
 

@@ -1,4 +1,5 @@
 export const permissionKeys = [
+  'overview.read',
   'staff.manage',
   'roles.manage',
   'cost.view',

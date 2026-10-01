@@ -1,4 +1,5 @@
 export const PERMISSIONS = {
+  OVERVIEW_READ: 'overview.read',
   STAFF_MANAGE: 'staff.manage',
   ROLES_MANAGE: 'roles.manage',
   COST_VIEW: 'cost.view',

@@ -9,6 +9,7 @@ import { IdentityModule } from './identity/identity.module';
 import { PermissionsGuard } from './identity/permissions.guard';
 import { PrismaModule } from './prisma/prisma.module';
 import { PurchasingModule } from './purchasing/purchasing.module';
+import { OverviewModule } from './overview/overview.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { PurchasingModule } from './purchasing/purchasing.module';
     CustomersModule,
     CatalogModule,
     PurchasingModule,
+    OverviewModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: AuthenticationGuard },

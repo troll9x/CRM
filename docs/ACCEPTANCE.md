@@ -54,6 +54,12 @@
 - **AC-04A-07 — PASS migration:** DB kiểm tra line number, hệ số, số lượng đặt và số lượng cơ sở dương; giá dự kiến không âm.
 - **AC-04A-08 — PASS local:** UI tạo/lưu trữ nhà cung cấp, tạo/phát hành/hủy đơn mua bằng API thật và luôn cảnh báo chưa nhập kho.
 
+### Nghiệm thu giao diện và tổng quan
+
+- **AC-UI-UTF8 — PASS unit/build:** tài liệu HTML khai báo `lang=vi`, UTF-8 và font stack có glyph tiếng Việt; test quét source không có ký tự thay thế hoặc chuỗi mojibake thường gặp.
+- **AC-OV-01 — PASS E2E:** owner gọi `/overview` nhận KPI và các bảng so sánh khách/cơ hội/danh mục/mua hàng từ DB; response không trả danh sách quyền hoặc thông tin phiên để lấp chỗ.
+- **AC-OV-02 — PASS local:** trang Tổng quan bỏ toàn bộ thẻ kỹ thuật “phiên/quyền/audit”, có liên kết đi thẳng tới dữ liệu khách, sản phẩm và mua hàng.
+
 ## 6. Bộ dữ liệu chuẩn liên module
 
 Đây là dữ liệu kiểm thử, không phải giá/tồn thật. Quy ước: phải thu phát sinh lúc xác nhận đơn; doanh thu hàng hóa theo phần giao; phí giao 30.000đ không hoàn.

@@ -1,6 +1,6 @@
 # CRM bán sỉ và bán lẻ
 
-Đợt 04A đã có luồng **web → API → PostgreSQL** cho đăng nhập/RBAC, CRM khách hàng, danh mục sản phẩm, nhà cung cấp và đơn mua. Đơn mua lưu snapshot SKU/đơn vị/hệ số/số lượng cơ sở nhưng không làm tăng tồn. Chưa triển khai phiếu nhận, sổ kho, tồn đầu, giá vốn, giá bán, đơn bán, tiền hay connector; prototype trong `prototype/` vẫn chỉ là dữ liệu mẫu của Đợt 00.
+Đợt 04A đã có luồng **web → API → PostgreSQL** cho đăng nhập/RBAC, CRM khách hàng, danh mục sản phẩm, nhà cung cấp và đơn mua. Tổng quan hiển thị KPI, bảng so sánh và đơn mua gần đây từ dữ liệu thật; giao diện khai báo UTF-8/tiếng Việt rõ ràng. Đơn mua lưu snapshot SKU/đơn vị/hệ số/số lượng cơ sở nhưng không làm tăng tồn. Chưa triển khai phiếu nhận, sổ kho, tồn đầu, giá vốn, giá bán, đơn bán, tiền hay connector; prototype trong `prototype/` vẫn chỉ là dữ liệu mẫu của Đợt 00.
 
 ## Chạy nhanh
 
