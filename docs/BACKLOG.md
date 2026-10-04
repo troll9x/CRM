@@ -25,7 +25,7 @@ Trạng thái: `DONE` tài liệu/prototype đã tạo; `WAITING` cần xác nh�
 | 01  | Monorepo, môi trường, auth nhân viên, RBAC, audit, CI | 00 đủ quyết định core       | DONE LOCAL; chờ lần chạy CI remote  |
 | 02  | Khách, nhóm sỉ/lẻ, nhiều địa chỉ, nhắc việc           | 01                          | DONE LOCAL; chờ phản hồi người dùng |
 | 03  | Sản phẩm, SKU, đơn vị, ảnh                            | 01 + OPEN-02                | DONE LOCAL theo giả định tạm        |
-| 04  | Nhà cung cấp, nhập hàng, tồn đầu, sổ kho              | 03 + OPEN-05                | 04A–04C-A DONE LOCAL; 04C-B READY   |
+| 04  | Nhà cung cấp, nhập hàng, tồn đầu, sổ kho              | 03 + OPEN-05                | 04A–04C-B DONE LOCAL                |
 | 05  | Giá sỉ/lẻ, bậc giá, báo giá                           | 02,03 + OPEN-03             | LATER                               |
 | 06  | Đơn, xác nhận, giữ, hủy, giao một phần                | 04,05 + OPEN-04/05          | LATER                               |
 | 07  | Thu tiền, đặt cọc, công nợ, chi phí                   | 06 + chốt ghi nhận phải thu | LATER                               |
@@ -87,7 +87,7 @@ Mỗi lát cắt phải có migration + API + UI + dữ liệu lưu thật + tes
 - `DONE` — UI responsive, API/OpenAPI, migration có DB check và E2E 04A.
 - `DONE LOCAL` — 04B phiếu nhận từng phần cập nhật balance/giá vốn và tạo ledger trong transaction Serializable; có idempotency request hash, kiểm soát nhận vượt/cạnh tranh và UI thật. Cần xác nhận `OPEN-02/05` trước pilot.
 - `DONE LOCAL` — 04C-A tồn đầu một lần theo SKU/kho chưa có lịch sử tồn; chứng từ lưu snapshot, quantity/cost/value, idempotency, audit và movement; backend dùng `inventory.adjust`, transaction Serializable và khóa unique. UI gọi API thật, tìm kiếm và nạp thêm sản phẩm qua cursor.
-- `READY` — 04C-B kiểm kê/điều chỉnh phải dùng chứng từ và quyền `inventory.adjust`, không sửa balance trực tiếp.
+- `DONE LOCAL` — 04C-B kiểm kê từng SKU/kho lưu số hệ thống, số đếm, version kỳ vọng, lý do, snapshot, idempotency và audit. Tồn/version, movement chênh lệch và chứng từ được chốt trong Serializable transaction; lượng đã giữ/không đủ điều kiện được bảo vệ. UI gọi API thật. Mỗi chứng từ xử lý một SKU; giá trị tăng/giảm tạm theo bình quân gia quyền, cần xác nhận `OPEN-02/05` trước khi dùng thật.
 
 ## Definition of Done cho đợt có code
 

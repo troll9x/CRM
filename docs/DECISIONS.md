@@ -29,6 +29,8 @@ Các mục sau đủ để viết tài liệu/prototype nhưng **không tự đ�
 
 Đợt 04C-A thêm chứng từ tồn đầu một lần cho mỗi SKU/kho chưa có lịch sử tồn, dùng giá trị nguyên VND và snapshot danh mục. Đây là thao tác ghi sổ thật trong môi trường local, không phải import hàng thật được duyệt. Kiểm kê/điều chỉnh sẽ là chứng từ riêng ở 04C-B; không cho sửa trực tiếp balance.
 
+Đợt 04C-B triển khai kiểm kê một SKU/kho trên mỗi chứng từ với `expectedVersion`, lưu cả trường hợp không chênh lệch; lượng cam kết không được thấp hơn sau kiểm kê. Chênh lệch định giá tạm dùng giá vốn bình quân hiện tại và làm tròn VND nửa lên. Đây là giả định chạy local; chưa xác nhận `OPEN-02/05` để ghi điều chỉnh hàng thật.
+
 ## 3. Năm quyết định cần chủ dự án xác nhận trước Đợt 01–06
 
 Không thêm câu hỏi chặn mới vào danh sách này; câu hỏi phát sinh phải gộp vào mục phù hợp hoặc đưa sang backlog của đợt sau.

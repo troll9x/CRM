@@ -1304,6 +1304,10 @@ button {
   color: var(--green-2);
   white-space: nowrap;
 }
+.quantity-out {
+  color: var(--danger, #b42318);
+  white-space: nowrap;
+}
 
 @media (max-width: 1000px) {
   .foundation-grid {

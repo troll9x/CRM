@@ -71,6 +71,8 @@ E2E cần PostgreSQL đã migrate và seed. Bài kiểm tra chứng minh: endpoi
 
 Đợt 04C-A bổ sung E2E tồn đầu cho SKU/kho chưa có lịch sử tồn: snapshot danh mục, giá trị VND nguyên, balance/ledger, gửi lại/chống trùng, cạnh tranh đồng thời và quyền xem giá vốn. Dữ liệu `E2E-OPEN-*` được tự dọn sau test; không nhập dữ liệu hàng thật qua bài thử.
 
+Đợt 04C-B bổ sung E2E kiểm kê/điều chỉnh: optimistic version, movement âm/dương, lưu biên bản khi không chênh lệch, lý do, chặn dưới lượng giữ, idempotency, cạnh tranh và ẩn giá vốn. Dữ liệu `E2E-ADJUST-*` cùng chứng từ tồn đầu liên quan được tự dọn sau test. Phương pháp định giá bình quân hiện tại là giả định kỹ thuật, chưa áp dụng cho dữ liệu hàng thật.
+
 ## Migration mới
 
 Chỉ chạy khi schema thay đổi có chủ đích:

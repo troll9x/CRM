@@ -1,6 +1,6 @@
 # PRD — CRM bán sỉ và bán lẻ
 
-Trạng thái: đặc tả đang triển khai — Đợt 01–03 và lát cắt 04A–04C-A đã có code và nghiệm thu local
+Trạng thái: đặc tả đang triển khai — Đợt 01–03 và lát cắt 04A–04C-B đã có code và nghiệm thu local
 Nguồn: `ke-hoach-vibe-code-crm.md` phiên bản 1.0, ngày 30/09/2026
 
 ## 1. Bài toán

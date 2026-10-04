@@ -1,6 +1,6 @@
 # Quy tắc nghiệp vụ
 
-Trạng thái: đặc tả đang triển khai tới lát cắt Đợt 04C-A. Mỗi quy tắc có mã ổn định để API, test và audit cùng tham chiếu. Ký hiệu **Tạm dùng** nghĩa là chưa được chủ dự án xác nhận để chạy dữ liệu thật.
+Trạng thái: đặc tả đang triển khai tới lát cắt Đợt 04C-B. Mỗi quy tắc có mã ổn định để API, test và audit cùng tham chiếu. Ký hiệu **Tạm dùng** nghĩa là chưa được chủ dự án xác nhận để chạy dữ liệu thật.
 
 ## 1. Khách hàng và quyền
 
@@ -34,6 +34,8 @@ Trạng thái: đặc tả đang triển khai tới lát cắt Đợt 04C-A. M�
 - **BR-PUR-02:** Phát hành đơn mua khóa nội dung dòng; sửa lịch sử dùng chứng từ/transition phù hợp. Đơn mua nháp, phát hành hoặc hủy đều không tạo biến động tồn.
 - **BR-STOCK-04:** Tồn đầu kỳ là một chứng từ có người tạo, thời điểm, số lượng và giá trị; import lại phải chống trùng.
 - **BR-STOCK-04A — Tạm dùng:** Mỗi SKU/kho chỉ ghi tồn đầu khi chưa có balance hoặc biến động; chứng từ lưu snapshot SKU/tên/đơn vị, lượng đơn vị gốc và giá vốn nguyên VND. Cùng idempotency key và nội dung chỉ tạo một chứng từ; khác nội dung bị từ chối. Chưa dùng dữ liệu hàng thật trước khi xác nhận `OPEN-02/05`.
+- **BR-STOCK-04B — Tạm dùng:** Kiểm kê ghi SKU/kho, số hệ thống lúc mở, số đếm thực tế, phiên bản balance, lý do, người làm và thời điểm. Chỉ chốt nếu phiên bản chưa đổi; hai lượt cạnh tranh không thể cùng ghi. Số đếm bằng tồn hiện tại vẫn lưu biên bản nhưng không sinh movement. Chênh lệch không được làm tồn thấp hơn lượng đã giữ hoặc không đủ điều kiện bán; phải xử lý phần cam kết trước.
+- **BR-COST-01A — Tạm dùng:** Điều chỉnh tăng/giảm định giá theo giá vốn bình quân hiện tại; giá trị chênh lệch làm tròn tới đồng VND gần nhất (nửa lên). Điều chỉnh tăng cập nhật lại bình quân; giảm giữ nguyên bình quân, tồn về 0 thì giá vốn về 0. Đây là giả định kỹ thuật để kiểm thử, cần chủ dự án xác nhận phương pháp giá vốn trước pilot.
 - **BR-STOCK-05:** Xác nhận đơn kiểm tra hàng có thể bán và tạo giữ hàng trong cùng giao dịch có kiểm soát cạnh tranh.
 - **BR-STOCK-06:** Xuất hàng giảm tồn thực tế và giảm giữ tương ứng trong cùng nghiệp vụ. Cùng idempotency key không tạo lần xuất thứ hai.
 - **BR-STOCK-07:** Hủy đơn chỉ giải phóng phần chưa xuất. Phần đã giao phải qua trả hàng/điều chỉnh.

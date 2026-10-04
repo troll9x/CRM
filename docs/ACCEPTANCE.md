@@ -72,7 +72,13 @@
 - **AC-04C-A-04 — PASS E2E/RBAC:** role kho đọc chứng từ nhưng không nhận giá vốn/giá trị; sales gọi lệnh tồn đầu bị `403`.
 - **AC-04C-A-05 — PASS migration:** unique business/kho/SKU và idempotency key; nguồn movement khớp loại; snapshot được backfill trước khi đặt NOT NULL.
 - **AC-04C-A-06 — PASS build/HTTP, cần kiểm tra thủ công:** UI Kho có form tồn đầu, tìm sản phẩm/SKU, nạp thêm theo cursor và danh sách chứng từ từ API thật; chưa có bằng chứng kiểm tra trực quan bằng trình duyệt tương tác.
-- **AC-04C-B — CHƯA LÀM:** kiểm kê và điều chỉnh có chứng từ; không được coi tồn đầu là thay thế cho hai nghiệp vụ này.
+- **AC-04C-B-01 — PASS E2E:** số đếm tạo snapshot hệ thống/thực tế và chênh lệch; movement dấu âm/dương, tồn và giá vốn bình quân được cập nhật nguyên tử.
+- **AC-04C-B-02 — PASS E2E:** cùng key/nội dung trả cùng biên bản; đổi payload bị `409`; số đếm khớp vẫn lưu biên bản nhưng không tạo movement.
+- **AC-04C-B-03 — PASS E2E:** version tồn cũ và hai lượt kiểm kê cạnh tranh không ghi đè kết quả; request stale trả `409 STOCK_CHANGED_RECOUNT_REQUIRED`.
+- **AC-04C-B-04 — PASS E2E:** lý do không khớp hướng chênh lệch và số đếm dưới lượng giữ/không đủ điều kiện bị từ chối.
+- **AC-04C-B-05 — PASS E2E/RBAC:** role kho đọc biên bản nhưng không nhận giá trị/giá vốn; sales gọi API ghi điều chỉnh bị `403`.
+- **AC-04C-B-06 — PASS migration:** DB chỉ cho số lượng âm và giá trị âm với movement `STOCK_ADJUSTMENT`; movement nhận hàng vẫn phải dương.
+- **AC-04C-B-07 — PASS build/HTTP, cần kiểm tra thủ công:** UI kiểm kê từ dòng tồn hiện tại và danh sách biên bản dùng API thật; chưa có kiểm tra trực quan trình duyệt tương tác.
 
 ### Nghiệm thu giao diện và tổng quan
 
