@@ -27,6 +27,7 @@ type StockBalance = {
   unavailableQuantity: string;
   availableQuantity: string;
   averageCostVnd?: string;
+  version: number;
   warehouse: Warehouse;
   variant: {
     id: string;
@@ -54,6 +55,19 @@ type OpeningStock = {
   postedAt: string;
   warehouse: Warehouse;
 };
+type StockAdjustment = {
+  id: string;
+  documentNumber: string;
+  status: 'POSTED';
+  skuSnapshot: string;
+  unitNameSnapshot: string;
+  systemQuantity: string;
+  countedQuantity: string;
+  quantityDelta: string;
+  reason: string;
+  postedAt: string;
+  warehouse: Warehouse;
+};
 type CatalogProduct = {
   id: string;
   name: string;
@@ -67,7 +81,7 @@ type CatalogProduct = {
 };
 type StockMovement = {
   id: string;
-  type: 'PURCHASE_RECEIPT' | 'OPENING_STOCK';
+  type: 'PURCHASE_RECEIPT' | 'OPENING_STOCK' | 'STOCK_ADJUSTMENT';
   quantityDelta: string;
   valueDeltaVnd?: string;
   onHandAfter: string;
@@ -78,6 +92,7 @@ type StockMovement = {
     goodsReceipt: { receiptNumber: string; purchaseOrder: { orderNumber: string } };
   } | null;
   openingStock?: { id: string; documentNumber: string } | null;
+  stockAdjustment?: { id: string; documentNumber: string; reason: string } | null;
 };
 
 function field(form: FormData, name: string) {
@@ -122,24 +137,30 @@ export function InventoryWorkspace({
   const [receipts, setReceipts] = useState<GoodsReceipt[]>([]);
   const [movements, setMovements] = useState<StockMovement[]>([]);
   const [openings, setOpenings] = useState<OpeningStock[]>([]);
+  const [adjustments, setAdjustments] = useState<StockAdjustment[]>([]);
   const [products, setProducts] = useState<CatalogProduct[]>([]);
   const [productSearch, setProductSearch] = useState('');
   const [productNextCursor, setProductNextCursor] = useState<string | null>(null);
   const [selectedOrderId, setSelectedOrderId] = useState('');
   const [showReceiptForm, setShowReceiptForm] = useState(false);
   const [showOpeningForm, setShowOpeningForm] = useState(false);
+  const [showAdjustmentForm, setShowAdjustmentForm] = useState(false);
+  const [selectedBalanceId, setSelectedBalanceId] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const pendingCommand = useRef<{ signature: string; key: string } | null>(null);
   const pendingOpening = useRef<{ signature: string; key: string } | null>(null);
+  const pendingAdjustment = useRef<{ signature: string; key: string } | null>(null);
   const loadSequence = useRef(0);
 
   const selectedOrder = useMemo(
     () => orders.find(({ id }) => id === selectedOrderId) ?? orders[0] ?? null,
     [orders, selectedOrderId],
   );
+  const selectedBalance =
+    balances.find(({ id }) => id === selectedBalanceId) ?? balances[0] ?? null;
   const variants = useMemo(
     () =>
       products.flatMap((product) =>
@@ -163,6 +184,7 @@ export function InventoryWorkspace({
         receiptRows,
         movementRows,
         openingRows,
+        adjustmentRows,
         productRows,
       ] = await Promise.all([
         api<Warehouse[]>('/warehouses'),
@@ -176,6 +198,7 @@ export function InventoryWorkspace({
         api<GoodsReceipt[]>('/goods-receipts?limit=20'),
         api<StockMovement[]>('/stock-movements?limit=30'),
         api<OpeningStock[]>('/stock-openings?limit=20'),
+        api<StockAdjustment[]>('/stock-adjustments?limit=20'),
         canReadCatalog
           ? api<{ items: CatalogProduct[]; nextCursor: string | null }>(
               `/products?status=ACTIVE&limit=50&query=${encodeURIComponent(productSearch)}`,
@@ -190,6 +213,10 @@ export function InventoryWorkspace({
       setReceipts(receiptRows);
       setMovements(movementRows);
       setOpenings(openingRows);
+      setAdjustments(adjustmentRows);
+      setSelectedBalanceId((current) =>
+        balanceRows.some(({ id }) => id === current) ? current : (balanceRows[0]?.id ?? ''),
+      );
       setProducts(productRows.items);
       setProductNextCursor(productRows.nextCursor);
       setSelectedOrderId((current) =>
@@ -301,6 +328,50 @@ export function InventoryWorkspace({
     }
   }
 
+  async function createAdjustment(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!selectedBalance) return;
+    setSaving(true);
+    setError('');
+    setMessage('');
+    const form = new FormData(event.currentTarget);
+    const body = {
+      warehouseId: selectedBalance.warehouse.id,
+      variantId: selectedBalance.variant.id,
+      expectedVersion: selectedBalance.version,
+      countedQuantity: field(form, 'countedQuantity'),
+      reason: field(form, 'reason'),
+      unitCostVnd: field(form, 'adjustmentUnitCostVnd') || undefined,
+      notes: field(form, 'adjustmentNotes') || undefined,
+    };
+    const signature = JSON.stringify(body);
+    const key =
+      pendingAdjustment.current?.signature === signature
+        ? pendingAdjustment.current.key
+        : `web-adjustment-${crypto.randomUUID()}`;
+    pendingAdjustment.current = { signature, key };
+    try {
+      const adjustment = await api<StockAdjustment>('/stock-adjustments', {
+        method: 'POST',
+        headers: { 'Idempotency-Key': key },
+        body: signature,
+      });
+      pendingAdjustment.current = null;
+      event.currentTarget.reset();
+      setShowAdjustmentForm(false);
+      setMessage(
+        `Đã ghi sổ ${adjustment.documentNumber}: ${adjustment.quantityDelta} ${adjustment.unitNameSnapshot}.`,
+      );
+      await load();
+    } catch (caught) {
+      setError(
+        caught instanceof Error ? caught.message : 'Không thể ghi chứng từ kiểm kê/điều chỉnh.',
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <section className="dashboard-content inventory-workspace">
       <header>
@@ -326,6 +397,15 @@ export function InventoryWorkspace({
               disabled={variants.length === 0}
             >
               + Tồn đầu
+            </button>
+          )}
+          {canOpenStock && (
+            <button
+              className="ghost"
+              onClick={() => setShowAdjustmentForm((value) => !value)}
+              disabled={balances.length === 0}
+            >
+              + Kiểm kê / điều chỉnh
             </button>
           )}
           <button className="ghost" onClick={() => void load()} disabled={loading}>
@@ -477,6 +557,62 @@ export function InventoryWorkspace({
         </form>
       )}
 
+      {showAdjustmentForm && selectedBalance && (
+        <form className="detail-card inventory-receipt-form" onSubmit={createAdjustment}>
+          <label>
+            SKU / kho đang kiểm kê
+            <select
+              value={selectedBalance.id}
+              onChange={(event) => setSelectedBalanceId(event.target.value)}
+            >
+              {balances.map((balance) => (
+                <option key={balance.id} value={balance.id}>
+                  {balance.variant.sku} · {balance.variant.product.name} / {balance.variant.name} ·{' '}
+                  {balance.warehouse.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <p className="muted">
+            Tồn hệ thống lúc tải:{' '}
+            <strong>
+              {selectedBalance.onHandQuantity} {selectedBalance.variant.baseUnitName}
+            </strong>
+            {' · '}version {selectedBalance.version}
+          </p>
+          <label>
+            Số lượng đếm thực tế
+            <input
+              name="countedQuantity"
+              inputMode="decimal"
+              pattern="[0-9]+([.][0-9]{1,6})?"
+              required
+            />
+          </label>
+          {isZeroQuantity(selectedBalance.onHandQuantity) && (
+            <label>
+              Giá vốn / đơn vị cho lần tăng từ 0 (VND)
+              <input name="adjustmentUnitCostVnd" inputMode="numeric" pattern="[0-9]+" />
+            </label>
+          )}
+          <label>
+            Lý do kiểm kê / điều chỉnh
+            <input name="reason" maxLength={500} required />
+          </label>
+          <label>
+            Ghi chú
+            <input name="adjustmentNotes" maxLength={2000} />
+          </label>
+          <button className="primary" disabled={saving}>
+            {saving ? 'Đang ghi sổ…' : 'Xác nhận kiểm kê và ghi sổ'}
+          </button>
+          <small className="form-warning">
+            Hệ thống kiểm tra version trước khi ghi. Nếu tồn đã đổi, chứng từ bị từ chối để kiểm đếm
+            lại. Chứng từ đã ghi không thể sửa.
+          </small>
+        </form>
+      )}
+
       <section className="inventory-kpis">
         <article>
           <span>SKU có tồn trong danh sách</span>
@@ -575,12 +711,18 @@ export function InventoryWorkspace({
                   <small>
                     {movement.goodsReceiptLine?.goodsReceipt.receiptNumber ??
                       movement.openingStock?.documentNumber ??
+                      movement.stockAdjustment?.documentNumber ??
                       'Chứng từ kho'}{' '}
                     · tồn sau {movement.onHandAfter}
                   </small>
                 </div>
-                <strong className="quantity-in">
-                  +{movement.quantityDelta} {movement.variant.baseUnitName}
+                <strong
+                  className={
+                    movement.quantityDelta.startsWith('-') ? 'quantity-out' : 'quantity-in'
+                  }
+                >
+                  {movement.quantityDelta.startsWith('-') ? '' : '+'}
+                  {movement.quantityDelta} {movement.variant.baseUnitName}
                 </strong>
               </article>
             ))}
@@ -607,6 +749,29 @@ export function InventoryWorkspace({
           ))}
           {!loading && openings.length === 0 && (
             <p className="empty-copy">Chưa có chứng từ tồn đầu.</p>
+          )}
+        </div>
+      </section>
+
+      <section className="overview-card recent-table">
+        <p className="eyebrow">KIỂM KÊ / ĐIỀU CHỈNH</p>
+        <h2>Chứng từ đã ghi sổ</h2>
+        <div className="history-list">
+          {adjustments.map((adjustment) => (
+            <article key={adjustment.id}>
+              <div>
+                <b>{adjustment.documentNumber}</b>
+                <small>
+                  Đã ghi sổ · {adjustment.skuSnapshot} · {adjustment.warehouse.name} ·{' '}
+                  {adjustment.systemQuantity} → {adjustment.countedQuantity}{' '}
+                  {adjustment.unitNameSnapshot} · {adjustment.reason}
+                </small>
+              </div>
+              <span>{formatTime(adjustment.postedAt)}</span>
+            </article>
+          ))}
+          {!loading && adjustments.length === 0 && (
+            <p className="empty-copy">Chưa có chứng từ kiểm kê.</p>
           )}
         </div>
       </section>

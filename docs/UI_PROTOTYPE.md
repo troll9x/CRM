@@ -2,6 +2,8 @@
 
 Prototype ở `prototype/index.html` chỉ dùng để chốt thứ tự thao tác, cách tìm và ngôn ngữ giao diện. Không có API/database; tải lại trang sẽ mất mọi thao tác mô phỏng.
 
+Prototype bảng giá OPEN-03 cũng nằm trong cùng trang, có nhãn dữ liệu mẫu. Nhập giá vào ô bậc để xem giá admin override và thử số lượng; các ô trống hiện rõ “chưa có công thức”, không tự suy diễn ra số tiền. Giá nhập chỉ nằm trong bộ nhớ trình duyệt.
+
 ## Cách mở
 
 ```powershell
@@ -19,6 +21,7 @@ Mở `http://localhost:4173/prototype/` trên máy tính và điện thoại (ho
 5. **Kho:** tìm SKU; phân biệt “thực tế”, “đang giữ”, “không bán được” và “có thể bán”. Nếu khó hiểu, ghi tên gọi người dùng muốn.
 6. **Công nợ:** tìm khoản của khách sỉ; phân biệt tổng đơn, đã nhận, còn phải thu và ngày đến hạn. Bấm “Ghi nhận thu” và đánh giá các thông tin cần nhập.
 7. Lặp nhanh trên màn hình điện thoại: tạo đơn và xem hội thoại có thao tác được bằng một tay không.
+8. **Bảng giá:** nhập giá mẫu cho bậc 5 rồi thử lượng 6 và 9; xác nhận cùng giá bậc 5. Thử lượng 11 và 14 ở bậc 10. Xóa giá admin nhập để thấy trạng thái công thức còn chờ chốt; thử lượng 15 để xem bậc 15.
 
 ## Phiếu phản hồi cần ghi
 
@@ -32,5 +35,6 @@ Mở `http://localhost:4173/prototype/` trên máy tính và điện thoại (ho
 | Nút xác nhận đơn nên ở đâu, cần cảnh báo gì?               | Chưa ghi nhận |
 | Trên điện thoại, phần nào quá chật hoặc nhiều bước?        | Chưa ghi nhận |
 | Trường nào đang hiển thị nhưng không cần?                  | Chưa ghi nhận |
+| Quy tắc giá bậc 5/10 có đúng với cách bán thực tế không?   | Chưa ghi nhận |
 
 Sau buổi thử, chuyển phản hồi thành issue/backlog cụ thể. Không coi việc người dùng thích bố cục là nghiệm thu nghiệp vụ; các đợt sau vẫn phải dùng API và dữ liệu lưu thật.

@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="light" />
-    <title>Prototype CRM cửa hàng — Đợt 00</title>
+    <title>Prototype CRM cửa hàng — dữ liệu mẫu</title>
     <link
       rel="icon"
       href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23163b32'/%3E%3Ctext x='32' y='43' text-anchor='middle' font-size='34' font-family='Arial' font-weight='700' fill='%23f6d798'%3ES%3C/text%3E%3C/svg%3E"
@@ -14,7 +14,7 @@
   <body>
     <div class="prototype-banner">
       <strong>DỮ LIỆU MẪU — KHÔNG LƯU</strong>
-      <span>Prototype Đợt 00 để chốt trải nghiệm, chưa phải CRM hoạt động</span>
+      <span>Prototype giao diện để xem trước, chưa phải CRM hoạt động</span>
     </div>
 
     <div class="app-shell">
@@ -30,6 +30,7 @@
             <span>◌</span>Hội thoại <b class="nav-count">5</b>
           </button>
           <button class="nav-item" data-view="order"><span>＋</span>Tạo đơn</button>
+          <button class="nav-item" data-view="pricing"><span>₫</span>Bảng giá</button>
           <button class="nav-item" data-view="inventory"><span>◇</span>Kho</button>
           <button class="nav-item" data-view="receivables">
             <span>₫</span>Công nợ <b class="nav-count warn">2</b>
@@ -472,6 +473,51 @@
           </div>
         </section>
 
+        <section class="view" id="pricing" data-title="Bảng giá">
+          <div class="section-actions">
+            <div>
+              <h2>Bậc giá sỉ</h2>
+              <p>Bản mô phỏng quy tắc OPEN-03 — chưa lưu vào CRM</p>
+            </div>
+            <span class="tag wholesale">Giá mẫu / admin nhập</span>
+          </div>
+          <div class="panel pricing-notice">
+            <strong>Giá tự tính chưa có công thức.</strong>
+            <span>Giá admin nhập sẽ được ưu tiên. Ô trống được giữ mờ và chưa quy đổi thành tiền cho đến khi chốt công thức.</span>
+          </div>
+          <div class="two-column pricing-layout">
+            <article class="panel pricing-editor">
+              <div class="panel-head">
+                <div><h3>Giá theo sản phẩm</h3><p>Số tiền bên dưới chỉ là dữ liệu minh họa.</p></div>
+              </div>
+              <label class="pricing-product" for="pricing-product">
+                <span>Sản phẩm / SKU</span>
+                <select id="pricing-product">
+                  <option value="TS-DEN-M" data-unit="cái" data-retail="90000">Áo thun cotton đen — M · TS-DEN-M</option>
+                  <option value="SM-TRANG-L" data-unit="cái" data-retail="145000">Sơ mi trắng — L · SM-TRANG-L</option>
+                </select>
+              </label>
+              <div class="price-tier-list" id="price-tier-list" aria-live="polite"></div>
+              <p class="muted-note">Ví dụ số lượng: 6–9 dùng giá bậc 5; 11–14 dùng giá bậc 10. Các bậc tiếp tục tăng mỗi 5 đơn vị bán.</p>
+            </article>
+            <article class="panel pricing-preview">
+              <div class="panel-head">
+                <div><h3>Thử chọn giá</h3><p>Mô phỏng một dòng hàng, không tạo báo giá/đơn.</p></div>
+              </div>
+              <label class="pricing-product" for="pricing-quantity">
+                <span>Số lượng theo đơn vị bán</span>
+                <input id="pricing-quantity" type="number" min="1" step="1" value="6" />
+              </label>
+              <div class="price-result" aria-live="polite">
+                <span id="pricing-band">Bậc 5 · áp dụng cho 5–9</span>
+                <strong id="pricing-amount">Chưa có công thức giá tự tính</strong>
+                <small id="pricing-source">Ô bậc đang trống — cần chốt OPEN-03</small>
+              </div>
+              <p class="muted-note">Mã giả: chọn bậc theo số lượng → nếu admin đã nhập giá thì dùng giá đó → nếu trống thì gọi công thức giá tự tính đã được duyệt.</p>
+            </article>
+          </div>
+        </section>
+
         <section class="view" id="inventory" data-title="Kho">
           <div class="section-actions">
             <div>
@@ -665,5 +711,6 @@
 
     <div class="toast" role="status" aria-live="polite"></div>
     <script src="app.js"></script>
+    <script src="pricing-prototype.js"></script>
   </body>
 </html>

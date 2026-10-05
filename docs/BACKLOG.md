@@ -20,23 +20,30 @@ Trạng thái: `DONE` tài liệu/prototype đã tạo; `WAITING` cần xác nh�
 
 ## Roadmap
 
-| Đợt | Phạm vi                                               | Phụ thuộc                   | Trạng thái                          |
-| --- | ----------------------------------------------------- | --------------------------- | ----------------------------------- |
-| 01  | Monorepo, môi trường, auth nhân viên, RBAC, audit, CI | 00 đủ quyết định core       | DONE LOCAL; chờ lần chạy CI remote  |
-| 02  | Khách, nhóm sỉ/lẻ, nhiều địa chỉ, nhắc việc           | 01                          | DONE LOCAL; chờ phản hồi người dùng |
-| 03  | Sản phẩm, SKU, đơn vị, ảnh                            | 01 + OPEN-02                | DONE LOCAL theo giả định tạm        |
-| 04  | Nhà cung cấp, nhập hàng, tồn đầu, sổ kho              | 03 + OPEN-05                | 04A–04C-A DONE LOCAL; 04C-B READY   |
-| 05  | Giá sỉ/lẻ, bậc giá, báo giá                           | 02,03 + OPEN-03             | LATER                               |
-| 06  | Đơn, xác nhận, giữ, hủy, giao một phần                | 04,05 + OPEN-04/05          | LATER                               |
-| 07  | Thu tiền, đặt cọc, công nợ, chi phí                   | 06 + chốt ghi nhận phải thu | LATER                               |
-| 08  | Đổi trả, COD tay, báo cáo, import, backup/pilot       | 06,07                       | LATER                               |
-| 09  | Hộp thư connector đã kiểm chứng                       | 00,02,06 + quyền thật       | LATER                               |
-| 10  | AI gợi ý và đơn nháp                                  | 09 + chính sách duyệt       | LATER                               |
-| 11  | Website mua lại, OTP                                  | 02,05–08                    | LATER                               |
-| 12  | Online payment + một hãng giao                        | 11 + hợp đồng provider      | LATER                               |
-| 13  | Một sàn ưu tiên rồi sàn tiếp                          | 03–08 + quyền               | LATER                               |
-| 14  | Marketing/chăm sóc/báo cáo nâng cao                   | 09–13 theo nhu cầu          | LATER                               |
-| 15  | API đối tác, dự báo, tối ưu                           | Core ổn định, đủ dữ liệu    | LATER                               |
+| Đợt | Phạm vi                                               | Phụ thuộc                   | Trạng thái                                                                                     |
+| --- | ----------------------------------------------------- | --------------------------- | ---------------------------------------------------------------------------------------------- |
+| 01  | Monorepo, môi trường, auth nhân viên, RBAC, audit, CI | 00 đủ quyết định core       | DONE LOCAL; chờ lần chạy CI remote                                                             |
+| 02  | Khách, nhóm sỉ/lẻ, nhiều địa chỉ, nhắc việc           | 01                          | DONE LOCAL; chờ phản hồi người dùng                                                            |
+| 03  | Sản phẩm, SKU, đơn vị, ảnh                            | 01 + OPEN-02                | DONE LOCAL theo giả định tạm                                                                   |
+| 04  | Nhà cung cấp, nhập hàng, tồn đầu, sổ kho              | 03 + OPEN-05                | 04A–04C-B đã qua migration/E2E local; cần kiểm tra UI trực quan và chốt BR-STOCK-10            |
+| 05  | Giá sỉ/lẻ, bậc giá, báo giá                           | 02,03 + OPEN-03             | 05A lưu giá admin theo SKU/bậc đã qua 32 E2E; UI chờ kiểm tra trực quan; 05B–C WAITING OPEN-03 |
+| 06  | Đơn, xác nhận, giữ, hủy, giao một phần                | 04,05 + OPEN-04/05          | LATER                                                                                          |
+| 07  | Thu tiền, đặt cọc, công nợ, chi phí                   | 06 + chốt ghi nhận phải thu | LATER                                                                                          |
+| 08  | Đổi trả, COD tay, báo cáo, import, backup/pilot       | 06,07                       | LATER                                                                                          |
+| 09  | Hộp thư connector đã kiểm chứng                       | 00,02,06 + quyền thật       | LATER                                                                                          |
+| 10  | AI gợi ý và đơn nháp                                  | 09 + chính sách duyệt       | LATER                                                                                          |
+| 11  | Website mua lại, OTP                                  | 02,05–08                    | LATER                                                                                          |
+| 12  | Online payment + một hãng giao                        | 11 + hợp đồng provider      | LATER                                                                                          |
+| 13  | Một sàn ưu tiên rồi sàn tiếp                          | 03–08 + quyền               | LATER                                                                                          |
+| 14  | Marketing/chăm sóc/báo cáo nâng cao                   | 09–13 theo nhu cầu          | LATER                                                                                          |
+| 15  | API đối tác, dự báo, tối ưu                           | Core ổn định, đủ dữ liệu    | LATER                                                                                          |
+
+### Tiến độ Đợt 05 sau khi nhận quy tắc bậc từ chủ dự án
+
+- `05A IMPLEMENTED` — API/UI/DB lưu giá admin theo SKU và bậc; backend resolver chọn đúng bậc, trả giá admin khi đã nhập, trả trạng thái chờ OPEN-03 nếu còn trống. Có `price.edit`, expectedVersion, idempotency và audit.
+- `PROTOTYPE ONLY` — prototype tĩnh vẫn minh họa cùng quy tắc nhưng không lưu; màn hình CRM chính dùng API/DB thật.
+- `WAITING OPEN-03` — chưa chốt nguồn/công thức giá tự tính cho bậc trống, lịch dùng chung hay riêng theo nhóm/khách, dạng/phạm vi giảm thêm, ý nghĩa thông báo/duyệt đơn, và ranh giới 3 ngày.
+- Sau khi chốt: hoàn thiện resolver giá bậc trống và phạm vi nhóm/khách; tiếp tục 05B báo giá snapshot/hiệu lực, 05C chuyển sang đơn nháp và kiểm tra lại. Không lấy dữ liệu trong prototype làm giá vận hành.
 
 ## Kết quả Đợt 01
 
@@ -87,7 +94,7 @@ Mỗi lát cắt phải có migration + API + UI + dữ liệu lưu thật + tes
 - `DONE` — UI responsive, API/OpenAPI, migration có DB check và E2E 04A.
 - `DONE LOCAL` — 04B phiếu nhận từng phần cập nhật balance/giá vốn và tạo ledger trong transaction Serializable; có idempotency request hash, kiểm soát nhận vượt/cạnh tranh và UI thật. Cần xác nhận `OPEN-02/05` trước pilot.
 - `DONE LOCAL` — 04C-A tồn đầu một lần theo SKU/kho chưa có lịch sử tồn; chứng từ lưu snapshot, quantity/cost/value, idempotency, audit và movement; backend dùng `inventory.adjust`, transaction Serializable và khóa unique. UI gọi API thật, tìm kiếm và nạp thêm sản phẩm qua cursor.
-- `READY` — 04C-B kiểm kê/điều chỉnh phải dùng chứng từ và quyền `inventory.adjust`, không sửa balance trực tiếp.
+- `VERIFIED LOCAL; UI CHECK PENDING` — 04C-B có POST/GET chứng từ kiểm kê/điều chỉnh, migration, ledger signed, idempotency, optimistic version, API permission/cost filtering và UI Kho. Migration mới đã deploy và 29 E2E pass trên PostgreSQL kiểm thử cô lập; cần kiểm tra UI trực quan và xác nhận chính sách định giá BR-STOCK-10 trước khi dùng dữ liệu vận hành.
 
 ## Definition of Done cho đợt có code
 

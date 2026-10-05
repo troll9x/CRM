@@ -646,6 +646,98 @@ td > small {
   color: var(--coral);
   background: var(--coral-soft);
 }
+.pricing-notice {
+  padding: 14px 16px;
+  margin-bottom: 16px;
+  display: grid;
+  gap: 4px;
+  color: #71521c;
+  background: #fff8e8;
+  border-color: #f0dfb8;
+  box-shadow: none;
+  font-size: 12px;
+}
+.pricing-notice strong {
+  color: #5c4218;
+}
+.pricing-layout {
+  align-items: start;
+}
+.pricing-editor,
+.pricing-preview {
+  overflow: hidden;
+}
+.pricing-product {
+  display: grid;
+  gap: 7px;
+  padding: 16px 18px 12px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.pricing-product select,
+.pricing-product input,
+.price-tier input {
+  min-width: 0;
+  padding: 10px 11px;
+  color: var(--ink);
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.price-tier-list {
+  padding: 0 18px;
+}
+.price-tier {
+  display: grid;
+  grid-template-columns: minmax(74px, 0.7fr) minmax(120px, 1.2fr) minmax(110px, 1fr);
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+}
+.price-tier strong,
+.price-tier small {
+  display: block;
+}
+.price-tier small {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 10px;
+}
+.price-tier input::placeholder {
+  color: #a5aaa7;
+}
+.dim-price {
+  color: #a2aaa5;
+  font-size: 11px;
+}
+.muted-note {
+  margin: 8px 18px 18px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.55;
+}
+.price-result {
+  margin: 8px 18px 18px;
+  padding: 18px;
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #f8faf8;
+}
+.price-result span,
+.price-result small {
+  color: var(--muted);
+  font-size: 11px;
+}
+.price-result strong {
+  color: #9ba49f;
+  font-size: 17px;
+}
+.price-result.is-overridden strong {
+  color: var(--green);
+}
 .round-more {
   width: 30px;
   height: 30px;
@@ -1090,6 +1182,13 @@ label > input {
   }
   .app-shell {
     display: block;
+  }
+  .price-tier {
+    grid-template-columns: 62px minmax(0, 1fr);
+  }
+  .price-tier input,
+  .price-tier .dim-price {
+    grid-column: 2;
   }
   .sidebar {
     width: 250px;

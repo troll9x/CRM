@@ -19,6 +19,8 @@
 
 `npm audit` ngày 2026-09-30 còn báo 4 cảnh báo mức high trong cây công cụ Prisma CLI (`deepmerge-ts`/`mysql2`). Phương án tự động duy nhất hiện được npm đề xuất là hạ Prisma xuống major 6, nên chưa dùng `--force` vì sẽ phá vỡ ADR-009 và cấu hình Prisma 7. Cần kiểm tra lại khi Prisma phát hành bản ổn định có cây phụ thuộc đã sửa; không xem cảnh báo này là đã xử lý.
 
+Lần `npm ci` ngày 2026-10-05 trong Node 24.18.0 báo 9 high severity vulnerabilities trên 739 package được audit. Chưa chạy `npm audit` để phân tích advisory mới; không chạy `npm audit fix` và không thay dependency cho tới khi xem tác động lên ADR-009.
+
 ## 2. Quy ước tạm dùng
 
 Các mục sau đủ để viết tài liệu/prototype nhưng **không tự động trở thành cấu hình production**: một đơn vị kinh doanh, một kho; báo giá không giữ hàng; giá vốn bình quân gia quyền; giá sỉ theo nhóm/bậc; vận đơn nhập tay; AI chỉ gợi ý có duyệt.
@@ -50,9 +52,12 @@ Không thêm câu hỏi chặn mới vào danh sách này; câu hỏi phát sinh
 
 ### OPEN-03 — Chính sách giá sỉ và giảm giá
 
-- Cần trả lời: giá sỉ theo từng SKU, nhóm/đại lý, tổng đơn hay thương lượng? Bậc số lượng tính theo một SKU hay cộng nhóm? Ai được giảm tối đa bao nhiêu?
-- Tạm dùng: giá riêng khách → bảng giá nhóm → bậc theo SKU → giá mặc định; không cộng dồn.
-- Ảnh hưởng: PriceRule, báo giá, quyền duyệt, bộ test ranh giới 9/10/11.
+- Trạng thái: **Đã có chỉ đạo một phần; chưa đủ để chốt cách tính tiền.**
+- Đã nhận từ chủ dự án: giá sỉ do admin nhập theo từng loại sản phẩm; giá thực tế sẽ được nhập sau. Bậc tính theo đơn vị bán của sản phẩm (túi/hộp/kg/thùng...): 5–9 dùng bậc 5, 10–14 dùng bậc 10, 15–19 dùng bậc 15, tiếp tục mỗi 5 đơn vị. Giá bậc mặc định hiển thị mờ/tự tính; giá admin nhập trực tiếp sẽ được ưu tiên. Được cộng thêm giảm giá do admin thực hiện; thời hạn báo giá 3 ngày.
+- Đã triển khai 05A theo phần đã chốt: giá admin lưu theo business/SKU/bậc; 5–9, 10–14, 15–19…; resolver ưu tiên giá admin và báo `AUTO_PRICE_RULE_REQUIRED` khi thiếu giá. Chưa tạo công thức tự tính hoặc áp giá vào báo giá/đơn.
+- Cần làm rõ: công thức và nguồn giá để tự tính bậc trống; có một lịch giá sỉ chung cho mọi khách hay giá khác nhau theo nhóm/khách; giảm thêm là phần trăm hay số tiền, áp dụng dòng hàng hay toàn đơn; “cần duyệt khi có thông báo đơn mới” là thông báo hay phải chờ admin duyệt đơn; 3 ngày là 72 giờ hay đến hết ngày thứ ba.
+- Ví dụ để chốt công thức: giá lẻ 100.000đ/kg, ô giá bậc 5 trống. Mức nào được hiển thị/tính tự động — chẳng hạn giá lẻ trừ 10%, lấy một tỷ lệ admin cấu hình theo SKU, hay dùng một quy tắc khác? Cũng cần nêu nguồn tham chiếu cho bậc 10 khi ô đó trống.
+- Ảnh hưởng: cấu trúc PriceRule, tổng báo giá/đơn, quyền, thời hạn báo giá và test biên số lượng.
 
 ### OPEN-04 — Chính sách mua nợ
 

@@ -196,6 +196,11 @@ export class InventoryService {
                     documentNumber: { contains: search.toUpperCase(), mode: 'insensitive' },
                   },
                 },
+                {
+                  stockAdjustment: {
+                    documentNumber: { contains: search.toUpperCase(), mode: 'insensitive' },
+                  },
+                },
               ],
             }
           : {}),
@@ -224,6 +229,7 @@ export class InventoryService {
           },
         },
         openingStock: { select: { id: true, documentNumber: true } },
+        stockAdjustment: { select: { id: true, documentNumber: true, reason: true } },
       },
     });
     if (this.canViewCost(actor)) return rows;

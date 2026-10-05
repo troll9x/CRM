@@ -8,6 +8,8 @@ import { CreateGoodsReceiptDto, InventoryListQueryDto } from './dto/inventory.dt
 import { InventoryService } from './inventory.service';
 import { CreateOpeningStockDto } from './dto/opening-stock.dto';
 import { OpeningStockService } from './opening-stock.service';
+import { CreateStockAdjustmentDto } from './dto/stock-adjustment.dto';
+import { StockAdjustmentService } from './stock-adjustment.service';
 
 @ApiTags('inventory')
 @Controller()
@@ -15,6 +17,7 @@ export class InventoryController {
   constructor(
     private readonly inventory: InventoryService,
     private readonly openingStock: OpeningStockService,
+    private readonly stockAdjustment: StockAdjustmentService,
   ) {}
 
   @Get('warehouses')
@@ -76,5 +79,25 @@ export class InventoryController {
     @Req() request: RequestWithContext,
   ) {
     return this.openingStock.create(dto, idempotencyKey, actor, request.requestId);
+  }
+
+  @Get('stock-adjustments')
+  @RequirePermissions(PERMISSIONS.INVENTORY_READ)
+  @ApiOperation({ summary: 'Danh sách chứng từ kiểm kê/điều chỉnh đã ghi sổ' })
+  adjustments(@CurrentStaff() actor: RequestStaff, @Query() query: InventoryListQueryDto) {
+    return this.stockAdjustment.list(actor, query);
+  }
+
+  @Post('stock-adjustments')
+  @RequirePermissions(PERMISSIONS.INVENTORY_ADJUST)
+  @ApiHeader({ name: 'Idempotency-Key', required: true })
+  @ApiOperation({ summary: 'Kiểm kê và ghi sổ điều chỉnh tồn theo version hiện tại' })
+  createAdjustment(
+    @Headers('idempotency-key') idempotencyKey: string | undefined,
+    @Body() dto: CreateStockAdjustmentDto,
+    @CurrentStaff() actor: RequestStaff,
+    @Req() request: RequestWithContext,
+  ) {
+    return this.stockAdjustment.create(dto, idempotencyKey, actor, request.requestId);
   }
 }
