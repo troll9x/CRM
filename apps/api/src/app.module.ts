@@ -9,6 +9,7 @@ import { IdentityModule } from './identity/identity.module';
 import { PermissionsGuard } from './identity/permissions.guard';
 import { PrismaModule } from './prisma/prisma.module';
 import { PurchasingModule } from './purchasing/purchasing.module';
+import { PricingModule } from './pricing/pricing.module';
 import { OverviewModule } from './overview/overview.module';
 import { InventoryModule } from './inventory/inventory.module';
 
@@ -21,6 +22,7 @@ import { InventoryModule } from './inventory/inventory.module';
     CustomersModule,
     CatalogModule,
     PurchasingModule,
+    PricingModule,
     OverviewModule,
     InventoryModule,
   ],

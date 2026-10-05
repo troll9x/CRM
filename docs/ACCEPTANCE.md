@@ -72,13 +72,28 @@
 - **AC-04C-A-04 — PASS E2E/RBAC:** role kho đọc chứng từ nhưng không nhận giá vốn/giá trị; sales gọi lệnh tồn đầu bị `403`.
 - **AC-04C-A-05 — PASS migration:** unique business/kho/SKU và idempotency key; nguồn movement khớp loại; snapshot được backfill trước khi đặt NOT NULL.
 - **AC-04C-A-06 — PASS build/HTTP, cần kiểm tra thủ công:** UI Kho có form tồn đầu, tìm sản phẩm/SKU, nạp thêm theo cursor và danh sách chứng từ từ API thật; chưa có bằng chứng kiểm tra trực quan bằng trình duyệt tương tác.
-- **AC-04C-B-01 — PASS E2E:** số đếm tạo snapshot hệ thống/thực tế và chênh lệch; movement dấu âm/dương, tồn và giá vốn bình quân được cập nhật nguyên tử.
-- **AC-04C-B-02 — PASS E2E:** cùng key/nội dung trả cùng biên bản; đổi payload bị `409`; số đếm khớp vẫn lưu biên bản nhưng không tạo movement.
-- **AC-04C-B-03 — PASS E2E:** version tồn cũ và hai lượt kiểm kê cạnh tranh không ghi đè kết quả; request stale trả `409 STOCK_CHANGED_RECOUNT_REQUIRED`.
-- **AC-04C-B-04 — PASS E2E:** lý do không khớp hướng chênh lệch và số đếm dưới lượng giữ/không đủ điều kiện bị từ chối.
-- **AC-04C-B-05 — PASS E2E/RBAC:** role kho đọc biên bản nhưng không nhận giá trị/giá vốn; sales gọi API ghi điều chỉnh bị `403`.
-- **AC-04C-B-06 — PASS migration:** DB chỉ cho số lượng âm và giá trị âm với movement `STOCK_ADJUSTMENT`; movement nhận hàng vẫn phải dương.
-- **AC-04C-B-07 — PASS build/HTTP, cần kiểm tra thủ công:** UI kiểm kê từ dòng tồn hiện tại và danh sách biên bản dùng API thật; chưa có kiểm tra trực quan trình duyệt tương tác.
+- **AC-04C-B-01 — PASS E2E:** kiểm kê 100→97 ghi delta -3 và 97→102 ghi delta +5; tồn cuối khớp balance.
+- **AC-04C-B-02 — PASS E2E:** chứng từ snapshot tồn hệ thống/số đếm/lý do/người tạo; movement signed, audit và balance cập nhật đồng nhất trong transaction.
+- **AC-04C-B-03 — PASS E2E:** cùng key/nội dung trả cùng chứng từ; cùng key/nội dung khác bị `409`; stale version bị `409 STOCK_VERSION_CONFLICT`; cạnh tranh không ghi đè tồn mới.
+- **AC-04C-B-04 — PASS E2E:** chặn số tồn thấp hơn giữ/không đủ điều kiện bán; vai trò thiếu `inventory.adjust` bị từ chối; thiếu `cost.view` không nhận giá trị/giá vốn.
+- **AC-04C-B-05 — PASS MIGRATION:** migration được áp dụng trên PostgreSQL kiểm thử mới, gồm chứng từ, idempotency, snapshot, liên kết nguồn movement, signed delta và check constraints.
+- **AC-04C-B-06 — IMPLEMENTED, NEED UI CHECK:** UI Kho kiểm kê balance đã tải, hiển thị version, xử lý lỗi stale version và liệt kê chứng từ/ledger qua API thật.
+
+### Nghiệm thu Đợt 05A — giá admin theo SKU
+
+Kết quả chạy ngày 2026-10-05 trên PostgreSQL cô lập:
+
+- **PASS UNIT/E2E:** quy tắc bậc 5/9→5, 10/14→10, 15/19→15 và các biên khác.
+- **PASS E2E:** giá admin lưu/resolver; bậc trống báo chờ OPEN-03; idempotency, payload khác cùng key, version cũ và xóa giá giữ version.
+- **PASS E2E/RBAC:** role sales bị từ chối và SKU thuộc business khác không đọc/sửa được.
+- **UI IMPLEMENTED; BROWSER CHECK PENDING:** màn hình CRM nhập/xóa giá và gọi resolver thật; chưa có kiểm tra trực quan bằng trình duyệt.
+
+- **AC-05A-01:** lượng 5–9 chọn bậc 5; 10–14 chọn bậc 10; 15–19 chọn bậc 15; bậc tiếp tục mỗi 5.
+- **AC-05A-02:** giá admin nhập được lưu dưới SKU/bậc và được resolver trả nguyên VND dạng chuỗi; bậc trống trả `AUTO_PRICE_RULE_REQUIRED` không tạo số tiền.
+- **AC-05A-03:** role thiếu `price.edit` bị từ chối ở API; tenant khác không đọc/sửa SKU ngoài business.
+- **AC-05A-04:** cùng `Idempotency-Key` và payload trả cùng response; cùng key khác payload trả `409`; `expectedVersion` cũ trả `409`.
+- **AC-05A-05:** xóa giá admin giữ version của bậc để lệnh cũ không thể âm thầm tạo lại giá; resolver trở về trạng thái chưa có giá.
+- **AC-05A-06:** UI CRM đọc sản phẩm/giá qua API, nhập/xóa giá qua API; preview resolver gọi backend. Chưa có giá retail, báo giá, giảm giá hoặc công thức tự tính.
 
 ### Nghiệm thu giao diện và tổng quan
 
@@ -90,18 +105,18 @@
 
 Đây là dữ liệu kiểm thử, không phải giá/tồn thật. Quy ước: phải thu phát sinh lúc xác nhận đơn; doanh thu hàng hóa theo phần giao; phí giao 30.000đ không hoàn.
 
-| Bước                                         | Kỳ vọng                                                                                                                        |
-| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| Nhận 100 cái, giá vốn 50.000đ/cái            | Thực tế 100; giữ 0; có thể bán 100                                                                                             |
-| Giá lẻ 90.000đ; sỉ từ 10 cái 80.000đ         | 9 cái dùng giá lẻ; 10/11 dùng giá sỉ theo chính sách mẫu                                                                       |
-| Khách sỉ đặt 10 cái + phí giao 30.000đ       | Tiền hàng 800.000đ; tổng 830.000đ                                                                                              |
-| Nhận cọc 300.000đ sau khi phát sinh phải thu | Còn phải thu 530.000đ                                                                                                          |
-| Xác nhận                                     | Thực tế 100; giữ 10; có thể bán 90                                                                                             |
-| Giao 6                                       | Thực tế 94; giữ 4; có thể bán 90; doanh thu hàng 480.000đ; giá vốn 300.000đ; lãi gộp 180.000đ                                  |
-| Giao 4                                       | Thực tế 90; giữ 0; có thể bán 90; doanh thu hàng 800.000đ; giá vốn 500.000đ; lãi gộp 300.000đ                                  |
-| Thu 530.000đ                                 | Tổng nhận 830.000đ; còn phải thu 0                                                                                             |
-| Trả 2 cái đủ điều kiện, hoàn 160.000đ        | Thực tế/có thể bán 92; doanh thu hàng thuần 640.000đ; giá vốn ròng 400.000đ; lãi gộp 240.000đ; tiền ròng 670.000đ gồm phí giao |
-| Đổi bảng giá hiện tại                        | Mọi snapshot và kết quả quá khứ ở trên không đổi                                                                               |
+| Bước                                                       | Kỳ vọng                                                                                                                        |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| Nhận 100 cái, giá vốn 50.000đ/cái                          | Thực tế 100; giữ 0; có thể bán 100                                                                                             |
+| Giá lẻ 90.000đ/đơn vị bán; admin nhập giá bậc 5 là 80.000đ | 4 dùng giá lẻ; 5–9 dùng bậc 5; 10–14 dùng bậc 10; admin override thắng giá tự tính; công thức giá tự tính chờ OPEN-03          |
+| Khách sỉ đặt 10 đơn vị + phí giao 30.000đ                  | Tiền hàng 800.000đ; tổng 830.000đ (giá chỉ là dữ liệu kiểm thử)                                                                |
+| Nhận cọc 300.000đ sau khi phát sinh phải thu               | Còn phải thu 530.000đ                                                                                                          |
+| Xác nhận                                                   | Thực tế 100; giữ 10; có thể bán 90                                                                                             |
+| Giao 6                                                     | Thực tế 94; giữ 4; có thể bán 90; doanh thu hàng 480.000đ; giá vốn 300.000đ; lãi gộp 180.000đ                                  |
+| Giao 4                                                     | Thực tế 90; giữ 0; có thể bán 90; doanh thu hàng 800.000đ; giá vốn 500.000đ; lãi gộp 300.000đ                                  |
+| Thu 530.000đ                                               | Tổng nhận 830.000đ; còn phải thu 0                                                                                             |
+| Trả 2 cái đủ điều kiện, hoàn 160.000đ                      | Thực tế/có thể bán 92; doanh thu hàng thuần 640.000đ; giá vốn ròng 400.000đ; lãi gộp 240.000đ; tiền ròng 670.000đ gồm phí giao |
+| Đổi bảng giá hiện tại                                      | Mọi snapshot và kết quả quá khứ ở trên không đổi                                                                               |
 
 ## 7. Tình huống bắt buộc trước khi dùng thật
 

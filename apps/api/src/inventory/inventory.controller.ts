@@ -8,8 +8,8 @@ import { CreateGoodsReceiptDto, InventoryListQueryDto } from './dto/inventory.dt
 import { InventoryService } from './inventory.service';
 import { CreateOpeningStockDto } from './dto/opening-stock.dto';
 import { OpeningStockService } from './opening-stock.service';
-import { StockAdjustmentService } from './stock-adjustment.service';
 import { CreateStockAdjustmentDto } from './dto/stock-adjustment.dto';
+import { StockAdjustmentService } from './stock-adjustment.service';
 
 @ApiTags('inventory')
 @Controller()
@@ -83,7 +83,7 @@ export class InventoryController {
 
   @Get('stock-adjustments')
   @RequirePermissions(PERMISSIONS.INVENTORY_READ)
-  @ApiOperation({ summary: 'Danh sách kiểm kê và điều chỉnh kho đã ghi sổ' })
+  @ApiOperation({ summary: 'Danh sách chứng từ kiểm kê/điều chỉnh đã ghi sổ' })
   adjustments(@CurrentStaff() actor: RequestStaff, @Query() query: InventoryListQueryDto) {
     return this.stockAdjustment.list(actor, query);
   }
@@ -91,7 +91,7 @@ export class InventoryController {
   @Post('stock-adjustments')
   @RequirePermissions(PERMISSIONS.INVENTORY_ADJUST)
   @ApiHeader({ name: 'Idempotency-Key', required: true })
-  @ApiOperation({ summary: 'Ghi kết quả kiểm kê SKU, đối chiếu phiên bản và điều chỉnh tồn' })
+  @ApiOperation({ summary: 'Kiểm kê và ghi sổ điều chỉnh tồn theo version hiện tại' })
   createAdjustment(
     @Headers('idempotency-key') idempotencyKey: string | undefined,
     @Body() dto: CreateStockAdjustmentDto,

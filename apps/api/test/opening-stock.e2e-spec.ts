@@ -7,14 +7,22 @@ import { PrismaService } from '../src/prisma/prisma.service';
 
 const ownerEmail = process.env.SEED_OWNER_EMAIL ?? 'owner@crm.local';
 const ownerPassword = process.env.SEED_OWNER_PASSWORD ?? 'Local-test-password-123!';
+type BalanceRow = {
+  id: string;
+  version: number;
+  onHandQuantity: string;
+  averageCostVnd: string;
+  variant: { id: string };
+};
 
-describe('opening stock API phase 04C-A', () => {
+describe('stock opening and adjustment API phases 04C-A/B', () => {
   let app: INestApplication;
   let prisma: PrismaService;
   let owner: ReturnType<typeof request.agent>;
   let warehouseId = '';
   let variantId = '';
   let concurrentVariantId = '';
+  let adjustmentVariantId = '';
 
   async function cleanup() {
     const variants = await prisma.productVariant.findMany({
@@ -24,6 +32,7 @@ describe('opening stock API phase 04C-A', () => {
     const variantIds = variants.map(({ id }) => id);
     if (variantIds.length) {
       await prisma.stockMovement.deleteMany({ where: { variantId: { in: variantIds } } });
+      await prisma.stockAdjustment.deleteMany({ where: { variantId: { in: variantIds } } });
       await prisma.openingStock.deleteMany({ where: { variantId: { in: variantIds } } });
       await prisma.stockBalance.deleteMany({ where: { variantId: { in: variantIds } } });
       await prisma.productVariant.deleteMany({ where: { id: { in: variantIds } } });
@@ -66,11 +75,18 @@ describe('opening stock API phase 04C-A', () => {
             baseUnitCode: 'CAI',
             baseUnitName: 'Cái',
           },
+          {
+            sku: `E2E-OPEN-${stamp}-C`,
+            name: 'Điều chỉnh tồn C',
+            baseUnitCode: 'CAI',
+            baseUnitName: 'Cái',
+          },
         ],
       })
       .expect(201);
     variantId = product.body.data.variants[0].id;
     concurrentVariantId = product.body.data.variants[1].id;
+    adjustmentVariantId = product.body.data.variants[2].id;
   });
 
   afterAll(async () => {
@@ -168,6 +184,125 @@ describe('opening stock API phase 04C-A', () => {
     expect(await prisma.openingStock.count({ where: { variantId: concurrentVariantId } })).toBe(1);
   });
 
+  it('kiểm kê 100 xuống 97 rồi lên 102, có snapshot, ledger, idempotency và version conflict', async () => {
+    const created = await owner
+      .post('/api/v1/stock-openings')
+      .set('Idempotency-Key', `adjustment-opening-${randomUUID()}`)
+      .send({ warehouseId, variantId: adjustmentVariantId, quantity: '100', unitCostVnd: '50000' })
+      .expect(201);
+    const balances = await owner.get('/api/v1/stock-balances').expect(200);
+    const balance = (
+      balances.body.data as Array<{
+        id: string;
+        version: number;
+        onHandQuantity: string;
+        variant: { id: string };
+      }>
+    ).find((row) => row.variant.id === adjustmentVariantId)!;
+    expect(String(balance.onHandQuantity)).toBe('100');
+
+    const decreaseBody = {
+      warehouseId,
+      variantId: adjustmentVariantId,
+      expectedVersion: balance.version,
+      countedQuantity: '97',
+      reason: 'Kiểm kê định kỳ',
+    };
+    const decreased = await owner
+      .post('/api/v1/stock-adjustments')
+      .set('Idempotency-Key', 'stock-adjust-decrease-01')
+      .send(decreaseBody)
+      .expect(201);
+    expect(String(decreased.body.data.systemQuantity)).toBe('100');
+    expect(String(decreased.body.data.quantityDelta)).toBe('-3');
+    expect(String(decreased.body.data.valueDeltaVnd)).toBe('-150000');
+    expect(decreased.body.data.createdBy.displayName).toBeTruthy();
+
+    const updatedBalances = await owner.get('/api/v1/stock-balances').expect(200);
+    const afterDecrease = (updatedBalances.body.data as BalanceRow[]).find(
+      (row) => row.variant.id === adjustmentVariantId,
+    )!;
+    expect(String(afterDecrease.onHandQuantity)).toBe('97');
+    const increaseBody = {
+      warehouseId,
+      variantId: adjustmentVariantId,
+      expectedVersion: afterDecrease.version,
+      countedQuantity: '102',
+      reason: 'Kiểm kê lại sau đối chiếu',
+    };
+    const increased = await owner
+      .post('/api/v1/stock-adjustments')
+      .set('Idempotency-Key', 'stock-adjust-increase-01')
+      .send(increaseBody)
+      .expect(201);
+    expect(String(increased.body.data.quantityDelta)).toBe('5');
+    expect(String(increased.body.data.valueDeltaVnd)).toBe('250000');
+
+    const repeated = await owner
+      .post('/api/v1/stock-adjustments')
+      .set('Idempotency-Key', 'stock-adjust-increase-01')
+      .send(increaseBody)
+      .expect(201);
+    expect(repeated.body.data.id).toBe(increased.body.data.id);
+    const reused = await owner
+      .post('/api/v1/stock-adjustments')
+      .set('Idempotency-Key', 'stock-adjust-increase-01')
+      .send({ ...increaseBody, reason: 'Lý do khác' })
+      .expect(409);
+    expect(reused.body.error.code).toBe('IDEMPOTENCY_KEY_REUSED');
+    const stale = await owner
+      .post('/api/v1/stock-adjustments')
+      .set('Idempotency-Key', `stock-adjust-stale-${randomUUID()}`)
+      .send(increaseBody)
+      .expect(409);
+    expect(stale.body.error.code).toBe('STOCK_VERSION_CONFLICT');
+
+    const finalBalances = await owner.get('/api/v1/stock-balances').expect(200);
+    const finalBalance = (finalBalances.body.data as BalanceRow[]).find(
+      (row) => row.variant.id === adjustmentVariantId,
+    )!;
+    expect(String(finalBalance.onHandQuantity)).toBe('102');
+    expect(String(finalBalance.averageCostVnd)).toBe('50000');
+    expect(await prisma.stockAdjustment.count({ where: { variantId: adjustmentVariantId } })).toBe(
+      2,
+    );
+    expect(
+      await prisma.stockMovement.count({
+        where: { stockAdjustment: { variantId: adjustmentVariantId } },
+      }),
+    ).toBe(2);
+    expect(await prisma.openingStock.count({ where: { id: created.body.data.id } })).toBe(1);
+
+    const raceBalances = await owner.get('/api/v1/stock-balances').expect(200);
+    const raceBalance = (raceBalances.body.data as BalanceRow[]).find(
+      (row) => row.variant.id === variantId,
+    )!;
+    const competingRequests = await Promise.all([
+      owner
+        .post('/api/v1/stock-adjustments')
+        .set('Idempotency-Key', `stock-adjust-race-a-${randomUUID()}`)
+        .send({
+          warehouseId,
+          variantId,
+          expectedVersion: raceBalance.version,
+          countedQuantity: '9',
+          reason: 'Kiểm kê cạnh tranh A',
+        }),
+      owner
+        .post('/api/v1/stock-adjustments')
+        .set('Idempotency-Key', `stock-adjust-race-b-${randomUUID()}`)
+        .send({
+          warehouseId,
+          variantId,
+          expectedVersion: raceBalance.version,
+          countedQuantity: '11',
+          reason: 'Kiểm kê cạnh tranh B',
+        }),
+    ]);
+    expect(competingRequests.map(({ status }) => status).sort()).toEqual([201, 409]);
+    expect(await prisma.stockAdjustment.count({ where: { variantId } })).toBe(1);
+  });
+
   it('nhân viên kho xem số lượng nhưng không xem giá vốn; sales bị từ chối', async () => {
     const timestamp = Date.now();
     const warehouseEmail = `opening-warehouse-${timestamp}@crm.local`;
@@ -194,6 +329,9 @@ describe('opening stock API phase 04C-A', () => {
     const list = await warehouse.get('/api/v1/stock-openings').expect(200);
     expect(list.body.data[0]).not.toHaveProperty('unitCostVnd');
     expect(list.body.data[0]).not.toHaveProperty('valueVnd');
+    const adjustmentList = await warehouse.get('/api/v1/stock-adjustments').expect(200);
+    expect(adjustmentList.body.data[0]).not.toHaveProperty('unitCostVnd');
+    expect(adjustmentList.body.data[0]).not.toHaveProperty('valueDeltaVnd');
 
     const sales = request.agent(app.getHttpServer());
     await sales
@@ -202,5 +340,7 @@ describe('opening stock API phase 04C-A', () => {
       .expect(201);
     const forbidden = await sales.post('/api/v1/stock-openings').send({}).expect(403);
     expect(forbidden.body.error.code).toBe('PERMISSION_DENIED');
+    const forbiddenAdjustment = await sales.post('/api/v1/stock-adjustments').send({}).expect(403);
+    expect(forbiddenAdjustment.body.error.code).toBe('PERMISSION_DENIED');
   });
 });

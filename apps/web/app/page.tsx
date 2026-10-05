@@ -7,6 +7,7 @@ import { InventoryWorkspace } from './inventory-workspace';
 import { OverviewWorkspace } from './overview-workspace';
 import { ProductWorkspace } from './product-workspace';
 import { PurchasingWorkspace } from './purchasing-workspace';
+import { PricingWorkspace } from './pricing-workspace';
 
 export default function Home() {
   const [staff, setStaff] = useState<Staff | null>(null);
@@ -14,7 +15,7 @@ export default function Home() {
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState('');
   const [view, setView] = useState<
-    'overview' | 'customers' | 'products' | 'purchasing' | 'inventory'
+    'overview' | 'customers' | 'products' | 'purchasing' | 'inventory' | 'pricing'
   >('overview');
 
   useEffect(() => {
@@ -168,6 +169,14 @@ export default function Home() {
           >
             Kho
           </button>
+          {staff.permissions.includes('price.edit') && (
+            <button
+              className={view === 'pricing' ? 'active' : ''}
+              onClick={() => setView('pricing')}
+            >
+              Bảng giá
+            </button>
+          )}
         </nav>
         <div className="staff-mini">
           <b>{staff.displayName}</b>
@@ -182,6 +191,8 @@ export default function Home() {
         <PurchasingWorkspace staff={staff} onLogout={logout} loggingOut={submitting} />
       ) : view === 'inventory' ? (
         <InventoryWorkspace staff={staff} onLogout={logout} loggingOut={submitting} />
+      ) : view === 'pricing' ? (
+        <PricingWorkspace staff={staff} onLogout={logout} loggingOut={submitting} />
       ) : (
         <OverviewWorkspace
           staff={staff}

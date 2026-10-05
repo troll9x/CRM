@@ -1,6 +1,6 @@
 # PRD — CRM bán sỉ và bán lẻ
 
-Trạng thái: đặc tả đang triển khai — Đợt 01–03 và lát cắt 04A–04C-B đã có code và nghiệm thu local
+Trạng thái: đặc tả đang triển khai — Đợt 01–04C-B đã có code; 05A nhập giá admin theo SKU/bậc đã có UI/API/migration. 05A chưa thay thế quyết định OPEN-03 về tự tính giá, giá lẻ/nhóm khách, giảm giá và báo giá. 04C-B còn chờ UI trực quan và xác nhận BR-STOCK-10 trước vận hành thật.
 Nguồn: `ke-hoach-vibe-code-crm.md` phiên bản 1.0, ngày 30/09/2026
 
 ## 1. Bài toán

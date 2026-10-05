@@ -1,6 +1,6 @@
 # Quy tắc nghiệp vụ
 
-Trạng thái: đặc tả đang triển khai tới lát cắt Đợt 04C-B. Mỗi quy tắc có mã ổn định để API, test và audit cùng tham chiếu. Ký hiệu **Tạm dùng** nghĩa là chưa được chủ dự án xác nhận để chạy dữ liệu thật.
+Trạng thái: đặc tả đang triển khai tới lát cắt Đợt 05A. Mỗi quy tắc có mã ổn định để API, test và audit cùng tham chiếu. Ký hiệu **Tạm dùng** nghĩa là chưa được chủ dự án xác nhận để chạy dữ liệu thật.
 
 ## 1. Khách hàng và quyền
 
@@ -15,8 +15,9 @@ Trạng thái: đặc tả đang triển khai tới lát cắt Đợt 04C-B. M�
 
 - **BR-MON-01:** Tiền VND dùng số nguyên đồng. Không dùng `number` JavaScript để tính tiền nếu phép tính có thể tạo sai số.
 - **BR-MON-02:** Tổng đơn, giảm giá, phí và thuế (nếu có sau này) do backend tính; tổng frontend gửi lên chỉ là dữ liệu hiển thị, không phải nguồn sự thật.
-- **BR-PRICE-01 — Tạm dùng:** Thứ tự giá: giá riêng khách → bảng giá nhóm → bậc số lượng → giá mặc định. Chỉ một nguồn thắng; không tự cộng dồn chiết khấu.
-- **BR-PRICE-02:** Giá/bậc có thời gian hiệu lực; giảm vượt quyền bị backend từ chối hoặc chuyển duyệt theo quyết định sau.
+- **BR-PRICE-01 — OPEN-03 chốt một phần:** Bậc sỉ theo đơn vị bán của SKU: lượng 5–9 dùng bậc 5, 10–14 dùng bậc 10, 15–19 dùng bậc 15 và tiếp tục theo bước 5. Admin có thể nhập giá trực tiếp cho từng bậc; giá admin nhập thắng giá tự tính. Đợt 05A lưu giá admin theo SKU/bậc trong business, kiểm tra quyền `price.edit`, optimistic version và idempotency. Khi bậc trống, resolver trả trạng thái cần quy tắc tự tính, không tự đặt giá. Công thức/nguồn tham chiếu để tự tính bậc trống và việc áp dụng theo nhóm/khách còn chờ xác nhận.
+- **BR-PRICE-02 — OPEN-03 chốt một phần:** Cho phép cộng giảm giá thêm, chỉ tài khoản có quyền admin được áp dụng. Backend tự tính và kiểm tra quyền; dạng giảm (phần trăm/VND), phạm vi (dòng/toàn đơn), xử lý duyệt và thời gian hiệu lực còn chờ xác nhận.
+- **BR-QUOTE-03 — Tạm xác nhận:** Báo giá có hiệu lực 3 ngày; cần chốt ranh giới hết hạn là 72 giờ từ lúc phát hành hay hết ngày thứ ba theo `Asia/Ho_Chi_Minh`.
 - **BR-SNAP-01:** Báo giá/đơn lưu snapshot tên hàng, SKU, đơn vị, hệ số quy đổi, giá, giảm giá, địa chỉ và điều kiện tại thời điểm chốt.
 - **BR-SNAP-02:** Đổi danh mục, địa chỉ, quy đổi hoặc bảng giá không làm thay đổi chứng từ cũ.
 
@@ -34,8 +35,8 @@ Trạng thái: đặc tả đang triển khai tới lát cắt Đợt 04C-B. M�
 - **BR-PUR-02:** Phát hành đơn mua khóa nội dung dòng; sửa lịch sử dùng chứng từ/transition phù hợp. Đơn mua nháp, phát hành hoặc hủy đều không tạo biến động tồn.
 - **BR-STOCK-04:** Tồn đầu kỳ là một chứng từ có người tạo, thời điểm, số lượng và giá trị; import lại phải chống trùng.
 - **BR-STOCK-04A — Tạm dùng:** Mỗi SKU/kho chỉ ghi tồn đầu khi chưa có balance hoặc biến động; chứng từ lưu snapshot SKU/tên/đơn vị, lượng đơn vị gốc và giá vốn nguyên VND. Cùng idempotency key và nội dung chỉ tạo một chứng từ; khác nội dung bị từ chối. Chưa dùng dữ liệu hàng thật trước khi xác nhận `OPEN-02/05`.
-- **BR-STOCK-04B — Tạm dùng:** Kiểm kê ghi SKU/kho, số hệ thống lúc mở, số đếm thực tế, phiên bản balance, lý do, người làm và thời điểm. Chỉ chốt nếu phiên bản chưa đổi; hai lượt cạnh tranh không thể cùng ghi. Số đếm bằng tồn hiện tại vẫn lưu biên bản nhưng không sinh movement. Chênh lệch không được làm tồn thấp hơn lượng đã giữ hoặc không đủ điều kiện bán; phải xử lý phần cam kết trước.
-- **BR-COST-01A — Tạm dùng:** Điều chỉnh tăng/giảm định giá theo giá vốn bình quân hiện tại; giá trị chênh lệch làm tròn tới đồng VND gần nhất (nửa lên). Điều chỉnh tăng cập nhật lại bình quân; giảm giữ nguyên bình quân, tồn về 0 thì giá vốn về 0. Đây là giả định kỹ thuật để kiểm thử, cần chủ dự án xác nhận phương pháp giá vốn trước pilot.
+- **BR-STOCK-09:** Kiểm kê nhận số đếm thực tế và version tồn đã xem; backend tính chênh lệch với tồn hệ thống, từ chối nếu version cũ, không cho số tồn thấp hơn lượng đang giữ/không đủ điều kiện bán. Mỗi lần chênh lệch ghi chứng từ snapshot, movement và audit bất biến trong một transaction; không sửa trực tiếp balance.
+- **BR-STOCK-10 — Tạm dùng chờ xác nhận:** Tăng tồn trên balance còn hàng dùng giá vốn bình quân hiện tại; giảm tồn định giá theo giá vốn bình quân hiện tại. Giá trị chênh lệch làm tròn về VND nguyên gần nhất; tồn về 0 có giá trị và giá vốn bình quân bằng 0. Tăng từ 0 cần giá vốn đơn vị được ghi rõ trên chứng từ.
 - **BR-STOCK-05:** Xác nhận đơn kiểm tra hàng có thể bán và tạo giữ hàng trong cùng giao dịch có kiểm soát cạnh tranh.
 - **BR-STOCK-06:** Xuất hàng giảm tồn thực tế và giảm giữ tương ứng trong cùng nghiệp vụ. Cùng idempotency key không tạo lần xuất thứ hai.
 - **BR-STOCK-07:** Hủy đơn chỉ giải phóng phần chưa xuất. Phần đã giao phải qua trả hàng/điều chỉnh.

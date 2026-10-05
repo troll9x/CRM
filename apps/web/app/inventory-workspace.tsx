@@ -22,12 +22,12 @@ type PurchaseOrder = {
 };
 type StockBalance = {
   id: string;
-  version: number;
   onHandQuantity: string;
   reservedQuantity: string;
   unavailableQuantity: string;
   availableQuantity: string;
   averageCostVnd?: string;
+  version: number;
   warehouse: Warehouse;
   variant: {
     id: string;
@@ -58,13 +58,13 @@ type OpeningStock = {
 type StockAdjustment = {
   id: string;
   documentNumber: string;
+  status: 'POSTED';
   skuSnapshot: string;
   unitNameSnapshot: string;
   systemQuantity: string;
   countedQuantity: string;
   quantityDelta: string;
-  valueDeltaVnd?: string;
-  reasonCode: string;
+  reason: string;
   postedAt: string;
   warehouse: Warehouse;
 };
@@ -92,7 +92,7 @@ type StockMovement = {
     goodsReceipt: { receiptNumber: string; purchaseOrder: { orderNumber: string } };
   } | null;
   openingStock?: { id: string; documentNumber: string } | null;
-  stockAdjustment?: { id: string; documentNumber: string } | null;
+  stockAdjustment?: { id: string; documentNumber: string; reason: string } | null;
 };
 
 function field(form: FormData, name: string) {
@@ -129,7 +129,6 @@ export function InventoryWorkspace({
   const canReadPurchasing = staff.permissions.includes('purchasing.read');
   const canReadCatalog = staff.permissions.includes('catalog.read');
   const canReceive = staff.permissions.includes('inventory.receive') && canReadPurchasing;
-  const canAdjustStock = staff.permissions.includes('inventory.adjust');
   const canOpenStock = staff.permissions.includes('inventory.adjust') && canReadCatalog;
   const canViewCost = staff.permissions.includes('cost.view');
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
@@ -145,7 +144,8 @@ export function InventoryWorkspace({
   const [selectedOrderId, setSelectedOrderId] = useState('');
   const [showReceiptForm, setShowReceiptForm] = useState(false);
   const [showOpeningForm, setShowOpeningForm] = useState(false);
-  const [countingBalance, setCountingBalance] = useState<StockBalance | null>(null);
+  const [showAdjustmentForm, setShowAdjustmentForm] = useState(false);
+  const [selectedBalanceId, setSelectedBalanceId] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
@@ -159,6 +159,8 @@ export function InventoryWorkspace({
     () => orders.find(({ id }) => id === selectedOrderId) ?? orders[0] ?? null,
     [orders, selectedOrderId],
   );
+  const selectedBalance =
+    balances.find(({ id }) => id === selectedBalanceId) ?? balances[0] ?? null;
   const variants = useMemo(
     () =>
       products.flatMap((product) =>
@@ -212,6 +214,9 @@ export function InventoryWorkspace({
       setMovements(movementRows);
       setOpenings(openingRows);
       setAdjustments(adjustmentRows);
+      setSelectedBalanceId((current) =>
+        balanceRows.some(({ id }) => id === current) ? current : (balanceRows[0]?.id ?? ''),
+      );
       setProducts(productRows.items);
       setProductNextCursor(productRows.nextCursor);
       setSelectedOrderId((current) =>
@@ -323,26 +328,27 @@ export function InventoryWorkspace({
     }
   }
 
-  async function createStockAdjustment(event: FormEvent<HTMLFormElement>) {
+  async function createAdjustment(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!countingBalance) return;
+    if (!selectedBalance) return;
     setSaving(true);
     setError('');
     setMessage('');
     const form = new FormData(event.currentTarget);
     const body = {
-      warehouseId: countingBalance.warehouse.id,
-      variantId: countingBalance.variant.id,
-      expectedVersion: countingBalance.version,
+      warehouseId: selectedBalance.warehouse.id,
+      variantId: selectedBalance.variant.id,
+      expectedVersion: selectedBalance.version,
       countedQuantity: field(form, 'countedQuantity'),
-      reasonCode: field(form, 'reasonCode'),
-      notes: field(form, 'notes') || undefined,
+      reason: field(form, 'reason'),
+      unitCostVnd: field(form, 'adjustmentUnitCostVnd') || undefined,
+      notes: field(form, 'adjustmentNotes') || undefined,
     };
     const signature = JSON.stringify(body);
     const key =
       pendingAdjustment.current?.signature === signature
         ? pendingAdjustment.current.key
-        : `web-adjust-${crypto.randomUUID()}`;
+        : `web-adjustment-${crypto.randomUUID()}`;
     pendingAdjustment.current = { signature, key };
     try {
       const adjustment = await api<StockAdjustment>('/stock-adjustments', {
@@ -352,19 +358,15 @@ export function InventoryWorkspace({
       });
       pendingAdjustment.current = null;
       event.currentTarget.reset();
-      setCountingBalance(null);
+      setShowAdjustmentForm(false);
       setMessage(
-        isZeroQuantity(adjustment.quantityDelta)
-          ? `Đã lưu biên bản ${adjustment.documentNumber}; số đếm khớp tồn hệ thống.`
-          : `Đã ghi ${adjustment.documentNumber}; tồn kho đã được điều chỉnh theo số đếm.`,
+        `Đã ghi sổ ${adjustment.documentNumber}: ${adjustment.quantityDelta} ${adjustment.unitNameSnapshot}.`,
       );
       await load();
     } catch (caught) {
-      if (caught instanceof Error && caught.message.startsWith('Tồn kho')) {
-        setCountingBalance(null);
-        await load();
-      }
-      setError(caught instanceof Error ? caught.message : 'Không thể lưu kết quả kiểm kê.');
+      setError(
+        caught instanceof Error ? caught.message : 'Không thể ghi chứng từ kiểm kê/điều chỉnh.',
+      );
     } finally {
       setSaving(false);
     }
@@ -395,6 +397,15 @@ export function InventoryWorkspace({
               disabled={variants.length === 0}
             >
               + Tồn đầu
+            </button>
+          )}
+          {canOpenStock && (
+            <button
+              className="ghost"
+              onClick={() => setShowAdjustmentForm((value) => !value)}
+              disabled={balances.length === 0}
+            >
+              + Kiểm kê / điều chỉnh
             </button>
           )}
           <button className="ghost" onClick={() => void load()} disabled={loading}>
@@ -546,54 +557,58 @@ export function InventoryWorkspace({
         </form>
       )}
 
-      {countingBalance && (
-        <form className="detail-card inventory-receipt-form" onSubmit={createStockAdjustment}>
-          <div>
-            <p className="eyebrow">KIỂM KÊ THEO TỒN ĐANG HIỂN THỊ</p>
-            <h2>
-              {countingBalance.variant.sku} · {countingBalance.warehouse.name}
-            </h2>
-            <p className="muted">
-              Hệ thống ghi {countingBalance.onHandQuantity} {countingBalance.variant.baseUnitName}.
-              Nếu tồn đổi trong lúc đếm, hệ thống sẽ yêu cầu tải lại.
-            </p>
-          </div>
+      {showAdjustmentForm && selectedBalance && (
+        <form className="detail-card inventory-receipt-form" onSubmit={createAdjustment}>
           <label>
-            Số lượng thực đếm ({countingBalance.variant.baseUnitName})
+            SKU / kho đang kiểm kê
+            <select
+              value={selectedBalance.id}
+              onChange={(event) => setSelectedBalanceId(event.target.value)}
+            >
+              {balances.map((balance) => (
+                <option key={balance.id} value={balance.id}>
+                  {balance.variant.sku} · {balance.variant.product.name} / {balance.variant.name} ·{' '}
+                  {balance.warehouse.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <p className="muted">
+            Tồn hệ thống lúc tải:{' '}
+            <strong>
+              {selectedBalance.onHandQuantity} {selectedBalance.variant.baseUnitName}
+            </strong>
+            {' · '}version {selectedBalance.version}
+          </p>
+          <label>
+            Số lượng đếm thực tế
             <input
-              key={`${countingBalance.id}:${countingBalance.version}`}
               name="countedQuantity"
-              defaultValue={countingBalance.onHandQuantity}
               inputMode="decimal"
               pattern="[0-9]+([.][0-9]{1,6})?"
               required
             />
           </label>
+          {isZeroQuantity(selectedBalance.onHandQuantity) && (
+            <label>
+              Giá vốn / đơn vị cho lần tăng từ 0 (VND)
+              <input name="adjustmentUnitCostVnd" inputMode="numeric" pattern="[0-9]+" />
+            </label>
+          )}
           <label>
-            Lý do
-            <select name="reasonCode" defaultValue="COUNT_VARIANCE" required>
-              <option value="COUNT_VARIANCE">Chênh lệch kiểm kê</option>
-              <option value="DAMAGE">Hư hỏng</option>
-              <option value="LOSS">Thất thoát</option>
-              <option value="FOUND">Tìm thấy hàng</option>
-              <option value="OTHER">Lý do khác</option>
-            </select>
+            Lý do kiểm kê / điều chỉnh
+            <input name="reason" maxLength={500} required />
           </label>
           <label>
             Ghi chú
-            <input name="notes" maxLength={2000} />
+            <input name="adjustmentNotes" maxLength={2000} />
           </label>
-          <div className="header-actions">
-            <button className="primary" disabled={saving}>
-              {saving ? 'Đang lưu…' : 'Lưu kết quả kiểm kê'}
-            </button>
-            <button type="button" className="ghost" onClick={() => setCountingBalance(null)}>
-              Đóng
-            </button>
-          </div>
+          <button className="primary" disabled={saving}>
+            {saving ? 'Đang ghi sổ…' : 'Xác nhận kiểm kê và ghi sổ'}
+          </button>
           <small className="form-warning">
-            Giá trị chênh lệch tạm tính theo giá vốn bình quân hiện tại; cần xác nhận chính sách giá
-            vốn trước khi dùng dữ liệu thật.
+            Hệ thống kiểm tra version trước khi ghi. Nếu tồn đã đổi, chứng từ bị từ chối để kiểm đếm
+            lại. Chứng từ đã ghi không thể sửa.
           </small>
         </form>
       )}
@@ -634,7 +649,6 @@ export function InventoryWorkspace({
                 <th>Giữ</th>
                 <th>Có thể bán</th>
                 {canViewCost && <th>Giá vốn bình quân</th>}
-                {canAdjustStock && <th>Thao tác</th>}
               </tr>
             </thead>
             <tbody>
@@ -655,13 +669,6 @@ export function InventoryWorkspace({
                     <strong>{balance.availableQuantity}</strong>
                   </td>
                   {canViewCost && <td>{formatVnd(balance.averageCostVnd ?? '0')}</td>}
-                  {canAdjustStock && (
-                    <td>
-                      <button className="ghost" onClick={() => setCountingBalance(balance)}>
-                        Kiểm kê
-                      </button>
-                    </td>
-                  )}
                 </tr>
               ))}
             </tbody>
@@ -725,30 +732,6 @@ export function InventoryWorkspace({
       </div>
 
       <section className="overview-card recent-table">
-        <p className="eyebrow">KIỂM KÊ</p>
-        <h2>Kết quả kiểm kê gần đây</h2>
-        <div className="history-list">
-          {adjustments.map((adjustment) => (
-            <article key={adjustment.id}>
-              <div>
-                <b>
-                  {adjustment.documentNumber} · {adjustment.skuSnapshot}
-                </b>
-                <small>
-                  {adjustment.warehouse.name} · đếm {adjustment.countedQuantity}{' '}
-                  {adjustment.unitNameSnapshot} · {adjustment.reasonCode}
-                </small>
-              </div>
-              <span>{formatTime(adjustment.postedAt)}</span>
-            </article>
-          ))}
-          {!loading && adjustments.length === 0 && (
-            <p className="empty-copy">Chưa có lượt kiểm kê.</p>
-          )}
-        </div>
-      </section>
-
-      <section className="overview-card recent-table">
         <p className="eyebrow">TỒN ĐẦU KỲ</p>
         <h2>Chứng từ đã ghi sổ</h2>
         <div className="history-list">
@@ -766,6 +749,29 @@ export function InventoryWorkspace({
           ))}
           {!loading && openings.length === 0 && (
             <p className="empty-copy">Chưa có chứng từ tồn đầu.</p>
+          )}
+        </div>
+      </section>
+
+      <section className="overview-card recent-table">
+        <p className="eyebrow">KIỂM KÊ / ĐIỀU CHỈNH</p>
+        <h2>Chứng từ đã ghi sổ</h2>
+        <div className="history-list">
+          {adjustments.map((adjustment) => (
+            <article key={adjustment.id}>
+              <div>
+                <b>{adjustment.documentNumber}</b>
+                <small>
+                  Đã ghi sổ · {adjustment.skuSnapshot} · {adjustment.warehouse.name} ·{' '}
+                  {adjustment.systemQuantity} → {adjustment.countedQuantity}{' '}
+                  {adjustment.unitNameSnapshot} · {adjustment.reason}
+                </small>
+              </div>
+              <span>{formatTime(adjustment.postedAt)}</span>
+            </article>
+          ))}
+          {!loading && adjustments.length === 0 && (
+            <p className="empty-copy">Chưa có chứng từ kiểm kê.</p>
           )}
         </div>
       </section>

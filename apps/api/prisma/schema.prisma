@@ -84,31 +84,37 @@ enum StockMovementType {
   STOCK_ADJUSTMENT
 }
 
+enum StockAdjustmentStatus {
+  POSTED
+}
+
 model Business {
-  id               String             @id @default(cuid())
-  name             String
-  timezone         String             @default("Asia/Ho_Chi_Minh")
-  currency         String             @default("VND")
-  createdAt        DateTime           @default(now()) @map("created_at")
-  updatedAt        DateTime           @updatedAt @map("updated_at")
-  staff            StaffUser[]
-  roles            Role[]
-  audits           AuditLog[]
-  customerGroups   CustomerGroup[]
-  customers        Customer[]
-  customerContacts ContactPoint[]
-  customerTasks    CustomerTask[]
-  opportunities    SalesOpportunity[]
-  products         Product[]
-  productVariants  ProductVariant[]
-  suppliers        Supplier[]
-  purchaseOrders   PurchaseOrder[]
-  warehouses       Warehouse[]
-  goodsReceipts    GoodsReceipt[]
-  stockBalances    StockBalance[]
-  stockMovements   StockMovement[]
-  openingStocks    OpeningStock[]
-  stockAdjustments StockAdjustment[]
+  id                String             @id @default(cuid())
+  name              String
+  timezone          String             @default("Asia/Ho_Chi_Minh")
+  currency          String             @default("VND")
+  createdAt         DateTime           @default(now()) @map("created_at")
+  updatedAt         DateTime           @updatedAt @map("updated_at")
+  staff             StaffUser[]
+  roles             Role[]
+  audits            AuditLog[]
+  customerGroups    CustomerGroup[]
+  customers         Customer[]
+  customerContacts  ContactPoint[]
+  customerTasks     CustomerTask[]
+  opportunities     SalesOpportunity[]
+  products          Product[]
+  productVariants   ProductVariant[]
+  suppliers         Supplier[]
+  purchaseOrders    PurchaseOrder[]
+  warehouses        Warehouse[]
+  goodsReceipts     GoodsReceipt[]
+  stockBalances     StockBalance[]
+  stockMovements    StockMovement[]
+  openingStocks     OpeningStock[]
+  stockAdjustments  StockAdjustment[]
+  priceTiers        PriceTier[]
+  priceTierCommands PriceTierCommand[]
 
   @@map("businesses")
 }
@@ -391,6 +397,7 @@ model ProductVariant {
   stockMovements     StockMovement[]
   openingStocks      OpeningStock[]
   stockAdjustments   StockAdjustment[]
+  priceTiers         PriceTier[]
 
   @@unique([businessId, sku])
   @@unique([businessId, barcode])
@@ -662,37 +669,70 @@ model OpeningStock {
 }
 
 model StockAdjustment {
-  id                  String         @id @default(cuid())
-  businessId          String         @map("business_id")
-  warehouseId         String         @map("warehouse_id")
-  variantId           String         @map("variant_id")
-  documentNumber      String         @map("document_number")
-  idempotencyKey      String         @map("idempotency_key")
-  requestHash         String         @map("request_hash")
-  skuSnapshot         String         @map("sku_snapshot")
-  productNameSnapshot String         @map("product_name_snapshot")
-  variantNameSnapshot String         @map("variant_name_snapshot")
-  unitCodeSnapshot    String         @map("unit_code_snapshot")
-  unitNameSnapshot    String         @map("unit_name_snapshot")
-  systemQuantity      Decimal        @map("system_quantity") @db.Decimal(20, 6)
-  countedQuantity     Decimal        @map("counted_quantity") @db.Decimal(20, 6)
-  quantityDelta       Decimal        @map("quantity_delta") @db.Decimal(20, 6)
-  valuationCostVnd    Decimal        @map("valuation_cost_vnd") @db.Decimal(20, 6)
-  valueDeltaVnd       Decimal        @map("value_delta_vnd") @db.Decimal(20, 0)
-  reasonCode          String         @map("reason_code")
+  id                  String                @id @default(cuid())
+  businessId          String                @map("business_id")
+  warehouseId         String                @map("warehouse_id")
+  variantId           String                @map("variant_id")
+  skuSnapshot         String                @map("sku_snapshot")
+  productNameSnapshot String                @map("product_name_snapshot")
+  variantNameSnapshot String                @map("variant_name_snapshot")
+  unitCodeSnapshot    String                @map("unit_code_snapshot")
+  unitNameSnapshot    String                @map("unit_name_snapshot")
+  documentNumber      String                @map("document_number")
+  status              StockAdjustmentStatus @default(POSTED)
+  idempotencyKey      String                @map("idempotency_key")
+  requestHash         String                @map("request_hash")
+  systemQuantity      Decimal               @map("system_quantity") @db.Decimal(20, 6)
+  countedQuantity     Decimal               @map("counted_quantity") @db.Decimal(20, 6)
+  quantityDelta       Decimal               @map("quantity_delta") @db.Decimal(20, 6)
+  unitCostVnd         Decimal?              @map("unit_cost_vnd") @db.Decimal(20, 0)
+  valueDeltaVnd       Decimal               @map("value_delta_vnd") @db.Decimal(20, 0)
+  averageCostAfterVnd Decimal               @map("average_cost_after_vnd") @db.Decimal(20, 6)
+  reason              String
   notes               String?
-  postedAt            DateTime       @map("posted_at")
-  createdById         String         @map("created_by_id")
-  createdAt           DateTime       @default(now()) @map("created_at")
-  business            Business       @relation(fields: [businessId], references: [id], onDelete: Restrict)
-  warehouse           Warehouse      @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
-  variant             ProductVariant @relation(fields: [variantId], references: [id], onDelete: Restrict)
-  createdBy           StaffUser      @relation("StockAdjustmentCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  postedAt            DateTime              @map("posted_at")
+  createdById         String                @map("created_by_id")
+  createdAt           DateTime              @default(now()) @map("created_at")
+  business            Business              @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  warehouse           Warehouse             @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  variant             ProductVariant        @relation(fields: [variantId], references: [id], onDelete: Restrict)
+  createdBy           StaffUser             @relation("StockAdjustmentCreator", fields: [createdById], references: [id], onDelete: Restrict)
   stockMovement       StockMovement?
 
   @@unique([businessId, documentNumber])
   @@unique([businessId, idempotencyKey])
   @@index([businessId, postedAt])
-  @@index([businessId, warehouseId, postedAt])
+  @@index([businessId, warehouseId, variantId, postedAt])
   @@map("stock_adjustments")
+}
+
+model PriceTier {
+  id           String         @id @default(cuid())
+  businessId   String         @map("business_id")
+  variantId    String         @map("variant_id")
+  quantityFrom Int            @map("quantity_from")
+  priceVnd     Decimal?       @map("price_vnd") @db.Decimal(20, 0)
+  version      Int            @default(1)
+  createdAt    DateTime       @default(now()) @map("created_at")
+  updatedAt    DateTime       @updatedAt @map("updated_at")
+  business     Business       @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  variant      ProductVariant @relation(fields: [variantId], references: [id], onDelete: Restrict)
+
+  @@unique([businessId, variantId, quantityFrom])
+  @@index([businessId, updatedAt])
+  @@map("price_tiers")
+}
+
+model PriceTierCommand {
+  id             String   @id @default(cuid())
+  businessId     String   @map("business_id")
+  idempotencyKey String   @map("idempotency_key")
+  requestHash    String   @map("request_hash")
+  response       Json
+  createdAt      DateTime @default(now()) @map("created_at")
+  business       Business @relation(fields: [businessId], references: [id], onDelete: Restrict)
+
+  @@unique([businessId, idempotencyKey])
+  @@index([businessId, createdAt])
+  @@map("price_tier_commands")
 }

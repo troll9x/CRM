@@ -71,7 +71,9 @@ E2E cần PostgreSQL đã migrate và seed. Bài kiểm tra chứng minh: endpoi
 
 Đợt 04C-A bổ sung E2E tồn đầu cho SKU/kho chưa có lịch sử tồn: snapshot danh mục, giá trị VND nguyên, balance/ledger, gửi lại/chống trùng, cạnh tranh đồng thời và quyền xem giá vốn. Dữ liệu `E2E-OPEN-*` được tự dọn sau test; không nhập dữ liệu hàng thật qua bài thử.
 
-Đợt 04C-B bổ sung E2E kiểm kê/điều chỉnh: optimistic version, movement âm/dương, lưu biên bản khi không chênh lệch, lý do, chặn dưới lượng giữ, idempotency, cạnh tranh và ẩn giá vốn. Dữ liệu `E2E-ADJUST-*` cùng chứng từ tồn đầu liên quan được tự dọn sau test. Phương pháp định giá bình quân hiện tại là giả định kỹ thuật, chưa áp dụng cho dữ liệu hàng thật.
+Đợt 04C-B bổ sung kiểm kê/điều chỉnh bằng chứng từ: API `GET/POST /stock-adjustments`, snapshot tồn hệ thống và danh mục, chênh lệch có dấu trên ledger, lý do/actor/audit, idempotency và kiểm tra version. Migration mới và 29 E2E đã chạy thành công trên PostgreSQL kiểm thử cô lập `crm-04cb-verification` (host port 55432), không dùng database cục bộ ở cổng 5432. Bài E2E kiểm tra chuỗi 100→97→102, retry, stale version, định giá, quyền và cạnh tranh. UI đã build nhưng chưa được xác minh thao tác bằng trình duyệt.
+
+Đợt 05A bổ sung bảng giá admin theo SKU/bậc: `GET/PUT /price-tiers`, `GET /price-tiers/resolve`, quyền `price.edit`, audit/version/idempotency và màn hình Bảng giá trong CRM. Bậc trống trả `AUTO_PRICE_RULE_REQUIRED`; chưa có công thức tự tính, giá lẻ hay báo giá. Migration `20261005120000_phase05a_admin_price_tiers` đã được deploy và tổng 32 E2E pass trên Node 24/PostgreSQL thử riêng `crm-05a-pricing-db` (host port 55434). Dùng quy trình migration/seed thông thường ở trên để khởi tạo môi trường; UI cần kiểm tra trực quan sau khi đăng nhập owner.
 
 ## Migration mới
 

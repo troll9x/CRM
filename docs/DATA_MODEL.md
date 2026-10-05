@@ -1,6 +1,6 @@
 # Mô hình dữ liệu đích ở mức khung
 
-Schema đã được migration tăng dần tới lát cắt Đợt 04C-B. Mỗi đợt chỉ thêm phần cần cho lát cắt đang làm, nhưng khóa và ranh giới module phải phù hợp mô hình đích dưới đây.
+Schema đã được migration tăng dần tới lát cắt Đợt 05A. Mỗi đợt chỉ thêm phần cần cho lát cắt đang làm, nhưng khóa và ranh giới module phải phù hợp mô hình đích dưới đây.
 
 ## 1. Quy ước chung
 
@@ -111,7 +111,8 @@ Sai lệch tạo cảnh báo và quy trình sửa có chứng từ; không “fi
 - Migration Đợt 04A đã triển khai `Supplier`, `PurchaseOrder`, `PurchaseOrderLine`; dòng đơn mua snapshot SKU/đơn vị/hệ số/số lượng cơ sở, có DB check dương và không có quan hệ nào tự ghi tồn.
 - Migration Đợt 04B đã triển khai `Warehouse`, `GoodsReceipt/Line`, `StockBalance`, `StockMovement`; phiếu nhận có request hash/idempotency key, dòng snapshot và DB check không âm/dương theo bất biến.
 - Migration Đợt 04C-A đã triển khai `OpeningStock` với snapshot SKU/tên/đơn vị, giá trị, thời điểm, người tạo, request hash/idempotency key và unique theo business/kho/SKU. `StockMovement` nhận nguồn `OPENING_STOCK`; chứng từ, balance và movement được ghi trong một transaction Serializable. Migration snapshot tiếp nối có backfill trước khi đặt NOT NULL.
-- Migration Đợt 04C-B đã triển khai `StockAdjustment`: snapshot danh mục, lượng hệ thống/lượng kiểm đếm/chênh lệch, version kỳ vọng, lý do, định giá và idempotency. Balance/version, chứng từ, movement khác 0 và audit được ghi nguyên tử; movement điều chỉnh được phép có số lượng/giá trị âm, còn nguồn nhận hàng vẫn phải dương.
+- Migration Đợt 04C-B thêm `StockAdjustment` một SKU/chứng từ, trạng thái `POSTED`, lưu tồn hệ thống, số đếm, chênh lệch, lý do, người tạo, snapshot danh mục, request hash/idempotency key và thông tin định giá. `StockMovement` nhận nguồn `STOCK_ADJUSTMENT` và chênh lệch có dấu. Balance, chứng từ, movement và audit đổi cùng một transaction; `version` chặn kiểm đếm cũ.
+- Migration Đợt 05A thêm `PriceTier` lưu giá admin theo business/SKU/bậc số lượng, số VND nguyên, version và unique `(business_id, variant_id, quantity_from)`. `PriceTierCommand` lưu idempotency key, request hash và response của lệnh ghi giá để retry an toàn. Giá bậc trống chưa sinh giá tự tính; chưa có bảng nhóm giá, khách riêng hoặc báo giá.
 - Đợt 05: price list/rule/assignment, quote/revision.
 - Đợt 06: sales order/event, reservation, shipment.
 - Đợt 07–08: payment/allocation/receivable/expense, return and reporting projections.

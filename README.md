@@ -1,6 +1,6 @@
 # CRM bán sỉ và bán lẻ
 
-Đợt 04C đã có luồng **web → API → PostgreSQL** cho đăng nhập/RBAC, CRM khách hàng, danh mục, mua hàng, nhận hàng, tồn đầu và kiểm kê theo SKU. Tổng quan dùng dữ liệu thật; giao diện khai báo UTF-8/tiếng Việt rõ ràng. Chứng từ kho chống gửi trùng, đối chiếu cạnh tranh, cập nhật tồn trong giao dịch và tạo sổ kho bất biến. Chưa triển khai giá bán, đơn bán, tiền hay connector; chính sách ngành hàng/giá vốn vẫn cần xác nhận trước dữ liệu thật, prototype trong `prototype/` vẫn chỉ là dữ liệu mẫu của Đợt 00.
+Đã có các luồng **web → API → PostgreSQL** cho đăng nhập/RBAC, CRM khách hàng, danh mục, mua hàng, kho và 05A nhập giá admin theo SKU/bậc. Đợt 05A lưu giá có quyền/version/idempotency/audit; resolver chọn đúng bậc và báo trạng thái rõ nếu giá còn trống. Chưa có công thức giá tự tính, giá lẻ, báo giá, đơn bán hoặc giảm thêm. 04C-B trước đó qua migration và 29 E2E trên PostgreSQL thử cô lập; UI Kho còn chờ kiểm tra trực quan và BR-STOCK-10 còn chờ xác nhận. Prototype trong `prototype/` vẫn dùng dữ liệu mẫu.
 
 ## Chạy nhanh
 
@@ -33,7 +33,9 @@ docker compose up -d api web
 - [Quyết định](docs/DECISIONS.md): quyết định đã chốt, tạm dùng và tối đa 5 câu hỏi cần xác nhận.
 - [Sẵn sàng tích hợp](docs/INTEGRATION_READINESS.md): quyền, bằng chứng và trạng thái Facebook/Zalo cùng các kênh sau.
 - [Hướng dẫn prototype](docs/UI_PROTOTYPE.md): kịch bản thử sáu màn hình.
-- [Phát triển local](docs/LOCAL_DEVELOPMENT.md): cài đặt, migration, seed, chạy và kiểm tra Đợt 01–04C.
+- [Phát triển local](docs/LOCAL_DEVELOPMENT.md): cài đặt, migration, seed, chạy và kiểm tra Đợt 01–05A.
+- [Handoff](docs/HANDOFF.md): trạng thái hiện tại, kết quả kiểm tra và bước tiếp theo.
+- [Báo cáo tiến độ](report.md): các phần đã làm/chưa làm và hướng tiếp tục.
 
 ## Xem prototype Đợt 00
 
@@ -47,7 +49,7 @@ Sau đó mở `http://localhost:4173/prototype/`. Mọi số liệu đều có n
 
 ## Trạng thái và bước tiếp theo
 
-1. Đợt 01–03 và lát cắt 04A–04C-B đã hoàn thành, kiểm tra local; workflow CI đã cấu hình, cần đẩy nhánh lên remote để ghi nhận lần chạy đầu.
-2. Chủ dự án vẫn cần xác nhận `OPEN-01..05` bằng dữ liệu vận hành/tài khoản thật; Đợt 04B–04C-B hiện dùng giả định hàng đóng gói, một kho và giá vốn bình quân để kiểm chứng local.
-3. Em gái anh Sơn thử prototype theo `docs/UI_PROTOTYPE.md` và giao diện đăng nhập thật, rồi ghi phản hồi vào backlog.
-4. Bước tiếp theo là Đợt 05 giá sỉ/lẻ, bậc giá và báo giá. Không dùng bản hiện tại cho hàng cần lô, hạn dùng hoặc serial; không đưa token Facebook/Zalo vào repo.
+1. Đợt 01–04C-B đã qua kiểm tra local; 05A đã thêm giá admin theo SKU/bậc và qua lint, typecheck, unit, format, production build, migration, seed và 32 E2E trên PostgreSQL thử cô lập. 04C-B và 05A còn chờ kiểm tra UI trực quan; BR-STOCK-10 cần xác nhận.
+2. CI remote gần nhất success trên commit nền `6639854`; các thay đổi local chưa commit chưa có lần chạy CI tương ứng.
+3. Giá tự tính bậc trống, giá lẻ/nhóm khách, giảm thêm và báo giá tiếp tục phụ thuộc `OPEN-03`; không tính tiền cho phần chưa chốt. Các quyết định `OPEN-01..05` còn cần xác nhận trước vận hành thật.
+4. Xem [HANDOFF](docs/HANDOFF.md) để chạy demo/test hiện tại. Prototype Đợt 00 vẫn là dữ liệu mẫu; không dùng bản hiện tại cho hàng cần lô/hạn dùng/serial hoặc dữ liệu vận hành chưa được duyệt.

@@ -229,7 +229,7 @@ export class InventoryService {
           },
         },
         openingStock: { select: { id: true, documentNumber: true } },
-        stockAdjustment: { select: { id: true, documentNumber: true } },
+        stockAdjustment: { select: { id: true, documentNumber: true, reason: true } },
       },
     });
     if (this.canViewCost(actor)) return rows;
