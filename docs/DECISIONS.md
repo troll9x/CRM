@@ -52,12 +52,12 @@ Không thêm câu hỏi chặn mới vào danh sách này; câu hỏi phát sinh
 
 ### OPEN-03 — Chính sách giá sỉ và giảm giá
 
-- Trạng thái: **Đã có chỉ đạo một phần; chưa đủ để chốt cách tính tiền.**
-- Đã nhận từ chủ dự án: giá sỉ do admin nhập theo từng loại sản phẩm; giá thực tế sẽ được nhập sau. Bậc tính theo đơn vị bán của sản phẩm (túi/hộp/kg/thùng...): 5–9 dùng bậc 5, 10–14 dùng bậc 10, 15–19 dùng bậc 15, tiếp tục mỗi 5 đơn vị. Giá bậc mặc định hiển thị mờ/tự tính; giá admin nhập trực tiếp sẽ được ưu tiên. Được cộng thêm giảm giá do admin thực hiện; thời hạn báo giá 3 ngày.
-- Đã triển khai 05A theo phần đã chốt: giá admin lưu theo business/SKU/bậc; 5–9, 10–14, 15–19…; resolver ưu tiên giá admin và báo `AUTO_PRICE_RULE_REQUIRED` khi thiếu giá. Chưa tạo công thức tự tính hoặc áp giá vào báo giá/đơn.
-- Cần làm rõ: công thức và nguồn giá để tự tính bậc trống; có một lịch giá sỉ chung cho mọi khách hay giá khác nhau theo nhóm/khách; giảm thêm là phần trăm hay số tiền, áp dụng dòng hàng hay toàn đơn; “cần duyệt khi có thông báo đơn mới” là thông báo hay phải chờ admin duyệt đơn; 3 ngày là 72 giờ hay đến hết ngày thứ ba.
-- Ví dụ để chốt công thức: giá lẻ 100.000đ/kg, ô giá bậc 5 trống. Mức nào được hiển thị/tính tự động — chẳng hạn giá lẻ trừ 10%, lấy một tỷ lệ admin cấu hình theo SKU, hay dùng một quy tắc khác? Cũng cần nêu nguồn tham chiếu cho bậc 10 khi ô đó trống.
-- Ảnh hưởng: cấu trúc PriceRule, tổng báo giá/đơn, quyền, thời hạn báo giá và test biên số lượng.
+- Trạng thái: **Đã chốt một phần ngày 2026-10-05; còn cách nhập/tính thuế.**
+- Đã xác nhận: bảng giá dùng chung; mỗi SKU có một đơn vị bán cố định do admin chọn (ví dụ gói, kg hoặc thùng 10kg); giá admin nhập theo đơn vị này. Số lượng dưới 5 dùng giá lẻ theo đơn vị bán; từ 5 trở lên bậc 5–9 dùng giá bậc 5, 10–14 dùng bậc 10, 15–19 dùng bậc 15 và tiếp tục mỗi 5. Giá còn thiếu không tự tính. Cho phép số lượng lẻ; thành tiền từng dòng làm tròn về VND nguyên, nửa đồng làm tròn lên. Báo giá hết hạn sau đủ 72 giờ từ lúc khách nhận; nhận báo giá ban đầu được ghi nhận thủ công khi PDF được chia sẻ. Gửi giai đoạn đầu bằng PDF/in/chia sẻ thủ công; gửi tự động chờ tài khoản thử. Giảm thêm hỗ trợ phần trăm hoặc VND trên dòng hoặc toàn báo giá. Báo giá có phí giao, thuế, cọc dự kiến, ghi chú thanh toán. Chuyển báo giá còn hạn giữ giá đã chốt. Khi khách đặt qua nền tảng cần thông báo Admin.
+- Trạng thái code trước khi mở rộng: lưu giá admin theo business/SKU/bậc nguyên cách 5. Phần mở rộng hiện tại đang bổ sung đơn vị bán cố định, giá lẻ ở bậc 1 và số lượng thập phân; chưa xác minh migration với DB vì Docker chưa chạy.
+- Cập nhật: người có quyền quản lý (`price.edit`) được tự đặt mức giảm phần trăm hoặc VND, theo dòng hoặc toàn báo giá; không có trần số tiền/tỷ lệ cấu hình sẵn.
+- Cần xác nhận: thuế nhập theo tỷ lệ phần trăm do admin chọn hay theo số tiền VND.
+- Ảnh hưởng: khóa đơn vị bán và bậc Decimal, cách tính tổng báo giá, audit quyền giảm, snapshot, hạn hiệu lực và chuyển sang đơn nháp.
 
 ### OPEN-04 — Chính sách mua nợ
 

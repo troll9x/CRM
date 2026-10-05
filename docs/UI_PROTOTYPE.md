@@ -21,7 +21,7 @@ Mở `http://localhost:4173/prototype/` trên máy tính và điện thoại (ho
 5. **Kho:** tìm SKU; phân biệt “thực tế”, “đang giữ”, “không bán được” và “có thể bán”. Nếu khó hiểu, ghi tên gọi người dùng muốn.
 6. **Công nợ:** tìm khoản của khách sỉ; phân biệt tổng đơn, đã nhận, còn phải thu và ngày đến hạn. Bấm “Ghi nhận thu” và đánh giá các thông tin cần nhập.
 7. Lặp nhanh trên màn hình điện thoại: tạo đơn và xem hội thoại có thao tác được bằng một tay không.
-8. **Bảng giá:** nhập giá mẫu cho bậc 5 rồi thử lượng 6 và 9; xác nhận cùng giá bậc 5. Thử lượng 11 và 14 ở bậc 10. Xóa giá admin nhập để thấy trạng thái công thức còn chờ chốt; thử lượng 15 để xem bậc 15.
+8. **Bảng giá (prototype mẫu):** thử các mốc lượng 4.5 (giá lẻ), 5, 9.5, 10 và 15 để xem cách chọn bậc. Đây chỉ là dữ liệu mẫu tĩnh; CRM thật lưu giá lẻ tại bậc 1 và trả `PRICE_NOT_CONFIGURED` khi thiếu giá.
 
 ## Phiếu phản hồi cần ghi
 

@@ -57,6 +57,11 @@ export class CreateVariantDto {
   baseUnitName: string;
 
   @IsOptional()
+  @IsString()
+  @Matches(/^[A-Za-z0-9_-]{1,16}$/)
+  sellingUnitCode?: string;
+
+  @IsOptional()
   @IsObject()
   attributes?: Record<string, string>;
 
@@ -163,6 +168,16 @@ export class ReplaceConversionsDto {
   @ValidateNested({ each: true })
   @Type(() => UnitConversionInputDto)
   conversions: UnitConversionInputDto[];
+}
+
+export class SetSellingUnitDto {
+  @IsInt()
+  @Min(1)
+  version: number;
+
+  @IsString()
+  @Matches(/^[A-Za-z0-9_-]{1,16}$/)
+  sellingUnitCode: string;
 }
 
 export class ListProductsQueryDto {

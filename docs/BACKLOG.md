@@ -26,7 +26,7 @@ Trạng thái: `DONE` tài liệu/prototype đã tạo; `WAITING` cần xác nh�
 | 02  | Khách, nhóm sỉ/lẻ, nhiều địa chỉ, nhắc việc           | 01                          | DONE LOCAL; chờ phản hồi người dùng                                                            |
 | 03  | Sản phẩm, SKU, đơn vị, ảnh                            | 01 + OPEN-02                | DONE LOCAL theo giả định tạm                                                                   |
 | 04  | Nhà cung cấp, nhập hàng, tồn đầu, sổ kho              | 03 + OPEN-05                | 04A–04C-B đã qua migration/E2E local; cần kiểm tra UI trực quan và chốt BR-STOCK-10            |
-| 05  | Giá sỉ/lẻ, bậc giá, báo giá                           | 02,03 + OPEN-03             | 05A lưu giá admin theo SKU/bậc đã qua 32 E2E; UI chờ kiểm tra trực quan; 05B–C WAITING OPEN-03 |
+| 05  | Giá sỉ/lẻ, bậc giá, báo giá                           | 02,03 + OPEN-03             | 05A đang mở rộng tại working tree; 05B–C chờ chốt cách tính thuế                       |
 | 06  | Đơn, xác nhận, giữ, hủy, giao một phần                | 04,05 + OPEN-04/05          | LATER                                                                                          |
 | 07  | Thu tiền, đặt cọc, công nợ, chi phí                   | 06 + chốt ghi nhận phải thu | LATER                                                                                          |
 | 08  | Đổi trả, COD tay, báo cáo, import, backup/pilot       | 06,07                       | LATER                                                                                          |
@@ -40,10 +40,11 @@ Trạng thái: `DONE` tài liệu/prototype đã tạo; `WAITING` cần xác nh�
 
 ### Tiến độ Đợt 05 sau khi nhận quy tắc bậc từ chủ dự án
 
-- `05A IMPLEMENTED` — API/UI/DB lưu giá admin theo SKU và bậc; backend resolver chọn đúng bậc, trả giá admin khi đã nhập, trả trạng thái chờ OPEN-03 nếu còn trống. Có `price.edit`, expectedVersion, idempotency và audit.
+- `05A IMPLEMENTED` — API/UI/DB lưu giá admin lẻ tại bậc 1 và giá theo SKU/bậc sỉ; đơn vị bán cố định; resolver nhận lượng thập phân, trả `PRICE_NOT_CONFIGURED` khi thiếu giá. Có `price.edit`, expectedVersion, idempotency và audit. Phần mở rộng hiện chưa commit/chưa migration-verified.
 - `PROTOTYPE ONLY` — prototype tĩnh vẫn minh họa cùng quy tắc nhưng không lưu; màn hình CRM chính dùng API/DB thật.
-- `WAITING OPEN-03` — chưa chốt nguồn/công thức giá tự tính cho bậc trống, lịch dùng chung hay riêng theo nhóm/khách, dạng/phạm vi giảm thêm, ý nghĩa thông báo/duyệt đơn, và ranh giới 3 ngày.
-- Sau khi chốt: hoàn thiện resolver giá bậc trống và phạm vi nhóm/khách; tiếp tục 05B báo giá snapshot/hiệu lực, 05C chuyển sang đơn nháp và kiểm tra lại. Không lấy dữ liệu trong prototype làm giá vận hành.
+- `DECIDED 2026-10-05` — bảng giá chung; mỗi SKU một đơn vị bán cố định; admin nhập giá lẻ và các bậc theo đơn vị đó; dưới 5 dùng giá lẻ, từ 5 lên bậc mỗi 5; lượng lẻ tới 6 chữ số; làm tròn từng dòng VND nửa lên; thiếu giá thì không tự tính; giảm phần trăm/VND trên dòng/toàn báo giá; báo giá hết hạn sau 72 giờ từ lúc khách nhận; PDF/in/chia sẻ thủ công giai đoạn đầu; có phí giao/thuế/cọc/ghi chú; chuyển báo giá còn hạn giữ snapshot; cần thông báo Admin khi khách đặt qua nền tảng.
+- `WAITING DETAIL` — cách nhập/tính thuế. Người có `price.edit` tự quyết định mức giảm; không có trần số riêng.
+- Sau khi chốt cách tính thuế và xác minh migration 05A: làm 05B báo giá/revision/PDF và 05C chuyển đơn nháp, thông báo. Kênh tự động đợi tài khoản thử và kiểm chứng. Không dùng giá prototype làm giá vận hành.
 
 ## Kết quả Đợt 01
 

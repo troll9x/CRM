@@ -67,7 +67,14 @@ describe('pricing tier API', () => {
       .send({
         name: productName,
         variants: [
-          { sku, name: 'Sản phẩm kiểm thử giá', baseUnitCode: 'cai', baseUnitName: 'Cái' },
+          {
+            sku,
+            name: 'Sản phẩm kiểm thử giá',
+            baseUnitCode: 'kg',
+            baseUnitName: 'kg',
+            sellingUnitCode: 'THUNG',
+            conversions: [{ unitCode: 'THUNG', unitName: 'Thùng 10kg', factor: '10' }],
+          },
         ],
       })
       .expect(201);
@@ -88,6 +95,9 @@ describe('pricing tier API', () => {
             name: 'SKU thuộc business khác',
             baseUnitCode: 'cai',
             baseUnitName: 'Cái',
+            sellingUnitCode: 'cai',
+            sellingUnitName: 'Cái',
+            sellingUnitFactor: 1,
           },
         },
       },
@@ -129,8 +139,33 @@ describe('pricing tier API', () => {
     expect(missing.body.data).toMatchObject({
       quantityFrom: 5,
       priceVnd: null,
-      status: 'AUTO_PRICE_RULE_REQUIRED',
+      status: 'PRICE_NOT_CONFIGURED',
     });
+
+    const retailInput = { variantId, quantityFrom: 1, expectedVersion: 0, priceVnd: '100000' };
+    await owner
+      .put('/api/v1/price-tiers')
+      .set('Idempotency-Key', `pricing-e2e-${suffix}-retail`)
+      .send(retailInput)
+      .expect(200);
+    const retail = await owner
+      .get(`/api/v1/price-tiers/resolve?variantId=${variantId}&quantity=0.5`)
+      .expect(200);
+    expect(retail.body.data).toMatchObject({
+      quantityFrom: 1,
+      priceVnd: '100000',
+      sellingUnitCode: 'THUNG',
+      sellingUnitName: 'Thùng 10kg',
+      status: 'RESOLVED',
+    });
+    await owner
+      .put(`/api/v1/variants/${variantId}/selling-unit`)
+      .send({ version: 1, sellingUnitCode: 'KG' })
+      .expect(409);
+    await owner
+      .put(`/api/v1/variants/${variantId}/unit-conversions`)
+      .send({ version: 1, conversions: [] })
+      .expect(409);
 
     const input = { variantId, quantityFrom: 5, expectedVersion: 0, priceVnd: '80000' };
     const first = await owner
@@ -165,6 +200,8 @@ describe('pricing tier API', () => {
     for (const [quantity, tier, price] of [
       [5, 5, '80000'],
       [9, 5, '80000'],
+      ['9.999999', 5, '80000'],
+      ['10.000001', 10, '70000'],
       [10, 10, '70000'],
       [14, 10, '70000'],
       [15, 15, '60000'],
@@ -202,7 +239,7 @@ describe('pricing tier API', () => {
     expect(cleared.body.data).toMatchObject({
       quantityFrom: 5,
       priceVnd: null,
-      status: 'AUTO_PRICE_RULE_REQUIRED',
+      status: 'PRICE_NOT_CONFIGURED',
     });
   });
 

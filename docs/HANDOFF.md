@@ -38,7 +38,7 @@ Ngày cập nhật: 2026-10-05 (Asia/Ho_Chi_Minh)
 1. Mở UI Kho trong trình duyệt với owner/kho để kiểm tra form kiểm kê, lỗi version cũ và danh sách chứng từ.
 2. Xác nhận BR-STOCK-10 trước khi dùng dữ liệu vận hành; quyết định này ảnh hưởng trực tiếp giá trị tồn kho.
 3. Đợt 05A hiện có UI/API/DB nhập giá admin theo SKU/bậc; migration và 32 E2E pass Node 24 trên PostgreSQL thử cô lập mới.
-4. Chốt các phần OPEN-03 còn thiếu: công thức giá trống, giá lẻ/lịch giá nhóm-khách, kiểu/phạm vi giảm thêm, duyệt đơn và ranh giới 3 ngày; sau đó làm 05B/05C.
+4. Chốt cách nhập/tính thuế; hoàn tất kiểm tra migration của phần mở rộng 05A, rồi triển khai 05B–C.
 5. Xem `report.md` để biết các phần chưa làm và cách chạy. DB thử Đợt 05A ở `crm-05a-pricing-db` cổng 55434, volume `crm_05a_pricing_data`; giữ nguyên cùng DB thử cũ và PostgreSQL cục bộ cổng 5432.
 
 ## Cập nhật 2026-10-05 — prototype Đợt 05
@@ -53,7 +53,16 @@ Ngày cập nhật: 2026-10-05 (Asia/Ho_Chi_Minh)
 - Thêm `PriceTier` và `PriceTierCommand` cùng migration `20261005120000_phase05a_admin_price_tiers`; giá là VND nguyên, bậc phải là bội số 5 từ 5, giá được xóa bằng tombstone giữ version.
 - API: `GET /price-tiers`, `PUT /price-tiers` và `GET /price-tiers/resolve`. `price.edit` giới hạn cả đọc/sửa ở backend. Lệnh ghi dùng `Idempotency-Key`, request hash, optimistic version và audit trong transaction Serializable.
 - UI CRM chính có màn hình Bảng giá, chọn SKU, nhập/xóa giá, thêm bậc và gọi resolver backend. Giá lưu theo SKU/bậc dùng chung trong business hiện tại. Chưa dùng để tạo báo giá/đơn.
-- Nếu bậc chưa có giá admin, resolver trả `AUTO_PRICE_RULE_REQUIRED`; số tiền không được tự suy đoán. Lượng dưới 5 trả `RETAIL_PRICE_NOT_CONFIGURED` vì chưa có giá lẻ trong model.
+- Ghi chú trạng thái 05A trước cập nhật 2026-10-05: bậc thiếu trả `AUTO_PRICE_RULE_REQUIRED`; từ cập nhật này, thiếu giá trả `PRICE_NOT_CONFIGURED` và lượng dưới 5 dùng bậc giá lẻ 1.
 - Kiểm tra Node 24: lint, typecheck, unit 15 tổng (API 13 + web 2), format, production build và E2E 8 file/32 test pass. 11 migration (gồm 05A) deploy và seed pass trên PostgreSQL 17.6 cô lập cổng 55434. Đây là DB thử riêng; không dùng cổng 5432.
 - Chưa xác minh browser UI trực quan; build/typecheck và E2E chứng minh hợp đồng/API, không thay thế kiểm tra thao tác UI.
-- Còn thiếu OPEN-03: công thức/nguồn giá tự tính, giá lẻ và lịch giá chung hay theo nhóm/khách, kiểu/phạm vi giảm thêm, thông báo hay duyệt đơn, thời điểm hết hạn 3 ngày. 05B báo giá và 05C chuyển đơn chưa triển khai.
+- Tại thời điểm handoff cũ còn thiếu OPEN-03; cập nhật quyết định ngày 2026-10-05 ở mục sau.
+
+## Cập nhật 2026-10-05 — quyết định tiếp tục Đợt 05B–C
+
+- Repo đã hợp nhất hai phiên bản tại commit `f4ea342`; CI của commit này pass. Branch `main` trên GitHub đồng bộ.
+- Bảng giá dùng chung; mỗi SKU có một đơn vị bán cố định (gói/kg/thùng...) và admin nhập giá theo đơn vị này. Lượng dưới 5 dùng giá lẻ; từ 5 lên dùng bậc mỗi 5. Giá thiếu không tự tính.
+- Cho phép lượng lẻ tối đa 6 chữ số thập phân; thành tiền từng dòng làm tròn VND nửa lên.
+- Giảm phần trăm hoặc VND theo dòng hoặc toàn báo giá. Báo giá hết hạn sau 72 giờ từ lúc khách nhận; ban đầu xuất PDF/in/chia sẻ thủ công và người dùng ghi nhận lúc khách nhận. Báo giá có phí giao, thuế, cọc dự kiến và ghi chú; chuyển khi còn hạn giữ giá snapshot.
+- Khách đặt qua nền tảng cần báo Admin; connector tự động chờ tài khoản thử và quyền API.
+- Người có quyền `price.edit` tự đặt mức giảm phần trăm hoặc VND theo dòng/toàn báo giá; không có trần số riêng. Còn chờ cách nhập/tính thuế. Đợt 05A đang được mở rộng tại working tree; chưa chạy migration trên cơ sở dữ liệu.

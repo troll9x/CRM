@@ -88,12 +88,24 @@ Kết quả chạy ngày 2026-10-05 trên PostgreSQL cô lập:
 - **PASS E2E/RBAC:** role sales bị từ chối và SKU thuộc business khác không đọc/sửa được.
 - **UI IMPLEMENTED; BROWSER CHECK PENDING:** màn hình CRM nhập/xóa giá và gọi resolver thật; chưa có kiểm tra trực quan bằng trình duyệt.
 
-- **AC-05A-01:** lượng 5–9 chọn bậc 5; 10–14 chọn bậc 10; 15–19 chọn bậc 15; bậc tiếp tục mỗi 5.
-- **AC-05A-02:** giá admin nhập được lưu dưới SKU/bậc và được resolver trả nguyên VND dạng chuỗi; bậc trống trả `AUTO_PRICE_RULE_REQUIRED` không tạo số tiền.
+- **AC-05A-01:** lượng 5–<10 chọn bậc 5; 10–<15 chọn bậc 10; 15–<20 chọn bậc 15; giá dưới 5 chọn bậc lẻ 1; lượng thập phân sát ranh giới phân bậc chính xác.
+- **AC-05A-02:** admin lưu giá lẻ ở bậc 1 và giá sỉ tại bậc 5/10/15...; resolver nhận số lượng tối đa 6 chữ số lẻ, trả đúng đơn vị bán và giá admin dưới dạng chuỗi VND. Bậc thiếu trả `PRICE_NOT_CONFIGURED`, không tạo số tiền.
 - **AC-05A-03:** role thiếu `price.edit` bị từ chối ở API; tenant khác không đọc/sửa SKU ngoài business.
 - **AC-05A-04:** cùng `Idempotency-Key` và payload trả cùng response; cùng key khác payload trả `409`; `expectedVersion` cũ trả `409`.
 - **AC-05A-05:** xóa giá admin giữ version của bậc để lệnh cũ không thể âm thầm tạo lại giá; resolver trở về trạng thái chưa có giá.
-- **AC-05A-06:** UI CRM đọc sản phẩm/giá qua API, nhập/xóa giá qua API; preview resolver gọi backend. Chưa có giá retail, báo giá, giảm giá hoặc công thức tự tính.
+- **AC-05A-06:** UI CRM đọc sản phẩm/giá qua API, nhập/xóa giá qua API; preview resolver gọi backend. Giá lẻ đã cấu hình được tại bậc 1; báo giá/giảm giá chưa triển khai và không tự tính giá thiếu.
+- **AC-05A-07:** đơn vị bán phải là đơn vị gốc hoặc quy đổi đã khai báo; quản lý có thể chọn/đổi trước khi cấu hình giá; đổi đơn vị sau khi có giá hoặc sửa/xóa quy đổi đang cố định bị backend từ chối.
+
+### Tiêu chí đã xác nhận cho Đợt 05B–C (chưa triển khai)
+
+- Bảng giá dùng chung; mỗi SKU có một đơn vị bán cố định như gói, kg hoặc thùng, không mặc định giá theo từng món lẻ.
+- Có thể nhập số lượng lẻ tối đa 6 chữ số thập phân; dưới 5 dùng giá lẻ, từ 5 trở lên bậc được lấy theo `floor(quantity/5)*5`; thành tiền từng dòng làm tròn VND nửa lên.
+- Giảm giá hỗ trợ phần trăm hoặc VND, theo dòng hoặc toàn báo giá; backend chỉ cho `price.edit`, không áp trần số riêng.
+- Báo giá có phí giao, thuế, cọc dự kiến và ghi chú thanh toán; sửa bảng giá sau khi gửi không đổi revision đã phát hành.
+- Báo giá còn hạn chuyển thành đơn nháp với giá snapshot; thông báo Admin được tạo khi có đơn khách đặt từ nền tảng.
+- Gửi báo giá phải có revision và bản in/PDF; connector gửi tự động chỉ nghiệm thu sau khi có bằng chứng API thật.
+- Hạn báo giá là đủ 72 giờ từ lúc khách nhận; luồng PDF/chia sẻ thủ công cần ghi nhận timestamp nhận.
+- Người có `price.edit` được đặt mức giảm phần trăm hoặc VND theo dòng hoặc toàn báo giá; không áp trần số riêng. Cách nhập/tính thuế còn cần chốt; kênh gửi tự động chỉ làm sau khi có tài khoản thử.
 
 ### Nghiệm thu giao diện và tổng quan
 
@@ -108,7 +120,7 @@ Kết quả chạy ngày 2026-10-05 trên PostgreSQL cô lập:
 | Bước                                                       | Kỳ vọng                                                                                                                        |
 | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
 | Nhận 100 cái, giá vốn 50.000đ/cái                          | Thực tế 100; giữ 0; có thể bán 100                                                                                             |
-| Giá lẻ 90.000đ/đơn vị bán; admin nhập giá bậc 5 là 80.000đ | 4 dùng giá lẻ; 5–9 dùng bậc 5; 10–14 dùng bậc 10; admin override thắng giá tự tính; công thức giá tự tính chờ OPEN-03          |
+| Giá lẻ và các bậc do admin nhập theo đơn vị bán             | Dưới 5 dùng giá lẻ; 5–<10 dùng bậc 5; 10–<15 dùng bậc 10; thiếu giá thì không tự tính (minh họa, không phải giá thật)    |
 | Khách sỉ đặt 10 đơn vị + phí giao 30.000đ                  | Tiền hàng 800.000đ; tổng 830.000đ (giá chỉ là dữ liệu kiểm thử)                                                                |
 | Nhận cọc 300.000đ sau khi phát sinh phải thu               | Còn phải thu 530.000đ                                                                                                          |
 | Xác nhận                                                   | Thực tế 100; giữ 10; có thể bán 90                                                                                             |

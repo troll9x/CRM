@@ -382,6 +382,9 @@ model ProductVariant {
   barcode            String?
   baseUnitCode       String              @map("base_unit_code")
   baseUnitName       String              @map("base_unit_name")
+  sellingUnitCode    String              @map("selling_unit_code")
+  sellingUnitName    String              @map("selling_unit_name")
+  sellingUnitFactor  Decimal             @map("selling_unit_factor") @db.Decimal(20, 6)
   attributes         Json?
   status             CatalogStatus       @default(ACTIVE)
   version            Int                 @default(1)

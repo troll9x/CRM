@@ -4,9 +4,9 @@ Cập nhật: 2026-10-05 (Asia/Ho_Chi_Minh)
 
 ## Tóm tắt
 
-Repo đang ở branch `main`, HEAD `6639854 feat: add opening stock ledger command`. 04C-B đã được triển khai trong working tree và kiểm tra trên PostgreSQL thử cô lập theo `docs/HANDOFF.md`; chưa có commit mới. Các chỉnh sửa chưa commit từ trước được giữ nguyên. `prompt-tiep-tuc-crm.md` là file người dùng cung cấp, vẫn để nguyên.
+Repo đang ở branch `main`, merge hai phiên bản home/main tại `f4ea342`; CI trên commit merge đã pass. Đợt 05A đang được mở rộng tại working tree với đơn vị bán cố định, giá lẻ và số lượng thập phân. Tài liệu Đợt 05B–C đang được cập nhật theo quyết định nghiệp vụ nhận ngày 2026-10-05; chưa triển khai báo giá/chuyển đơn.
 
-Đợt 05A hiện được triển khai một phần thật: migration, API và UI CRM để admin lưu bậc giá theo SKU, cùng resolver chọn bậc. Giá bậc trống trả trạng thái chờ OPEN-03, không tự tính. Báo giá, giá lẻ, giảm thêm và chuyển đơn chưa được triển khai.
+Đợt 05A có API/UI/DB cho giá admin theo SKU/bậc; phần mở rộng hiện thêm migration cho đơn vị bán cố định và giá lẻ bậc 1, còn chờ kiểm tra migration/build. Bảng giá dùng chung; giá lẻ và bậc do admin nhập; số lượng thập phân được phép; giá thiếu không tự tính. Người có `price.edit` tự đặt mức giảm không có trần số riêng. Chỉ cách nhập/tính thuế còn chờ chốt.
 
 ## Tiến độ theo đợt
 
@@ -17,8 +17,8 @@ Repo đang ở branch `main`, HEAD `6639854 feat: add opening stock ledger comma
 | 02 — Khách hàng                              | Đã có UI/API/DB/E2E local.                                                                                                                                                | Chưa có phản hồi user test; kiểm tra hồ sơ/quy trình với dữ liệu thật trước pilot.                                                                       |
 | 03 — Sản phẩm/SKU/đơn vị                     | Đã có UI/API/DB/E2E local theo giả định kỹ thuật.                                                                                                                         | Chốt OPEN-02 trước khi nhập danh mục thật; chưa hỗ trợ lô, hạn dùng, serial.                                                                             |
 | 04A–04C-B — Mua hàng/kho                     | Đã có đơn mua, nhận hàng, tồn đầu, kiểm kê/điều chỉnh có chứng từ; thay đổi hiện nằm trong working tree. Migration và 29 E2E đã qua trên DB kiểm thử cô lập theo handoff. | Chưa kiểm tra trực quan UI 04C-B. BR-STOCK-10 còn chờ xác nhận trước dữ liệu vận hành.                                                                   |
-| 05A — Giá admin theo SKU                     | Đã thêm migration, API CRUD bậc giá, resolver, quyền `price.edit`, version/idempotency/audit và UI CRM gọi API. Kiểm tra local Node 24 pass.                              | Chưa kiểm tra trực quan UI. Công thức bậc trống, giá lẻ, lịch giá nhóm/khách, giảm thêm và báo giá chưa làm.                                             |
-| 05B–C — Báo giá/chuyển đơn nháp              | Chưa triển khai.                                                                                                                                                          | Chốt OPEN-03, thời hạn báo giá và chính sách duyệt; cần luồng báo giá snapshot trước khi nối sang đơn.                                                   |
+| 05A — Giá admin theo SKU                     | API/UI/schema có phần mở rộng đơn vị bán cố định, giá lẻ bậc 1 và resolver lượng thập phân; typecheck/lint/unit test/build đạt.                                                | Migration/E2E DB chưa chạy vì Docker Desktop chưa hoạt động; UI chưa được kiểm tra trực quan.                                                             |
+| 05B–C — Báo giá/chuyển đơn nháp              | Đặc tả một phần đã cập nhật: PDF/chia sẻ tay, hạn 72 giờ từ lúc nhận, giá snapshot và các khoản báo giá.                                                                   | Cần chốt cách tính thuế; sau đó triển khai quote/revision/PDF và chuyển thành đơn nháp.                                                                   |
 | 06 — Đơn hàng                                | Chưa triển khai.                                                                                                                                                          | Phụ thuộc giá, quy tắc công nợ và giữ hàng.                                                                                                              |
 | 07 — Thu tiền/công nợ                        | Chưa triển khai.                                                                                                                                                          | Chốt thời điểm phát sinh phải thu, phân bổ và xử lý trả thừa.                                                                                            |
 | 08 — Đổi trả/COD/báo cáo/import/backup/pilot | Chưa triển khai đầy đủ.                                                                                                                                                   | Định nghĩa quy trình, chạy thử backup/restore và kiểm tra trước pilot.                                                                                   |
@@ -32,26 +32,26 @@ Repo đang ở branch `main`, HEAD `6639854 feat: add opening stock ledger comma
 
 ## Quy tắc giá đã nhận và phần còn thiếu
 
-Đã nhận: bậc tính theo đơn vị bán; lượng 5–9 dùng bậc 5, 10–14 dùng bậc 10, 15–19 dùng bậc 15, tiếp tục mỗi 5. Giá admin nhập cho bậc được ưu tiên. Admin có thể giảm thêm. Báo giá có hạn 3 ngày.
+Đã chốt: bảng giá chung; một đơn vị bán cố định cho mỗi SKU; dưới 5 dùng giá lẻ, từ 5 trở lên dùng bậc 5/10/15 theo mỗi 5 đơn vị; cho phép lượng lẻ đến 6 chữ số thập phân; làm tròn từng dòng VND nửa lên; thiếu giá thì không tự tính. Giảm % hoặc VND theo dòng/toàn báo giá, phí giao, thuế, cọc dự kiến và ghi chú. Báo giá hết hạn sau 72 giờ từ lúc khách nhận; giai đoạn đầu xuất PDF/in/chia sẻ thủ công. Chuyển báo giá còn hạn giữ giá snapshot.
 
-Chưa chốt: công thức/nguồn giá tự tính khi ô bậc trống; lịch giá chung hay theo nhóm/khách; kiểu và phạm vi giảm thêm; “thông báo đơn mới” chỉ gửi thông báo hay chặn đơn để chờ duyệt; 3 ngày là 72 giờ hay hết ngày thứ ba. Những mục này tác động trực tiếp số tiền và hành vi đơn hàng; chưa đưa vào API/DB thật.
+Chưa chốt: tính thuế theo phần trăm hay số VND. Người có `price.edit` tự đặt mức giảm, không áp trần số riêng. Khách đặt qua nền tảng cần thông báo Admin; connector thông báo tự động đợi tài khoản thử và quyền API.
 
 ## Mã giả resolver Đợt 05A
 
 ```text
-nếu số_lượng < 1 hoặc không phải số nguyên:
+ nếu số_lượng <= 0 hoặc vượt precision 6 chữ số thập phân:
     từ chối đầu vào
-nếu số_lượng <= 4:
-    dùng giá lẻ
+ nếu số_lượng < 5:
+    dùng giá lẻ theo đơn vị bán cố định của SKU
 ngược lại:
     bậc = floor(số_lượng / 5) * 5
     nếu admin đã nhập giá cho (business, SKU, bậc):
         dùng giá admin nhập
     nếu chưa nhập:
-        trả AUTO_PRICE_RULE_REQUIRED, không trả số tiền
+        trả PRICE_NOT_CONFIGURED, không trả số tiền
 ```
 
-UI CRM chính hiện thực thao tác lưu thật các giá admin đã nhập. Prototype tĩnh trong `prototype/` vẫn chỉ dùng dữ liệu mẫu và không lưu. Resolver chưa thể tạo giá cho bậc trống; không có giá lẻ, báo giá hay đơn bán ở lát cắt này.
+UI CRM chính lưu giá admin qua API. Prototype tĩnh trong `prototype/` vẫn chỉ dùng dữ liệu mẫu và không lưu. Giá lẻ đã có thể cấu hình ở bậc 1 theo đơn vị bán; báo giá và đơn bán chưa triển khai; resolver báo thiếu giá thay vì tự tính.
 
 ## Chạy project/prototype
 
@@ -69,13 +69,13 @@ Mở `http://localhost:4173/prototype/` để xem prototype mẫu. Để thử U
 - PostgreSQL 17.6 thử cô lập trên cổng 55434: Prisma validate/generate, deploy đủ 11 migration, seed và E2E 8 file/32 tests đều pass. DB là `crm-05a-pricing-db` (volume `crm_05a_pricing_data`); không đụng PostgreSQL local cổng 5432.
 - Chưa kiểm tra trực quan UI qua trình duyệt; typecheck/build/E2E không xác nhận bố cục và thao tác thực tế trên browser.
 - `npm ci` trước đó báo 9 cảnh báo high severity; chưa phân tích bằng `npm audit`, chưa tự ý đổi dependency.
-- CI remote gần nhất chỉ chạy trên commit cũ `6639854`, không bao gồm thay đổi local.
+- CI trên merge commit `f4ea342` đã pass; thay đổi tài liệu đang ở working tree chưa commit.
 - Không xóa DB/volume thử, không tác động PostgreSQL cục bộ ở cổng 5432. Không commit/push/deploy khi chưa được yêu cầu.
 
 ## Việc nên làm tiếp
 
 1. Mở CRM local theo `docs/LOCAL_DEVELOPMENT.md`, kiểm tra trực quan UI Kho 04C-B và Bảng giá 05A; ghi nhận phản hồi.
 2. Xác nhận BR-STOCK-10 trước khi dùng tồn kho thật.
-3. Chốt các phần OPEN-03 còn thiếu: công thức/nguồn giá cho bậc trống; giá lẻ và phạm vi nhóm/khách; dạng/phạm vi giảm thêm; thông báo hay duyệt đơn; mốc hết hạn 3 ngày.
-4. Sau khi có quyết định giá/duyệt/thời hạn, hoàn thiện 05A và tiếp tục báo giá 05B, chuyển đơn nháp 05C. Hiện chưa tính giá bậc trống và chưa tạo báo giá/đơn bán.
+3. Chốt phần OPEN-03 còn thiếu: cách nhập/tính thuế.
+4. Hoàn tất kiểm tra migration/build của phần mở rộng 05A đang có trong working tree; sau đó làm báo giá 05B và chuyển đơn nháp 05C.
 5. Không commit/push/deploy nếu chưa được yêu cầu; các thay đổi chưa commit hiện có được giữ nguyên.

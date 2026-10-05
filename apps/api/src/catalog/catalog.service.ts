@@ -10,6 +10,7 @@ import type {
   CreateVariantDto,
   ListProductsQueryDto,
   ReplaceConversionsDto,
+  SetSellingUnitDto,
   UnitConversionInputDto,
   UpdateMediaDto,
   UpdateProductDto,
@@ -33,6 +34,9 @@ const productSummarySelect = {
       barcode: true,
       baseUnitCode: true,
       baseUnitName: true,
+      sellingUnitCode: true,
+      sellingUnitName: true,
+      sellingUnitFactor: true,
       status: true,
       version: true,
     },
@@ -53,6 +57,9 @@ const productDetailSelect = {
       barcode: true,
       baseUnitCode: true,
       baseUnitName: true,
+      sellingUnitCode: true,
+      sellingUnitName: true,
+      sellingUnitFactor: true,
       attributes: true,
       status: true,
       version: true,
@@ -145,6 +152,16 @@ export class CatalogService {
 
   private cleanVariant(dto: CreateVariantDto) {
     const baseUnitCode = this.normalizeUnitCode(dto.baseUnitCode);
+    const conversions = this.cleanConversions(baseUnitCode, dto.conversions);
+    const sellingUnitCode = this.normalizeUnitCode(dto.sellingUnitCode || baseUnitCode);
+    const selectedConversion = conversions.find(({ unitCode }) => unitCode === sellingUnitCode);
+    if (sellingUnitCode !== baseUnitCode && !selectedConversion) {
+      throw new ProblemException(
+        422,
+        'INVALID_SELLING_UNIT',
+        'Đơn vị bán phải là đơn vị gốc hoặc một đơn vị quy đổi đã khai báo cho SKU.',
+      );
+    }
     return {
       id: randomUUID(),
       sku: this.normalizeSku(dto.sku),
@@ -152,8 +169,11 @@ export class CatalogService {
       barcode: dto.barcode?.trim() || null,
       baseUnitCode,
       baseUnitName: dto.baseUnitName.trim(),
+      sellingUnitCode,
+      sellingUnitName: selectedConversion?.unitName ?? dto.baseUnitName.trim(),
+      sellingUnitFactor: selectedConversion?.factor ?? '1',
       attributes: this.sanitizeAttributes(dto.attributes),
-      conversions: this.cleanConversions(baseUnitCode, dto.conversions),
+      conversions,
     };
   }
 
@@ -293,6 +313,9 @@ export class CatalogService {
               barcode: variant.barcode,
               baseUnitCode: variant.baseUnitCode,
               baseUnitName: variant.baseUnitName,
+              sellingUnitCode: variant.sellingUnitCode,
+              sellingUnitName: variant.sellingUnitName,
+              sellingUnitFactor: variant.sellingUnitFactor,
               attributes: variant.attributes,
               conversions: {
                 create: variant.conversions.map(({ id, ...conversion }) => ({ id, ...conversion })),
@@ -382,6 +405,9 @@ export class CatalogService {
             barcode: variant.barcode,
             baseUnitCode: variant.baseUnitCode,
             baseUnitName: variant.baseUnitName,
+            sellingUnitCode: variant.sellingUnitCode,
+            sellingUnitName: variant.sellingUnitName,
+            sellingUnitFactor: variant.sellingUnitFactor,
             attributes: variant.attributes,
             conversions: { create: variant.conversions },
           },
@@ -457,55 +483,180 @@ export class CatalogService {
     requestId: string,
   ) {
     let productId = '';
-    await this.prisma.$transaction(async (tx) => {
-      const variant = await tx.productVariant.findFirst({
-        where: { id, businessId: actor.businessId },
-        select: { productId: true, baseUnitCode: true },
-      });
-      if (!variant) {
-        throw new ProblemException(404, 'RESOURCE_NOT_FOUND', 'Không tìm thấy SKU.');
-      }
-      productId = variant.productId;
-      const referencedByPurchaseOrder = await tx.purchaseOrderLine.count({
-        where: { variantId: id },
-      });
-      if (referencedByPurchaseOrder > 0) {
+    try {
+      await this.prisma.$transaction(
+        async (tx) => {
+          const variant = await tx.productVariant.findFirst({
+            where: { id, businessId: actor.businessId },
+            select: {
+              productId: true,
+              baseUnitCode: true,
+              sellingUnitCode: true,
+              sellingUnitName: true,
+              sellingUnitFactor: true,
+            },
+          });
+          if (!variant) {
+            throw new ProblemException(404, 'RESOURCE_NOT_FOUND', 'Không tìm thấy SKU.');
+          }
+          productId = variant.productId;
+          const referencedByPurchaseOrder = await tx.purchaseOrderLine.count({
+            where: { variantId: id },
+          });
+          if (referencedByPurchaseOrder > 0) {
+            throw new ProblemException(
+              409,
+              'UNIT_CONVERSION_IN_USE',
+              'SKU đã được chứng từ mua tham chiếu; không thể thay danh sách quy đổi.',
+            );
+          }
+          const conversions = this.cleanConversions(variant.baseUnitCode, dto.conversions);
+          const selectedConversion = conversions.find(
+            ({ unitCode }) => unitCode === variant.sellingUnitCode,
+          );
+          if (
+            variant.sellingUnitCode !== variant.baseUnitCode &&
+            (!selectedConversion ||
+              selectedConversion.unitName !== variant.sellingUnitName ||
+              !new Prisma.Decimal(selectedConversion.factor).equals(variant.sellingUnitFactor))
+          ) {
+            throw new ProblemException(
+              409,
+              'SELLING_UNIT_IN_USE',
+              'Không thể đổi quy đổi đơn vị bán cố định.',
+            );
+          }
+          const update = await tx.productVariant.updateMany({
+            where: { id, version: dto.version },
+            data: { version: { increment: 1 } },
+          });
+          if (update.count !== 1) {
+            throw new ProblemException(409, 'VERSION_CONFLICT', 'SKU đã được cập nhật ở nơi khác.');
+          }
+          await tx.unitConversion.deleteMany({ where: { variantId: id } });
+          if (conversions.length) {
+            await tx.unitConversion.createMany({
+              data: conversions.map((conversion) => ({ ...conversion, variantId: id })),
+            });
+          }
+          await tx.auditLog.create({
+            data: {
+              businessId: actor.businessId,
+              actorId: actor.id,
+              action: 'catalog.unit_conversions.replace',
+              entityType: 'ProductVariant',
+              entityId: id,
+              requestId,
+              metadata: {
+                productId,
+                previousVersion: dto.version,
+                units: conversions.map(({ unitCode, factor }) => ({ unitCode, factor })),
+              },
+            },
+          });
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      );
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2034') {
         throw new ProblemException(
           409,
-          'UNIT_CONVERSION_IN_USE',
-          'SKU đã được chứng từ mua tham chiếu; không thể thay danh sách quy đổi.',
+          'PRICE_CONFIGURATION_CONFLICT',
+          'Giá hoặc đơn vị bán vừa được cập nhật; hãy tải lại SKU rồi thử lại.',
         );
       }
-      const conversions = this.cleanConversions(variant.baseUnitCode, dto.conversions);
-      const update = await tx.productVariant.updateMany({
-        where: { id, version: dto.version },
-        data: { version: { increment: 1 } },
-      });
-      if (update.count !== 1) {
-        throw new ProblemException(409, 'VERSION_CONFLICT', 'SKU đã được cập nhật ở nơi khác.');
-      }
-      await tx.unitConversion.deleteMany({ where: { variantId: id } });
-      if (conversions.length) {
-        await tx.unitConversion.createMany({
-          data: conversions.map((conversion) => ({ ...conversion, variantId: id })),
-        });
-      }
-      await tx.auditLog.create({
-        data: {
-          businessId: actor.businessId,
-          actorId: actor.id,
-          action: 'catalog.unit_conversions.replace',
-          entityType: 'ProductVariant',
-          entityId: id,
-          requestId,
-          metadata: {
-            productId,
-            previousVersion: dto.version,
-            units: conversions.map(({ unitCode, factor }) => ({ unitCode, factor })),
-          },
+      throw error;
+    }
+    return this.getById(productId, actor.businessId);
+  }
+
+  async setSellingUnit(id: string, dto: SetSellingUnitDto, actor: RequestStaff, requestId: string) {
+    let productId = '';
+    try {
+      await this.prisma.$transaction(
+        async (tx) => {
+          const variant = await tx.productVariant.findFirst({
+            where: { id, businessId: actor.businessId },
+            select: {
+              productId: true,
+              baseUnitCode: true,
+              baseUnitName: true,
+              sellingUnitCode: true,
+            },
+          });
+          if (!variant) {
+            throw new ProblemException(404, 'RESOURCE_NOT_FOUND', 'Không tìm thấy SKU.');
+          }
+          productId = variant.productId;
+          const sellingUnitCode = this.normalizeUnitCode(dto.sellingUnitCode);
+          const conversion =
+            sellingUnitCode === variant.baseUnitCode
+              ? null
+              : await tx.unitConversion.findUnique({
+                  where: { variantId_unitCode: { variantId: id, unitCode: sellingUnitCode } },
+                  select: { unitCode: true, unitName: true, factor: true },
+                });
+          if (sellingUnitCode !== variant.baseUnitCode && !conversion) {
+            throw new ProblemException(
+              422,
+              'INVALID_SELLING_UNIT',
+              'Đơn vị bán phải là đơn vị gốc hoặc một đơn vị quy đổi đã khai báo cho SKU.',
+            );
+          }
+          if (sellingUnitCode !== variant.sellingUnitCode) {
+            const hasPrices =
+              (await tx.priceTier.count({
+                where: { businessId: actor.businessId, variantId: id },
+              })) > 0;
+            if (hasPrices) {
+              throw new ProblemException(
+                409,
+                'SELLING_UNIT_IN_USE',
+                'Không thể đổi đơn vị bán sau khi SKU đã có giá; hãy tạo SKU mới để giữ nguyên ý nghĩa bảng giá.',
+              );
+            }
+          }
+          const update = await tx.productVariant.updateMany({
+            where: { id, businessId: actor.businessId, version: dto.version },
+            data: {
+              sellingUnitCode,
+              sellingUnitName: conversion?.unitName ?? variant.baseUnitName,
+              sellingUnitFactor: conversion?.factor ?? new Prisma.Decimal(1),
+              version: { increment: 1 },
+            },
+          });
+          if (update.count !== 1) {
+            throw new ProblemException(409, 'VERSION_CONFLICT', 'SKU đã được cập nhật ở nơi khác.');
+          }
+          await tx.auditLog.create({
+            data: {
+              businessId: actor.businessId,
+              actorId: actor.id,
+              action: 'catalog.selling_unit.set',
+              entityType: 'ProductVariant',
+              entityId: id,
+              requestId,
+              metadata: {
+                productId,
+                previousVersion: dto.version,
+                previousSellingUnitCode: variant.sellingUnitCode,
+                sellingUnitCode,
+              },
+            },
+          });
         },
-      });
-    });
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      );
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2034') {
+        throw new ProblemException(
+          409,
+          'PRICE_CONFIGURATION_CONFLICT',
+          'Giá hoặc đơn vị bán vừa được cập nhật; hãy tải lại SKU rồi thử lại.',
+        );
+      }
+      throw error;
+    }
     return this.getById(productId, actor.businessId);
   }
 

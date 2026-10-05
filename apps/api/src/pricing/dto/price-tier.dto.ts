@@ -14,11 +14,9 @@ export class ResolveWholesalePriceQueryDto {
   @Matches(/^[A-Za-z0-9_-]{1,64}$/)
   variantId: string;
 
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  @Max(1000000000)
-  quantity: number;
+  @IsString()
+  @Matches(/^(?=.*[1-9])\d{1,9}(?:\.\d{1,6})?$/)
+  quantity: string;
 }
 
 export class SetPriceTierDto {
@@ -28,7 +26,7 @@ export class SetPriceTierDto {
 
   @Type(() => Number)
   @IsInt()
-  @Min(5)
+  @Min(1)
   @Max(1000000)
   quantityFrom: number;
 

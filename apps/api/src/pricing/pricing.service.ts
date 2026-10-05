@@ -5,7 +5,7 @@ import type { RequestStaff } from '../common/request-context';
 import { Prisma, type Prisma as PrismaTypes } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import type { ResolveWholesalePriceQueryDto, SetPriceTierDto } from './dto/price-tier.dto';
-import { wholesaleQuantityFrom } from './pricing-rules';
+import { priceQuantityFrom } from './pricing-rules';
 
 const RETRIES = 3;
 
@@ -22,6 +22,9 @@ const priceTierSelect = {
       name: true,
       baseUnitCode: true,
       baseUnitName: true,
+      sellingUnitCode: true,
+      sellingUnitName: true,
+      sellingUnitFactor: true,
       product: { select: { name: true } },
     },
   },
@@ -38,6 +41,9 @@ function present(row: PriceTierRecord) {
     variantName: row.variant.name,
     baseUnitCode: row.variant.baseUnitCode,
     baseUnitName: row.variant.baseUnitName,
+    sellingUnitCode: row.variant.sellingUnitCode,
+    sellingUnitName: row.variant.sellingUnitName,
+    sellingUnitFactor: row.variant.sellingUnitFactor.toString(),
     quantityFrom: row.quantityFrom,
     priceVnd: row.priceVnd?.toFixed(0) ?? null,
     version: row.version,
@@ -59,9 +65,10 @@ export class PricingService {
   }
 
   async resolveWholesalePrice(businessId: string, query: ResolveWholesalePriceQueryDto) {
+    const quantityFrom = priceQuantityFrom(query.quantity);
     const variant = await this.prisma.productVariant.findFirst({
       where: { id: query.variantId, businessId },
-      select: { id: true },
+      select: { id: true, sellingUnitCode: true, sellingUnitName: true },
     });
     if (!variant) {
       throw new ProblemException(
@@ -70,18 +77,6 @@ export class PricingService {
         'Không tìm thấy SKU trong đơn vị kinh doanh.',
       );
     }
-    const quantityFrom = wholesaleQuantityFrom(query.quantity);
-    if (quantityFrom === null) {
-      return {
-        variantId: query.variantId,
-        quantity: query.quantity,
-        quantityFrom: null,
-        priceVnd: null,
-        source: null,
-        status: 'RETAIL_PRICE_NOT_CONFIGURED',
-      };
-    }
-
     const row = await this.prisma.priceTier.findUnique({
       where: {
         businessId_variantId_quantityFrom: {
@@ -96,6 +91,8 @@ export class PricingService {
       return {
         variantId: query.variantId,
         quantity: query.quantity,
+        sellingUnitCode: variant.sellingUnitCode,
+        sellingUnitName: variant.sellingUnitName,
         quantityFrom,
         priceVnd: row.priceVnd.toFixed(0),
         source: 'ADMIN',
@@ -105,10 +102,12 @@ export class PricingService {
     return {
       variantId: query.variantId,
       quantity: query.quantity,
+      sellingUnitCode: variant.sellingUnitCode,
+      sellingUnitName: variant.sellingUnitName,
       quantityFrom,
       priceVnd: null,
-      source: 'PENDING_AUTO_RULE',
-      status: 'AUTO_PRICE_RULE_REQUIRED',
+      source: null,
+      status: 'PRICE_NOT_CONFIGURED',
     };
   }
 
@@ -155,11 +154,11 @@ export class PricingService {
   ) {
     const idempotencyKey = this.validateKey(rawKey);
     const requestHash = this.requestHash(dto);
-    if (dto.quantityFrom % 5 !== 0) {
+    if (dto.quantityFrom !== 1 && (dto.quantityFrom < 5 || dto.quantityFrom % 5 !== 0)) {
       throw new ProblemException(
         422,
         'INVALID_PRICE_TIER',
-        'Bậc số lượng phải là bội số của 5, bắt đầu từ 5.',
+        'Chỉ nhận giá lẻ ở bậc 1 hoặc bậc sỉ là bội số của 5 từ 5 trở lên.',
       );
     }
     if (dto.priceVnd === null && dto.expectedVersion === 0) {

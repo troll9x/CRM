@@ -8,6 +8,7 @@ type ProductVariant = {
   sku: string;
   name: string;
   baseUnitName: string;
+  sellingUnitName: string;
   status: 'ACTIVE' | 'INACTIVE';
 };
 
@@ -26,6 +27,7 @@ type PriceTier = {
   variantName: string;
   baseUnitCode: string;
   baseUnitName: string;
+  sellingUnitName: string;
   quantityFrom: number;
   priceVnd: string;
   version: number;
@@ -34,11 +36,11 @@ type PriceTier = {
 
 type PriceResolution = {
   variantId: string;
-  quantity: number;
-  quantityFrom: number | null;
+  quantity: string;
+  quantityFrom: number;
   priceVnd: string | null;
-  source: 'ADMIN' | 'PENDING_AUTO_RULE' | null;
-  status: 'RESOLVED' | 'AUTO_PRICE_RULE_REQUIRED' | 'RETAIL_PRICE_NOT_CONFIGURED';
+  source: 'ADMIN' | null;
+  status: 'RESOLVED' | 'PRICE_NOT_CONFIGURED';
 };
 
 function formatVnd(value: string) {
@@ -87,7 +89,7 @@ export function PricingWorkspace({
   const maxVisibleTier = visibleTiersByVariant[selectedVariantId] ?? 20;
   const tierStarts = useMemo(
     () =>
-      Array.from({ length: Math.max(4, maxVisibleTier / 5) }, (_, index) => (index + 1) * 5)
+      [1, ...Array.from({ length: Math.max(4, maxVisibleTier / 5) }, (_, index) => (index + 1) * 5)]
         .concat(selectedTiers.map(({ quantityFrom }) => quantityFrom))
         .filter((value, index, all) => all.indexOf(value) === index)
         .sort((left, right) => left - right),
@@ -195,8 +197,8 @@ export function PricingWorkspace({
   async function resolvePrice(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError('');
-    if (!selectedVariantId || !/^[1-9]\d{0,8}$/.test(quantity)) {
-      setError('Chọn SKU và nhập số lượng nguyên lớn hơn 0.');
+    if (!selectedVariantId || !/^(?=.*[1-9])\d{1,9}(?:\.\d{1,6})?$/.test(quantity)) {
+      setError('Chọn SKU và nhập số lượng lớn hơn 0, tối đa 6 chữ số thập phân.');
       return;
     }
     try {
@@ -217,9 +219,10 @@ export function PricingWorkspace({
       <header>
         <div>
           <p className="eyebrow">ĐỢT 05A · QUẢN TRỊ GIÁ</p>
-          <h1>Giá sỉ theo sản phẩm</h1>
+          <h1>Giá theo sản phẩm</h1>
           <p className="muted">
-            Nhập giá admin cho từng SKU và bậc số lượng. Quyền lưu giá được kiểm tra ở API.
+            Nhập giá lẻ và các bậc giá admin theo đơn vị bán cố định của từng SKU. Quyền lưu giá
+            được kiểm tra ở API.
           </p>
         </div>
         <div className="header-actions">
@@ -231,9 +234,8 @@ export function PricingWorkspace({
       </header>
 
       <div className="notice price-policy-note">
-        <b>Phần giá đã chốt:</b> 5–9 dùng bậc 5; 10–14 dùng bậc 10; sau đó mỗi 5 đơn vị. Giá admin
-        nhập được ưu tiên. Ô trống chưa có công thức đã duyệt nên hệ thống báo cần chốt OPEN-03 và
-        không tự tạo số tiền.
+        <b>Quy tắc giá:</b> dưới 5 dùng giá lẻ; từ 5 trở lên áp dụng từng khoảng 5 đơn vị (5–&lt;10
+        dùng bậc 5). Admin nhập giá lẻ và từng bậc; giá còn thiếu không tự tính.
       </div>
       {message && (
         <div className="success-message" role="status">
@@ -279,7 +281,7 @@ export function PricingWorkspace({
               <div className="price-tier-table">
                 <div className="price-tier-header">
                   <span>Bậc / lượng áp dụng</span>
-                  <span>Giá admin nhập (VND/{selectedVariant.baseUnitName})</span>
+                  <span>Giá admin nhập (VND/{selectedVariant.sellingUnitName})</span>
                   <span>Nguồn</span>
                 </div>
                 {tierStarts.map((quantityFrom) => {
@@ -287,9 +289,11 @@ export function PricingWorkspace({
                   return (
                     <div className="price-tier-row" key={quantityFrom}>
                       <div>
-                        <b>Bậc {quantityFrom}</b>
+                        <b>{quantityFrom === 1 ? 'Giá lẻ' : `Bậc ${quantityFrom}`}</b>
                         <small>
-                          {quantityFrom}–{quantityFrom + 4} {selectedVariant.baseUnitName}
+                          {quantityFrom === 1
+                            ? `< 5 ${selectedVariant.sellingUnitName}`
+                            : `${quantityFrom}–<${quantityFrom + 5} ${selectedVariant.sellingUnitName}`}
                         </small>
                       </div>
                       <input
@@ -353,11 +357,11 @@ export function PricingWorkspace({
             </div>
             <form className="price-resolver-form" onSubmit={resolvePrice}>
               <label>
-                Số lượng theo đơn vị gốc
+                Số lượng theo {selectedVariant?.sellingUnitName ?? 'đơn vị bán'}
                 <input
                   type="number"
-                  min="1"
-                  step="1"
+                  min="0.000001"
+                  step="0.000001"
                   value={quantity}
                   onChange={(event) => setQuantity(event.target.value)}
                 />
@@ -372,16 +376,14 @@ export function PricingWorkspace({
                 role="status"
               >
                 <b>
-                  {resolution.quantityFrom
-                    ? `Bậc ${resolution.quantityFrom} · lượng ${resolution.quantityFrom}–${resolution.quantityFrom + 4}`
-                    : 'Giá lẻ'}
+                  {resolution.quantityFrom === 1
+                    ? 'Giá lẻ · dưới 5'
+                    : `Bậc ${resolution.quantityFrom} · từ ${resolution.quantityFrom} đến dưới ${resolution.quantityFrom + 5}`}
                 </b>
                 {resolution.status === 'RESOLVED' ? (
                   <strong>{formatVnd(resolution.priceVnd ?? '0')}</strong>
-                ) : resolution.status === 'AUTO_PRICE_RULE_REQUIRED' ? (
-                  <span>Chưa có giá admin và công thức tự tính còn chờ OPEN-03.</span>
                 ) : (
-                  <span>Chưa có giá lẻ được cấu hình trong hệ thống.</span>
+                  <span>Chưa có giá admin được cấu hình cho mức số lượng này.</span>
                 )}
                 {resolution.source === 'ADMIN' && <small>Nguồn giá: admin nhập.</small>}
               </div>

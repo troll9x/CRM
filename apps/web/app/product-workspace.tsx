@@ -11,6 +11,9 @@ type Variant = {
   barcode?: string | null;
   baseUnitCode: string;
   baseUnitName: string;
+  sellingUnitCode: string;
+  sellingUnitName: string;
+  sellingUnitFactor: string;
   attributes?: Record<string, string> | null;
   status: 'ACTIVE' | 'INACTIVE';
   version: number;
@@ -163,6 +166,7 @@ export function ProductWorkspace({
               barcode: field(form, 'barcode') || undefined,
               baseUnitCode: field(form, 'baseUnitCode'),
               baseUnitName: field(form, 'baseUnitName'),
+              sellingUnitCode: field(form, 'sellingUnitCode') || undefined,
               attributes: attributesFrom(form),
               conversions: conversionsFrom(form),
             },
@@ -245,6 +249,7 @@ export function ProductWorkspace({
           barcode: field(form, 'barcode') || undefined,
           baseUnitCode: field(form, 'baseUnitCode'),
           baseUnitName: field(form, 'baseUnitName'),
+          sellingUnitCode: field(form, 'sellingUnitCode') || undefined,
           attributes: attributesFrom(form),
           conversions: conversionsFrom(form),
         }),
@@ -293,6 +298,27 @@ export function ProductWorkspace({
       setMessage('Đã cập nhật quy đổi đơn vị.');
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Không cập nhật được quy đổi.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function setSellingUnit(event: FormEvent<HTMLFormElement>, variant: Variant) {
+    event.preventDefault();
+    setSaving(true);
+    const form = new FormData(event.currentTarget);
+    try {
+      const product = await api<ProductDetail>(`/variants/${variant.id}/selling-unit`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          version: variant.version,
+          sellingUnitCode: field(form, 'sellingUnitCode'),
+        }),
+      });
+      setSelected(product);
+      setMessage('Đã cập nhật đơn vị bán cố định cho SKU.');
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Không cập nhật được đơn vị bán.');
     } finally {
       setSaving(false);
     }
@@ -538,6 +564,7 @@ export function ProductWorkspace({
                           <h4>{variant.name}</h4>
                           <small>
                             Gốc: 1 {variant.baseUnitName} ({variant.baseUnitCode})
+                            {` · Bán: ${variant.sellingUnitName} (${variant.sellingUnitCode})`}
                             {variant.barcode ? ` · Barcode ${variant.barcode}` : ''}
                           </small>
                         </div>
@@ -570,15 +597,45 @@ export function ProductWorkspace({
                         ))}
                       </div>
                       {canWrite && (
-                        <details className="inline-create compact-details">
-                          <summary>Sửa quy đổi</summary>
-                          <form onSubmit={(event) => replaceConversions(event, variant)}>
-                            <ConversionFields conversions={variant.conversions} />
-                            <button className="primary compact" disabled={saving}>
-                              Lưu quy đổi
-                            </button>
-                          </form>
-                        </details>
+                        <div className="variant-settings">
+                          <details className="inline-create compact-details">
+                            <summary>Sửa quy đổi</summary>
+                            <form onSubmit={(event) => replaceConversions(event, variant)}>
+                              <ConversionFields conversions={variant.conversions} />
+                              <button className="primary compact" disabled={saving}>
+                                Lưu quy đổi
+                              </button>
+                            </form>
+                          </details>
+                          <details className="inline-create compact-details">
+                            <summary>Đổi đơn vị bán cố định</summary>
+                            <form onSubmit={(event) => setSellingUnit(event, variant)}>
+                              <label>
+                                Đơn vị bán
+                                <select
+                                  name="sellingUnitCode"
+                                  defaultValue={variant.sellingUnitCode}
+                                >
+                                  <option value={variant.baseUnitCode}>
+                                    {variant.baseUnitName} ({variant.baseUnitCode})
+                                  </option>
+                                  {variant.conversions.map((conversion) => (
+                                    <option key={conversion.id} value={conversion.unitCode}>
+                                      {conversion.unitName} ({conversion.unitCode})
+                                    </option>
+                                  ))}
+                                </select>
+                              </label>
+                              <p className="section-help">
+                                Chỉ đổi được trước khi SKU có giá để không thay đổi ý nghĩa bảng
+                                giá.
+                              </p>
+                              <button className="primary compact" disabled={saving}>
+                                Lưu đơn vị bán
+                              </button>
+                            </form>
+                          </details>
+                        </div>
                       )}
                     </article>
                   ))}
@@ -678,6 +735,13 @@ function VariantFields() {
         </label>
       </div>
       <div className="subform-title">Quy đổi tùy chọn — hệ số theo đơn vị gốc</div>
+      <label>
+        Mã đơn vị bán cố định (để trống = đơn vị gốc)
+        <input
+          name="sellingUnitCode"
+          placeholder="Ví dụ: THUNG; phải khai báo ở quy đổi bên dưới"
+        />
+      </label>
       <ConversionFields />
     </div>
   );

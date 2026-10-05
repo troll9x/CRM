@@ -5,7 +5,7 @@ import { CurrentStaff } from '../identity/current-staff.decorator';
 import { PERMISSIONS } from '../identity/permissions';
 import { RequirePermissions } from '../identity/require-permissions.decorator';
 import { CatalogService } from './catalog.service';
-import { ReplaceConversionsDto, UpdateVariantDto } from './dto/catalog.dto';
+import { ReplaceConversionsDto, SetSellingUnitDto, UpdateVariantDto } from './dto/catalog.dto';
 
 @ApiTags('catalog-variants')
 @Controller('variants')
@@ -33,5 +33,16 @@ export class VariantsController {
     @Req() request: RequestWithContext,
   ) {
     return this.catalog.replaceConversions(id, dto, actor, request.requestId);
+  }
+
+  @Put(':id/selling-unit')
+  @ApiOperation({ summary: 'Chọn đơn vị bán cố định khi SKU chưa có giá' })
+  setSellingUnit(
+    @Param('id') id: string,
+    @Body() dto: SetSellingUnitDto,
+    @CurrentStaff() actor: RequestStaff,
+    @Req() request: RequestWithContext,
+  ) {
+    return this.catalog.setSellingUnit(id, dto, actor, request.requestId);
   }
 }
