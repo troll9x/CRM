@@ -88,6 +88,24 @@ enum StockAdjustmentStatus {
   POSTED
 }
 
+enum QuoteStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  EXPIRED
+  REJECTED
+}
+
+enum QuoteDiscountMode {
+  PERCENTAGE
+  FIXED_VND
+}
+
+enum QuoteTaxMode {
+  PERCENTAGE
+  FIXED_VND
+}
+
 model Business {
   id                String             @id @default(cuid())
   name              String
@@ -115,6 +133,8 @@ model Business {
   stockAdjustments  StockAdjustment[]
   priceTiers        PriceTier[]
   priceTierCommands PriceTierCommand[]
+  quotes            Quote[]
+  quoteCommands     QuoteCommand[]
 
   @@map("businesses")
 }
@@ -140,6 +160,8 @@ model StaffUser {
   createdGoodsReceipts    GoodsReceipt[]     @relation("GoodsReceiptCreator")
   createdOpeningStocks    OpeningStock[]     @relation("OpeningStockCreator")
   createdStockAdjustments StockAdjustment[]  @relation("StockAdjustmentCreator")
+  createdQuotes           Quote[]            @relation("QuoteCreator")
+  sentQuoteRevisions      QuoteRevision[]    @relation("QuoteRevisionSender")
 
   @@index([businessId, status])
   @@map("staff_users")
@@ -265,6 +287,7 @@ model Customer {
   addresses        Address[]
   tasks            CustomerTask[]
   opportunities    SalesOpportunity[]
+  quotes           Quote[]
 
   @@unique([businessId, customerCode])
   @@index([businessId, status, updatedAt])
@@ -401,6 +424,7 @@ model ProductVariant {
   openingStocks      OpeningStock[]
   stockAdjustments   StockAdjustment[]
   priceTiers         PriceTier[]
+  quoteLines         QuoteLine[]
 
   @@unique([businessId, sku])
   @@unique([businessId, barcode])
@@ -705,7 +729,7 @@ model StockAdjustment {
   @@unique([businessId, documentNumber])
   @@unique([businessId, idempotencyKey])
   @@index([businessId, postedAt])
-  @@index([businessId, warehouseId, variantId, postedAt])
+  @@index([businessId, warehouseId, variantId, postedAt], map: "stock_adjustments_business_id_warehouse_id_variant_id_posted_at")
   @@map("stock_adjustments")
 }
 
@@ -738,4 +762,101 @@ model PriceTierCommand {
   @@unique([businessId, idempotencyKey])
   @@index([businessId, createdAt])
   @@map("price_tier_commands")
+}
+
+model Quote {
+  id                 String             @id @default(cuid())
+  businessId         String             @map("business_id")
+  customerId         String             @map("customer_id")
+  createdById        String             @map("created_by_id")
+  quoteNumber        String             @map("quote_number")
+  status             QuoteStatus        @default(DRAFT)
+  version            Int                @default(1)
+  lineSubtotalVnd    Decimal            @map("line_subtotal_vnd") @db.Decimal(20, 0)
+  lineDiscountVnd    Decimal            @map("line_discount_vnd") @db.Decimal(20, 0)
+  orderDiscountMode  QuoteDiscountMode? @map("order_discount_mode")
+  orderDiscountValue Decimal?           @map("order_discount_value") @db.Decimal(20, 6)
+  orderDiscountVnd   Decimal            @map("order_discount_vnd") @db.Decimal(20, 0)
+  shippingFeeVnd     Decimal            @default(0) @map("shipping_fee_vnd") @db.Decimal(20, 0)
+  taxMode            QuoteTaxMode?      @map("tax_mode")
+  taxValue           Decimal?           @map("tax_value") @db.Decimal(20, 6)
+  taxVnd             Decimal            @default(0) @map("tax_vnd") @db.Decimal(20, 0)
+  depositVnd         Decimal            @default(0) @map("deposit_vnd") @db.Decimal(20, 0)
+  grandTotalVnd      Decimal            @map("grand_total_vnd") @db.Decimal(20, 0)
+  paymentNote        String?            @map("payment_note")
+  internalNote       String?            @map("internal_note")
+  receivedAt         DateTime?          @map("received_at")
+  expiresAt          DateTime?          @map("expires_at")
+  createdAt          DateTime           @default(now()) @map("created_at")
+  updatedAt          DateTime           @updatedAt @map("updated_at")
+  business           Business           @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  customer           Customer           @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  createdBy          StaffUser          @relation("QuoteCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  lines              QuoteLine[]
+  revisions          QuoteRevision[]
+
+  @@unique([businessId, quoteNumber])
+  @@index([businessId, status, updatedAt])
+  @@index([businessId, customerId, createdAt])
+  @@map("quotes")
+}
+
+model QuoteLine {
+  id                  String             @id @default(cuid())
+  quoteId             String             @map("quote_id")
+  variantId           String             @map("variant_id")
+  lineNumber          Int                @map("line_number")
+  productNameSnapshot String             @map("product_name_snapshot")
+  skuSnapshot         String             @map("sku_snapshot")
+  variantNameSnapshot String             @map("variant_name_snapshot")
+  unitCodeSnapshot    String             @map("unit_code_snapshot")
+  unitNameSnapshot    String             @map("unit_name_snapshot")
+  sellingUnitFactor   Decimal            @map("selling_unit_factor") @db.Decimal(20, 6)
+  quantity            Decimal            @db.Decimal(20, 6)
+  quantityFrom        Int                @map("quantity_from")
+  unitPriceVnd        Decimal            @map("unit_price_vnd") @db.Decimal(20, 0)
+  lineSubtotalVnd     Decimal            @map("line_subtotal_vnd") @db.Decimal(20, 0)
+  discountMode        QuoteDiscountMode? @map("discount_mode")
+  discountValue       Decimal?           @map("discount_value") @db.Decimal(20, 6)
+  discountVnd         Decimal            @map("discount_vnd") @db.Decimal(20, 0)
+  lineTotalVnd        Decimal            @map("line_total_vnd") @db.Decimal(20, 0)
+  createdAt           DateTime           @default(now()) @map("created_at")
+  quote               Quote              @relation(fields: [quoteId], references: [id], onDelete: Restrict)
+  variant             ProductVariant     @relation(fields: [variantId], references: [id], onDelete: Restrict)
+
+  @@unique([quoteId, lineNumber])
+  @@index([variantId, createdAt])
+  @@map("quote_lines")
+}
+
+model QuoteRevision {
+  id             String    @id @default(cuid())
+  quoteId        String    @map("quote_id")
+  revisionNumber Int       @map("revision_number")
+  snapshot       Json
+  sentAt         DateTime  @map("sent_at")
+  receivedAt     DateTime  @map("received_at")
+  expiresAt      DateTime  @map("expires_at")
+  sentById       String    @map("sent_by_id")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  quote          Quote     @relation(fields: [quoteId], references: [id], onDelete: Restrict)
+  sentBy         StaffUser @relation("QuoteRevisionSender", fields: [sentById], references: [id], onDelete: Restrict)
+
+  @@unique([quoteId, revisionNumber])
+  @@index([quoteId, sentAt])
+  @@map("quote_revisions")
+}
+
+model QuoteCommand {
+  id             String   @id @default(cuid())
+  businessId     String   @map("business_id")
+  idempotencyKey String   @map("idempotency_key")
+  requestHash    String   @map("request_hash")
+  response       Json
+  createdAt      DateTime @default(now()) @map("created_at")
+  business       Business @relation(fields: [businessId], references: [id], onDelete: Restrict)
+
+  @@unique([businessId, idempotencyKey])
+  @@index([businessId, createdAt])
+  @@map("quote_commands")
 }

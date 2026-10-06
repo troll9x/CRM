@@ -88,6 +88,8 @@ Kết quả chạy ngày 2026-10-05 trên PostgreSQL cô lập:
 - **PASS E2E/RBAC:** role sales bị từ chối và SKU thuộc business khác không đọc/sửa được.
 - **UI IMPLEMENTED; BROWSER CHECK PENDING:** màn hình CRM nhập/xóa giá và gọi resolver thật; chưa có kiểm tra trực quan bằng trình duyệt.
 
+Kết quả xác minh phần mở rộng ngày 2026-10-06: đủ 12 migration deploy và seed trên PostgreSQL 17.6 mới cô lập ở cổng 55434; 8 file / 32 E2E pass, bao gồm giá lẻ, đơn vị bán cố định, lượng Decimal và khóa thay đổi sau khi cấu hình giá. `prisma migrate diff` còn một đề xuất rename index stock adjustment phát sinh từ migration 04C-B trước đó; chưa sửa vì ngoài phạm vi 05A. UI vẫn cần nghiệm thu bằng browser.
+
 - **AC-05A-01:** lượng 5–<10 chọn bậc 5; 10–<15 chọn bậc 10; 15–<20 chọn bậc 15; giá dưới 5 chọn bậc lẻ 1; lượng thập phân sát ranh giới phân bậc chính xác.
 - **AC-05A-02:** admin lưu giá lẻ ở bậc 1 và giá sỉ tại bậc 5/10/15...; resolver nhận số lượng tối đa 6 chữ số lẻ, trả đúng đơn vị bán và giá admin dưới dạng chuỗi VND. Bậc thiếu trả `PRICE_NOT_CONFIGURED`, không tạo số tiền.
 - **AC-05A-03:** role thiếu `price.edit` bị từ chối ở API; tenant khác không đọc/sửa SKU ngoài business.
@@ -96,7 +98,7 @@ Kết quả chạy ngày 2026-10-05 trên PostgreSQL cô lập:
 - **AC-05A-06:** UI CRM đọc sản phẩm/giá qua API, nhập/xóa giá qua API; preview resolver gọi backend. Giá lẻ đã cấu hình được tại bậc 1; báo giá/giảm giá chưa triển khai và không tự tính giá thiếu.
 - **AC-05A-07:** đơn vị bán phải là đơn vị gốc hoặc quy đổi đã khai báo; quản lý có thể chọn/đổi trước khi cấu hình giá; đổi đơn vị sau khi có giá hoặc sửa/xóa quy đổi đang cố định bị backend từ chối.
 
-### Tiêu chí đã xác nhận cho Đợt 05B–C (chưa triển khai)
+### Tiêu chí đã xác nhận cho Đợt 05B–C
 
 - Bảng giá dùng chung; mỗi SKU có một đơn vị bán cố định như gói, kg hoặc thùng, không mặc định giá theo từng món lẻ.
 - Có thể nhập số lượng lẻ tối đa 6 chữ số thập phân; dưới 5 dùng giá lẻ, từ 5 trở lên bậc được lấy theo `floor(quantity/5)*5`; thành tiền từng dòng làm tròn VND nửa lên.
@@ -105,13 +107,20 @@ Kết quả chạy ngày 2026-10-05 trên PostgreSQL cô lập:
 - Báo giá còn hạn chuyển thành đơn nháp với giá snapshot; thông báo Admin được tạo khi có đơn khách đặt từ nền tảng.
 - Gửi báo giá phải có revision và bản in/PDF; connector gửi tự động chỉ nghiệm thu sau khi có bằng chứng API thật.
 - Hạn báo giá là đủ 72 giờ từ lúc khách nhận; luồng PDF/chia sẻ thủ công cần ghi nhận timestamp nhận.
-- Người có `price.edit` được đặt mức giảm phần trăm hoặc VND theo dòng hoặc toàn báo giá; không áp trần số riêng. Cách nhập/tính thuế còn cần chốt; kênh gửi tự động chỉ làm sau khi có tài khoản thử.
+- Người có `price.edit` được đặt mức giảm phần trăm hoặc VND theo dòng hoặc toàn báo giá; không áp trần số riêng. Thuế nhập theo phần trăm hoặc VND áp dụng toàn báo giá. Tạm dùng một cách thuế mỗi báo giá; giảm dòng trước giảm toàn báo giá; thuế phần trăm tính trên tiền hàng sau giảm cộng phí giao, không gồm cọc; phải xác nhận thứ tự/cơ sở trước vận hành thật. Kênh gửi tự động chỉ làm sau khi có tài khoản thử.
+
+Kết quả 05B local ngày 2026-10-06: 13 migration + seed pass trên PostgreSQL 17.6 mới; 9 file / 33 API E2E pass. Gồm resolver không tự tính giá thiếu, Decimal × VND làm tròn từng dòng 0,5 lên, thuế phần trăm/VND, giảm theo quyền, version/idempotency, snapshot revision không đổi khi bảng giá đổi và thời hạn đúng 72 giờ. Typecheck/lint/unit/format/build đều pass trên Node 24. UI build pass nhưng chưa được nghiệm thu trực quan trên browser; phát hành hiện chỉ ghi nhận chia sẻ thủ công và in/lưu PDF bằng trình duyệt.
 
 ### Nghiệm thu giao diện và tổng quan
 
 - **AC-UI-UTF8 — PASS unit/build:** tài liệu HTML khai báo `lang=vi`, UTF-8 và font stack có glyph tiếng Việt; test quét source không có ký tự thay thế hoặc chuỗi mojibake thường gặp.
+- **AC-UI-TYPE — LOCAL IMPLEMENTED, BROWSER CHECK PENDING:** sau phản hồi chữ 14px/16px còn quá nhỏ, nhãn phụ, bảng và nội dung trợ giúp trong CRM được nâng lên 16px; trường nhập/nút thao tác lên 18px. CSS mới được server local trả HTTP 200; cần mở browser kiểm tra desktop/mobile, độ tràn hàng và khả năng đọc thực tế.
+- **AC-UI-VI — BROWSER CHECK PENDING:** rà các luồng đăng nhập, khách hàng, danh mục, mua hàng, kho, bảng giá, báo giá; xác nhận dấu tiếng Việt và nội dung dữ liệu nhập hiển thị đúng. Unit test UTF-8 chỉ kiểm tra source, không thay nghiệm thu rendering.
 - **AC-OV-01 — PASS E2E:** owner gọi `/overview` nhận KPI và các bảng so sánh khách/cơ hội/danh mục/mua hàng từ DB; response không trả danh sách quyền hoặc thông tin phiên để lấp chỗ.
 - **AC-OV-02 — PASS local:** trang Tổng quan bỏ toàn bộ thẻ kỹ thuật “phiên/quyền/audit”, có liên kết đi thẳng tới dữ liệu khách, sản phẩm và mua hàng.
+- **AC-OV-03 — WAITING Đợt 06:** biểu đồ doanh số theo tháng chỉ đọc đơn hàng/doanh thu đã lưu và quy tắc giao/trả đã xác định; không dùng số liệu giả.
+- **AC-OV-04 — WAITING Đợt 06:** danh sách sản phẩm bán chạy lấy từ dòng đơn hàng đã lưu, có khoảng thời gian và cách tính trả hàng rõ ràng; không dùng dữ liệu mẫu để lấp biểu đồ.
+- **AC-CHAT-01 — WAITING Đợt 09:** hộp thư khách hàng chỉ nghiệm thu sau khi có connector, tài khoản/quyền thử, hội thoại thật được đồng bộ và kiểm tra gửi/nhận; không gắn nhãn tích hợp trước khi có bằng chứng.
 
 ## 6. Bộ dữ liệu chuẩn liên module
 

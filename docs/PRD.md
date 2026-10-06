@@ -1,6 +1,6 @@
 # PRD — CRM bán sỉ và bán lẻ
 
-Trạng thái: đặc tả đang triển khai — 05A được mở rộng tại working tree với đơn vị bán cố định, giá lẻ và lượng thập phân; 05B–C được xác nhận một phần nhưng chưa triển khai. Chỉ cách nhập/tính thuế còn chờ chốt; 04C-B còn chờ UI trực quan và xác nhận BR-STOCK-10 trước vận hành thật.
+Trạng thái: 05A và backend/UI cơ bản 05B đã qua kiểm tra local; 05B còn chờ kiểm tra trực quan trên browser, 05C chưa triển khai. Thuế báo giá hỗ trợ nhập theo phần trăm hoặc VND trên toàn báo giá. Tạm dùng: một cách thuế trên mỗi báo giá; phần trăm tính trên tiền hàng sau giảm cộng phí giao, không gồm cọc. Quy ước này chỉ phục vụ báo giá nội bộ, cần chủ dự án xác nhận trước vận hành. 04C-B còn chờ UI trực quan và xác nhận BR-STOCK-10 trước vận hành thật.
 Nguồn: `ke-hoach-vibe-code-crm.md` phiên bản 1.0, ngày 30/09/2026
 
 ## 1. Bài toán
@@ -75,14 +75,14 @@ Một nhân viên có thể giữ nhiều vai trò. Backend phải kiểm tra qu
 - Facebook Fanpage và Zalo OA là tuyến tích hợp dự kiến.
 - Bảng giá dùng chung; mỗi SKU có một đơn vị bán cố định do admin chọn, admin nhập giá lẻ và giá bậc theo đơn vị đó. Cho phép số lượng lẻ; từ lượng 5 trở lên bậc giá tăng mỗi 5 đơn vị bán. Thiếu giá không tự tính.
 
-### Đợt 05 — phần đã xác nhận ngày 2026-10-05
+### Đợt 05 — phần đã xác nhận ngày 2026-10-05, cập nhật 2026-10-06
 
 - Giá đơn tính theo đơn vị bán đã cấu hình (ví dụ gói, kg hoặc thùng 10kg), không mặc định tính theo từng món lẻ.
 - Số lượng lẻ tối đa 6 chữ số thập phân; thành tiền làm tròn từng dòng về VND nguyên, nửa đồng làm tròn lên.
 - Giảm giá thêm theo phần trăm hoặc VND, áp dụng theo dòng hoặc toàn báo giá; giới hạn phụ thuộc quyền quản lý.
-- Báo giá gồm phí giao, giảm giá, thuế, cọc dự kiến và ghi chú thanh toán. Chuyển báo giá còn hạn sang đơn nháp giữ giá đã chốt.
+- Báo giá gồm phí giao, giảm giá, thuế nhập theo phần trăm hoặc VND toàn báo giá, cọc dự kiến và ghi chú thanh toán. Tạm dùng một cách thuế trên mỗi báo giá; phần trăm tính trên tiền hàng sau giảm cộng phí giao, không gồm cọc. Đây là giả định cần xác nhận trước vận hành. Chuyển báo giá còn hạn sang đơn nháp giữ giá đã chốt.
 - Báo giá hết hạn sau 72 giờ từ lúc khách nhận; bước đầu gửi bằng PDF/in/chia sẻ thủ công và ghi nhận lúc khách nhận. Gửi tự động qua kênh cần tài khoản thử.
-- Khi khách đặt hàng qua nền tảng, cần thông báo Admin. Người có `price.edit` tự đặt mức giảm không có trần số riêng; cách nhập/tính thuế còn chờ xác nhận.
+- Khi khách đặt hàng qua nền tảng, cần thông báo Admin. Người có `price.edit` tự đặt mức giảm không có trần số riêng.
 
 ### Cần xác nhận
 

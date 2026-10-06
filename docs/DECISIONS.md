@@ -52,11 +52,12 @@ Không thêm câu hỏi chặn mới vào danh sách này; câu hỏi phát sinh
 
 ### OPEN-03 — Chính sách giá sỉ và giảm giá
 
-- Trạng thái: **Đã chốt một phần ngày 2026-10-05; còn cách nhập/tính thuế.**
+- Trạng thái: **Đã chốt một phần ngày 2026-10-05/06; cơ sở tính thuế phần trăm, cho phép kết hợp nhiều kiểu và thứ tự giảm giá còn cần xác nhận trước vận hành.**
 - Đã xác nhận: bảng giá dùng chung; mỗi SKU có một đơn vị bán cố định do admin chọn (ví dụ gói, kg hoặc thùng 10kg); giá admin nhập theo đơn vị này. Số lượng dưới 5 dùng giá lẻ theo đơn vị bán; từ 5 trở lên bậc 5–9 dùng giá bậc 5, 10–14 dùng bậc 10, 15–19 dùng bậc 15 và tiếp tục mỗi 5. Giá còn thiếu không tự tính. Cho phép số lượng lẻ; thành tiền từng dòng làm tròn về VND nguyên, nửa đồng làm tròn lên. Báo giá hết hạn sau đủ 72 giờ từ lúc khách nhận; nhận báo giá ban đầu được ghi nhận thủ công khi PDF được chia sẻ. Gửi giai đoạn đầu bằng PDF/in/chia sẻ thủ công; gửi tự động chờ tài khoản thử. Giảm thêm hỗ trợ phần trăm hoặc VND trên dòng hoặc toàn báo giá. Báo giá có phí giao, thuế, cọc dự kiến, ghi chú thanh toán. Chuyển báo giá còn hạn giữ giá đã chốt. Khi khách đặt qua nền tảng cần thông báo Admin.
-- Trạng thái code trước khi mở rộng: lưu giá admin theo business/SKU/bậc nguyên cách 5. Phần mở rộng hiện tại đang bổ sung đơn vị bán cố định, giá lẻ ở bậc 1 và số lượng thập phân; chưa xác minh migration với DB vì Docker chưa chạy.
+- Trạng thái code trước khi mở rộng: lưu giá admin theo business/SKU/bậc nguyên cách 5. Phần mở rộng thêm đơn vị bán cố định, giá lẻ bậc 1 và số lượng thập phân; migration fresh DB và E2E đã xác minh local ngày 2026-10-06.
 - Cập nhật: người có quyền quản lý (`price.edit`) được tự đặt mức giảm phần trăm hoặc VND, theo dòng hoặc toàn báo giá; không có trần số tiền/tỷ lệ cấu hình sẵn.
-- Cần xác nhận: thuế nhập theo tỷ lệ phần trăm do admin chọn hay theo số tiền VND.
+- Đã xác nhận ngày 2026-10-06: báo giá cho phép nhập thuế theo phần trăm hoặc số tiền VND; phạm vi là toàn báo giá.
+- Tạm dùng khi triển khai 05B: giảm theo dòng trước, giảm toàn báo giá sau; chọn một cách thuế trên mỗi báo giá; phần trăm tính trên tiền hàng sau giảm cộng phí giao, không gồm cọc. Cần chủ dự án xác nhận hoặc điều chỉnh trước khi dùng báo giá vận hành.
 - Ảnh hưởng: khóa đơn vị bán và bậc Decimal, cách tính tổng báo giá, audit quyền giảm, snapshot, hạn hiệu lực và chuyển sang đơn nháp.
 
 ### OPEN-04 — Chính sách mua nợ

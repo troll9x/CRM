@@ -105,6 +105,202 @@ button {
   color: var(--gold);
   margin-right: 8px;
 }
+
+.quotes-layout {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.7fr) minmax(0, 1.7fr);
+  gap: 22px;
+  align-items: start;
+}
+.quotes-list,
+.quote-card {
+  padding: 22px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+}
+.quotes-list .section-heading,
+.quote-card .section-heading,
+.quote-lines-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.quotes-list h2,
+.quote-card h2,
+.quote-lines-heading h3 {
+  margin: 0 0 8px;
+}
+.quote-list-item {
+  display: grid;
+  width: 100%;
+  gap: 5px;
+  padding: 13px 4px;
+  color: var(--ink);
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+}
+.quote-list-item.active {
+  color: var(--green);
+  background: var(--mint);
+  border-radius: 8px;
+  padding-inline: 10px;
+}
+.quote-list-item span,
+.quote-card .muted,
+.quote-line-snapshot {
+  color: var(--muted);
+  font-size: 13px;
+}
+.quotes-editor {
+  min-width: 0;
+}
+.quote-card {
+  display: grid;
+  gap: 18px;
+}
+.quote-card label,
+.send-quote-box label {
+  display: grid;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 650;
+}
+.quote-card input,
+.quote-card select,
+.quote-card textarea,
+.send-quote-box input {
+  width: 100%;
+  min-width: 0;
+  padding: 10px 11px;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+.quote-line-editor {
+  display: grid;
+  grid-template-columns: minmax(170px, 2fr) minmax(90px, 0.7fr) repeat(2, minmax(105px, 0.8fr)) 30px;
+  gap: 10px;
+  align-items: end;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+}
+.quote-line-snapshot {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+.remove-line {
+  width: 30px;
+  height: 40px;
+  color: var(--danger);
+  font-size: 22px;
+  background: transparent;
+  border: 0;
+}
+.quote-charges {
+  display: grid;
+  gap: 14px;
+}
+.form-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.quote-totals {
+  display: grid;
+  justify-items: end;
+  gap: 8px;
+  padding: 16px;
+  background: #f4f6f4;
+  border-radius: 10px;
+}
+.quote-totals b {
+  color: var(--green);
+  font-size: 20px;
+}
+.send-quote-box {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 14px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+.send-quote-box label {
+  flex: 1;
+}
+.status-pill {
+  padding: 6px 10px;
+  color: var(--green);
+  background: var(--mint);
+  border-radius: 99px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.print-only {
+  display: none;
+}
+.quote-print-sheet {
+  max-width: 900px;
+  margin: 32px auto;
+  padding: 40px;
+  color: #222;
+  background: #fff;
+}
+.quote-print-sheet h1,
+.quote-print-sheet h2 {
+  color: var(--green);
+}
+.quote-print-sheet table {
+  width: 100%;
+  margin: 28px 0;
+  border-collapse: collapse;
+}
+.quote-print-sheet th,
+.quote-print-sheet td {
+  padding: 10px 8px;
+  text-align: left;
+  border-bottom: 1px solid #dce2de;
+}
+@media (max-width: 880px) {
+  .quotes-layout {
+    grid-template-columns: 1fr;
+  }
+  .quotes-list {
+    order: 2;
+  }
+  .quote-line-editor {
+    grid-template-columns: minmax(0, 1fr) minmax(80px, 0.4fr) 30px;
+  }
+  .quote-line-editor label:nth-of-type(n + 3) {
+    grid-column: span 1;
+  }
+}
+@media print {
+  body {
+    background: #fff !important;
+  }
+  .dashboard-shell > aside,
+  .no-print {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+  .quote-print-sheet {
+    max-width: none;
+    margin: 0;
+    padding: 0;
+  }
+  @page {
+    size: A4;
+    margin: 16mm;
+  }
+}
 .login-panel {
   padding: 40px;
   display: grid;
@@ -1457,6 +1653,73 @@ button {
 }
 .price-resolution small {
   color: var(--muted);
+}
+
+/* Keep dense CRM labels comfortably readable instead of shrinking them to 8–11px. */
+html
+  body
+  .dashboard-shell
+  .dashboard-content
+  :is(
+    small,
+    label,
+    table,
+    td,
+    th,
+    b,
+    i,
+    code,
+    .eyebrow,
+    .muted,
+    .data-time,
+    .empty-copy,
+    .empty-state,
+    .status-pill,
+    .bar-label,
+    .business-kpis span,
+    .inventory-kpis span,
+    .section-heading > span,
+    .section-help,
+    .section-warning,
+    .assumption-note,
+    .profile-tags span,
+    .attribute-row span,
+    .conversion-row span,
+    .customer-list i,
+    .history-list span,
+    .catalog-icon,
+    .variant-main code,
+    .purchase-lines span,
+    .media-list a,
+    .media-list button,
+    .supplier-list button,
+    .price-tier-header,
+    .price-tier-row code,
+    .price-source-set,
+    .price-source-empty,
+    .pricing-add-tier,
+    .pricing-footnote,
+    .price-resolution
+  ) {
+  font-size: 16px !important;
+  line-height: 1.5;
+}
+
+html body .dashboard-shell :is(nav small, .staff-mini span) {
+  font-size: 16px !important;
+}
+
+html body .dashboard-shell .dashboard-content :is(button, input, select, textarea) {
+  font-size: 18px !important;
+}
+
+html body .login-page :is(.eyebrow, .security-note, .login-card label, .login-card small) {
+  font-size: 16px !important;
+  line-height: 1.5;
+}
+
+html body .login-page :is(button, input) {
+  font-size: 18px !important;
 }
 
 @media (max-width: 1000px) {

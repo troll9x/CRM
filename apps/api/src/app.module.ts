@@ -12,6 +12,7 @@ import { PurchasingModule } from './purchasing/purchasing.module';
 import { PricingModule } from './pricing/pricing.module';
 import { OverviewModule } from './overview/overview.module';
 import { InventoryModule } from './inventory/inventory.module';
+import { QuotingModule } from './quoting/quoting.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { InventoryModule } from './inventory/inventory.module';
     PricingModule,
     OverviewModule,
     InventoryModule,
+    QuotingModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: AuthenticationGuard },

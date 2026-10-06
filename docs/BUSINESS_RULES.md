@@ -1,6 +1,6 @@
 # Quy tắc nghiệp vụ
 
-Trạng thái: code đã triển khai tới Đợt 05A; phần mở rộng giá 05A đang ở working tree và chờ xác minh migration bằng DB. Quy tắc 05B–C đã được chốt một phần; cách tính thuế còn chờ. Mỗi quy tắc có mã ổn định để API, test và audit cùng tham chiếu. Ký hiệu **Tạm dùng** nghĩa là chưa được chủ dự án xác nhận để chạy dữ liệu thật.
+Trạng thái: 05A và backend/UI cơ bản 05B đã migration/E2E verified local; 05B còn chờ browser check. Thuế báo giá hỗ trợ phần trăm hoặc VND toàn báo giá. Tạm dùng một cách trên mỗi báo giá; giảm dòng rồi giảm toàn báo giá; phần trăm thuế tính trên tiền hàng sau giảm cộng phí giao, không gồm cọc. Đây là giả định chưa xác nhận cho vận hành thật. Mỗi quy tắc có mã ổn định để API, test và audit cùng tham chiếu. Ký hiệu **Tạm dùng** nghĩa là chưa được chủ dự án xác nhận để chạy dữ liệu thật.
 
 ## 1. Khách hàng và quyền
 
@@ -16,10 +16,10 @@ Trạng thái: code đã triển khai tới Đợt 05A; phần mở rộng giá 
 - **BR-MON-01:** Tiền VND dùng số nguyên đồng. Không dùng `number` JavaScript để tính tiền nếu phép tính có thể tạo sai số.
 - **BR-MON-02:** Tổng đơn, giảm giá, phí và thuế (nếu có sau này) do backend tính; tổng frontend gửi lên chỉ là dữ liệu hiển thị, không phải nguồn sự thật.
 - **BR-PRICE-01 — OPEN-03 chốt một phần:** Bảng giá dùng chung cho khách. Mỗi SKU có một đơn vị bán cố định do admin cấu hình (gói, kg, thùng...). Giá admin nhập theo đơn vị bán này. Lượng dưới 5 dùng giá lẻ theo đơn vị bán; từ 5 trở lên, bậc 5–<10 dùng giá bậc 5, 10–<15 dùng bậc 10, 15–<20 dùng bậc 15 và tiếp tục mỗi 5 đơn vị bán; với lượng lẻ, bậc được xác định bằng `floor(quantity / 5) * 5`. Giá lẻ và mọi bậc đều do admin nhập; không tự suy đoán giá còn thiếu.
-- **BR-PRICE-02 — OPEN-03 chốt một phần:** Cho phép giảm thêm theo phần trăm hoặc số VND, áp dụng ở dòng hàng hoặc toàn báo giá. Backend chỉ cho người có quyền quản lý (`price.edit`) đặt mức giảm; không áp trần số riêng. Thuế còn chờ chốt cách nhập/tính.
+- **BR-PRICE-02 — OPEN-03 chốt một phần:** Cho phép giảm thêm theo phần trăm hoặc số VND, áp dụng ở dòng hàng hoặc toàn báo giá. Backend chỉ cho người có quyền quản lý (`price.edit`) đặt mức giảm; không áp trần số riêng, nhưng tổng giảm không được vượt tiền hàng. Tạm áp giảm dòng trước, rồi giảm toàn báo giá trên phần hàng còn lại. Thuế toàn báo giá được nhập theo phần trăm hoặc VND; tạm dùng chọn một cách trên mỗi báo giá, phần trăm áp dụng trên tiền hàng sau mọi giảm cộng phí giao, không gồm cọc. Thứ tự giảm/cơ sở thuế cần xác nhận trước vận hành.
 - **BR-PRICE-03:** Cho phép số lượng lẻ tối đa 6 chữ số thập phân theo đơn vị bán. Đơn giá là VND nguyên; backend tính bằng số thập phân chính xác và làm tròn thành tiền từng dòng về VND nguyên, nửa đồng làm tròn lên.
 - **BR-QUOTE-03:** Báo giá hết hạn sau đúng 72 giờ từ lúc khách nhận. Khi gửi bằng PDF/chia sẻ thủ công, nhân viên ghi nhận thời điểm khách xác nhận đã nhận; timestamp lưu UTC.
-- **BR-QUOTE-04:** Báo giá hỗ trợ phí giao, giảm giá, thuế, tiền cọc dự kiến và ghi chú thanh toán; các khoản là snapshot của báo giá. Cách nhập/tính thuế còn chờ xác nhận. Chuyển báo giá còn hạn thành đơn nháp giữ nguyên giá đã chốt.
+- **BR-QUOTE-04:** Báo giá hỗ trợ phí giao, giảm giá, thuế, tiền cọc dự kiến và ghi chú thanh toán; các khoản là snapshot của báo giá. Thuế nhập theo phần trăm hoặc VND toàn báo giá. Tạm dùng chọn một cách trên mỗi báo giá; thuế phần trăm tính trên tiền hàng sau giảm dòng/toàn báo giá cộng phí giao, không gồm cọc; thứ tự giảm và cơ sở thuế phải xác nhận trước vận hành thật. Chuyển báo giá còn hạn thành đơn nháp giữ nguyên giá đã chốt.
 - **BR-QUOTE-05:** Khi khách đặt qua nền tảng, hệ thống cần thông báo Admin. Kênh và cơ chế thông báo cụ thể được chốt theo phạm vi tích hợp; không tuyên bố gửi thật khi chưa thử bằng tài khoản/quyền thật.
 - **BR-SNAP-01:** Báo giá/đơn lưu snapshot tên hàng, SKU, đơn vị, hệ số quy đổi, giá, giảm giá, địa chỉ và điều kiện tại thời điểm chốt.
 - **BR-SNAP-02:** Đổi danh mục, địa chỉ, quy đổi hoặc bảng giá không làm thay đổi chứng từ cũ.

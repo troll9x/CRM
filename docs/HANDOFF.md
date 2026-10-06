@@ -1,6 +1,6 @@
 # Handoff — 04C-B kiểm kê và điều chỉnh kho
 
-Ngày cập nhật: 2026-10-05 (Asia/Ho_Chi_Minh)
+Ngày cập nhật: 2026-10-06 (Asia/Ho_Chi_Minh)
 
 ## Trạng thái repo lúc bắt đầu
 
@@ -65,4 +65,36 @@ Ngày cập nhật: 2026-10-05 (Asia/Ho_Chi_Minh)
 - Cho phép lượng lẻ tối đa 6 chữ số thập phân; thành tiền từng dòng làm tròn VND nửa lên.
 - Giảm phần trăm hoặc VND theo dòng hoặc toàn báo giá. Báo giá hết hạn sau 72 giờ từ lúc khách nhận; ban đầu xuất PDF/in/chia sẻ thủ công và người dùng ghi nhận lúc khách nhận. Báo giá có phí giao, thuế, cọc dự kiến và ghi chú; chuyển khi còn hạn giữ giá snapshot.
 - Khách đặt qua nền tảng cần báo Admin; connector tự động chờ tài khoản thử và quyền API.
-- Người có quyền `price.edit` tự đặt mức giảm phần trăm hoặc VND theo dòng/toàn báo giá; không có trần số riêng. Còn chờ cách nhập/tính thuế. Đợt 05A đang được mở rộng tại working tree; chưa chạy migration trên cơ sở dữ liệu.
+- Người có quyền `price.edit` tự đặt mức giảm phần trăm hoặc VND theo dòng/toàn báo giá; không có trần số riêng. Còn chờ cách nhập/tính thuế.
+
+## Cập nhật 2026-10-06 — xác minh phần mở rộng 05A
+
+- Commit `0ec36c4` đã push lên `main`; fresh PostgreSQL 17.6 thử cô lập ở cổng 55434 nhận đủ 12 migration và seed thành công.
+- Toàn bộ E2E API: 8 file / 32 test pass, gồm giá lẻ, đơn vị bán thùng 10kg, biên lượng Decimal, khóa đổi đơn vị sau khi có giá và RBAC.
+- Typecheck, lint, unit test, build và format pass. Chưa kiểm tra UI bằng browser.
+- `prisma migrate diff` chỉ đề xuất rename một index stock adjustment (`...posted_at` sang `...poste_idx`); đó là lệch tên từ migration 04C-B có trước, không thuộc thay đổi 05A và chưa được sửa.
+- Hai thư mục migration 04C-B rỗng, không tracked, trong checkout khiến Prisma deploy nhận nhầm directory thiếu `migration.sql`. Đã tạm chuyển ra khỏi đường dẫn migration để kiểm tra rồi khôi phục nguyên trạng; không xóa chúng.
+
+## Cập nhật 2026-10-06 — Đợt 05B báo giá
+
+- Đợt 05B hiện là thay đổi local trên `main`, chưa commit/push; HEAD vẫn là `0ec36c4` trên `origin/main`. 05C (chuyển báo giá thành đơn nháp) chưa triển khai.
+- Thêm migration `20261006141527_phase05b_quotes`, model báo giá/dòng/revision/lệnh idempotent, quyền `quotes.read/write/send` và API tạo/đọc/sửa/gửi/đọc revision. Backend tự tính tiền bằng Decimal, làm tròn từng dòng VND half-up, kiểm tra RBAC, optimistic version, idempotency, audit và transaction Serializable.
+- UI báo giá hỗ trợ nháp, giảm giá theo dòng/toàn báo giá, phí giao, thuế, cọc, ghi nhận thời điểm khách nhận, revision và in/lưu PDF bằng trình duyệt. Chia sẻ là thủ công; chưa có gửi tự động/connector.
+- Chủ dự án đã xác nhận thuế cho phép % hoặc VND, áp dụng toàn báo giá. Tạm triển khai chọn một kiểu thuế mỗi báo giá; phần trăm tính trên tiền hàng sau giảm cộng phí giao, không gồm cọc; giảm dòng trước giảm toàn báo giá. Đây là giả định cần xác nhận trước sử dụng vận hành.
+- Kiểm tra local: 13 migration + seed trên PostgreSQL 17.6 thử cô lập; schema diff với DB mới rỗng; 9 file/33 E2E, 15 unit tests, typecheck, lint, format và production build pass trên Node 24. Chưa kiểm tra trực quan thao tác UI bằng browser.
+- Môi trường PostgreSQL thử `crm-05b-review-20261006` đã dừng và xóa sau xác minh; hai thư mục migration 04C-B rỗng đã được khôi phục đúng chỗ. Không tác động PostgreSQL local cổng 5432.
+- Việc tiếp theo: browser-check 05B, xác nhận quy ước tính thuế; sau đó giao riêng phạm vi 05C. Chưa commit/push/deploy.
+
+## Cập nhật 2026-10-06 — phản hồi giao diện CRM
+
+- Từ phản hồi người dùng: chữ khó đọc/nhỏ, nghi ngờ lỗi dấu tiếng Việt, cần biểu đồ tháng và sản phẩm bán chạy, chưa thấy chat.
+- Đã đặt cỡ chữ nhãn phụ/trợ giúp/bảng 14px, điều khiển 16px tại `apps/web/app/globals.css` sau khi ảnh người dùng cho thấy mức 12/14px trước đó vẫn quá nhỏ. Next dev server ban đầu còn trả CSS cũ; đã restart riêng dịch vụ web và xác minh CSS asset mới trả HTTP 200, có rule 14px/16px. Người dùng cần tải lại cứng trang bằng `Ctrl+F5` nếu trình duyệt còn cache. Chưa nghiệm thu trực quan trên browser, cần rà desktop/mobile và độ tràn bảng.
+- Kiểm tra source locale: `<html lang="vi">` đã có; unit test UTF-8/mojibake 2/2 pass. Điều này không chứng minh dữ liệu/render trên browser đều đúng; kiểm tra dấu trên các luồng và dữ liệu người dùng vẫn đang chờ.
+- Tổng quan hiện có bar comparison theo nhóm khách, giai đoạn cơ hội, danh mục và mua hàng; chưa có doanh thu từng tháng hoặc hàng bán chạy. Không tạo biểu đồ bằng dữ liệu giả; triển khai sau khi có đơn bán/dữ liệu doanh thu thật ở Đợt 06 và quy tắc giao/trả phù hợp.
+- Chat/hộp thư khách chưa có trong menu/API. Giữ ở Đợt 09, phụ thuộc kênh Facebook/Zalo, tài khoản thử và quyền API; chưa tuyên bố tích hợp.
+- Đã ghi tiêu chí và việc chờ tại `docs/ACCEPTANCE.md`, `docs/BACKLOG.md`. Việc tiếp theo tại công ty: chạy web local, mở browser desktop/mobile, đăng nhập và rà font/dấu; ghi ảnh/kích thước viewport và lỗi cụ thể. Sau đó cấp/chốt kênh thử nếu muốn ưu tiên chat.
+
+## Cập nhật 2026-10-06 — tăng thêm cỡ chữ theo phản hồi
+
+- Người dùng báo chữ vẫn rất bé sau lần tăng trước. Đã nâng nhãn phụ, mô tả, bảng và chữ điều hướng từ 14px lên 16px; điều khiển nhập liệu/nút từ 16px lên 18px ở CRM và trang đăng nhập (`apps/web/app/globals.css`). Tiêu đề chính không đổi. Sau restart riêng dịch vụ web, stylesheet mới trả HTTP 200 và chứa các rule 16px/18px.
+- Cần tải lại cứng bằng `Ctrl+F5`. Chưa có browser automation khả dụng trong môi trường này nên chưa xác nhận kích thước render/khả năng tràn ở desktop và mobile; không coi việc đổi CSS là nghiệm thu trực quan.

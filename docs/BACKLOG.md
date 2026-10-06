@@ -26,7 +26,7 @@ Trạng thái: `DONE` tài liệu/prototype đã tạo; `WAITING` cần xác nh�
 | 02  | Khách, nhóm sỉ/lẻ, nhiều địa chỉ, nhắc việc           | 01                          | DONE LOCAL; chờ phản hồi người dùng                                                            |
 | 03  | Sản phẩm, SKU, đơn vị, ảnh                            | 01 + OPEN-02                | DONE LOCAL theo giả định tạm                                                                   |
 | 04  | Nhà cung cấp, nhập hàng, tồn đầu, sổ kho              | 03 + OPEN-05                | 04A–04C-B đã qua migration/E2E local; cần kiểm tra UI trực quan và chốt BR-STOCK-10            |
-| 05  | Giá sỉ/lẻ, bậc giá, báo giá                           | 02,03 + OPEN-03             | 05A đang mở rộng tại working tree; 05B–C chờ chốt cách tính thuế                       |
+| 05  | Giá sỉ/lẻ, bậc giá, báo giá                           | 02,03 + OPEN-03             | 05A/05B đã kiểm tra local; còn browser check và xác nhận quy ước thuế trước vận hành; 05C chưa làm |
 | 06  | Đơn, xác nhận, giữ, hủy, giao một phần                | 04,05 + OPEN-04/05          | LATER                                                                                          |
 | 07  | Thu tiền, đặt cọc, công nợ, chi phí                   | 06 + chốt ghi nhận phải thu | LATER                                                                                          |
 | 08  | Đổi trả, COD tay, báo cáo, import, backup/pilot       | 06,07                       | LATER                                                                                          |
@@ -38,13 +38,21 @@ Trạng thái: `DONE` tài liệu/prototype đã tạo; `WAITING` cần xác nh�
 | 14  | Marketing/chăm sóc/báo cáo nâng cao                   | 09–13 theo nhu cầu          | LATER                                                                                          |
 | 15  | API đối tác, dự báo, tối ưu                           | Core ổn định, đủ dữ liệu    | LATER                                                                                          |
 
+### Phản hồi giao diện cần tiếp tục
+
+- `UX-01 — LOCAL IMPLEMENTED; BROWSER CHECK PENDING`: sau phản hồi cỡ 14px/16px vẫn quá nhỏ, đã nâng nhãn phụ/trợ giúp/bảng lên 16px và điều khiển lên 18px trong CRM. Mở desktop/mobile để rà độ tràn, hàng bảng và cỡ chữ thực tế.
+- `UX-02 — WAITING ĐỢT 06`: biểu đồ doanh thu theo tháng và sản phẩm bán chạy cần module đơn bán/dữ liệu thật, thời gian báo cáo và chính sách giao/trả; không sinh dữ liệu giả.
+- `UX-03 — WAITING ĐỢT 09`: hộp thư/chat cần chốt Facebook/Zalo, cấp tài khoản developer/test và quyền API; cần evidence nhận/gửi trước khi coi là tích hợp.
+- `UX-04 — BROWSER CHECK PENDING`: source UI là UTF-8, có `<html lang="vi">` và test chống mojibake; kiểm tra dấu tiếng Việt trên giao diện được đăng nhập, các dữ liệu nhập và luồng in báo giá bằng browser.
+
 ### Tiến độ Đợt 05 sau khi nhận quy tắc bậc từ chủ dự án
 
-- `05A IMPLEMENTED` — API/UI/DB lưu giá admin lẻ tại bậc 1 và giá theo SKU/bậc sỉ; đơn vị bán cố định; resolver nhận lượng thập phân, trả `PRICE_NOT_CONFIGURED` khi thiếu giá. Có `price.edit`, expectedVersion, idempotency và audit. Phần mở rộng hiện chưa commit/chưa migration-verified.
+- `05A IMPLEMENTED; VERIFIED LOCAL 2026-10-06` — API/UI/DB lưu giá admin lẻ tại bậc 1 và giá theo SKU/bậc sỉ; đơn vị bán cố định; resolver nhận lượng thập phân, trả `PRICE_NOT_CONFIGURED` khi thiếu giá. Có `price.edit`, expectedVersion, idempotency và audit. 12 migration + seed và 8 file/32 E2E pass trên PostgreSQL 17.6 thử cô lập; UI cần browser check.
 - `PROTOTYPE ONLY` — prototype tĩnh vẫn minh họa cùng quy tắc nhưng không lưu; màn hình CRM chính dùng API/DB thật.
 - `DECIDED 2026-10-05` — bảng giá chung; mỗi SKU một đơn vị bán cố định; admin nhập giá lẻ và các bậc theo đơn vị đó; dưới 5 dùng giá lẻ, từ 5 lên bậc mỗi 5; lượng lẻ tới 6 chữ số; làm tròn từng dòng VND nửa lên; thiếu giá thì không tự tính; giảm phần trăm/VND trên dòng/toàn báo giá; báo giá hết hạn sau 72 giờ từ lúc khách nhận; PDF/in/chia sẻ thủ công giai đoạn đầu; có phí giao/thuế/cọc/ghi chú; chuyển báo giá còn hạn giữ snapshot; cần thông báo Admin khi khách đặt qua nền tảng.
-- `WAITING DETAIL` — cách nhập/tính thuế. Người có `price.edit` tự quyết định mức giảm; không có trần số riêng.
-- Sau khi chốt cách tính thuế và xác minh migration 05A: làm 05B báo giá/revision/PDF và 05C chuyển đơn nháp, thông báo. Kênh tự động đợi tài khoản thử và kiểm chứng. Không dùng giá prototype làm giá vận hành.
+- `05B IMPLEMENTED; VERIFIED LOCAL 2026-10-06` — API/UI cho báo giá nháp, snapshot giá, giảm dòng/toàn báo giá, phí giao/thuế/cọc, revision bất biến, ghi nhận nhận báo giá và in/lưu PDF qua trình duyệt; 13 migration + seed, 9 file/33 E2E pass. Còn browser check trực quan và xác nhận quy ước thuế trước vận hành.
+- `WAITING POLICY CONFIRMATION` — thuế hỗ trợ % hoặc VND; tạm dùng chọn một kiểu mỗi báo giá và tính phần trăm trên tiền hàng sau giảm cộng phí giao, không gồm cọc. Chủ dự án cần xác nhận trước vận hành. Người có `price.edit` tự quyết định mức giảm; không có trần số riêng.
+- Sau 05B: làm 05C chuyển báo giá còn hạn thành đơn nháp và thông báo. Kênh tự động đợi tài khoản thử và kiểm chứng. Không dùng giá prototype làm giá vận hành.
 
 ## Kết quả Đợt 01
 
