@@ -98,3 +98,9 @@ Ngày cập nhật: 2026-10-06 (Asia/Ho_Chi_Minh)
 
 - Người dùng báo chữ vẫn rất bé sau lần tăng trước. Đã nâng nhãn phụ, mô tả, bảng và chữ điều hướng từ 14px lên 16px; điều khiển nhập liệu/nút từ 16px lên 18px ở CRM và trang đăng nhập (`apps/web/app/globals.css`). Tiêu đề chính không đổi. Sau restart riêng dịch vụ web, stylesheet mới trả HTTP 200 và chứa các rule 16px/18px.
 - Cần tải lại cứng bằng `Ctrl+F5`. Chưa có browser automation khả dụng trong môi trường này nên chưa xác nhận kích thước render/khả năng tràn ở desktop và mobile; không coi việc đổi CSS là nghiệm thu trực quan.
+
+## Trạng thái Git sau cập nhật
+
+- Theo yêu cầu của chủ dự án, thay đổi 05B và tăng cỡ chữ đã commit/push lên `main` tại `363a3a7` (`feat(quotes): add quote workflow and improve readability`); `origin/main` đã khớp commit này.
+- File `account.md` chứa tài khoản local tiếp tục bị ignore, không được commit. `accout.md` là file untracked và cũng không được đưa lên GitHub.
+- Kiểm tra sau thay đổi: typecheck, lint, 15 unit tests, format, `git diff --check` và phản hồi CSS HTTP 200 đều pass. Migration/seed cùng 9 file/33 E2E đã pass trước đó trên PostgreSQL thử cô lập; không chạy lại và không chạm DB local cổng 5432 trong lượt này.
