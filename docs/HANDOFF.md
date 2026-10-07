@@ -120,3 +120,4 @@ Ngày cập nhật: 2026-10-06 (Asia/Ho_Chi_Minh)
 - Màn hình Đơn hàng cho phép tìm và xem đơn nháp từ báo giá, nguồn/revision, dòng hàng và tổng tiền. Chưa có tạo/sửa nháp thủ công; chưa có browser visual acceptance.
 - 9 file/33 API E2E pass trên PostgreSQL 17.6 cô lập cổng 55437, gồm sales được đọc, vai trò kho bị 403, chi tiết và mã không tồn tại. Test container/volume tạm đã dọn; PostgreSQL local cổng 5432 không dùng. Lint, typecheck, 15 unit tests, format, production build pass.
 - 06B–D còn chờ chốt `OPEN-04/05` (công nợ, giữ hàng, giao từng phần/giá vốn). Đợt 07–08 phụ thuộc quy tắc đó và còn chưa triển khai. Đợt 09 cần chọn kênh, cấp tài khoản/quyền thử và bằng chứng API thật; hiện không có connector hoặc mock được bật.
+- Code 06A nền đã commit/push lên `main` tại `468d435` (`feat(orders): add draft order read workspace`); `HEAD` khớp `origin/main` tại thời điểm cập nhật.
