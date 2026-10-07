@@ -6,7 +6,7 @@ import { api, type Staff } from './api-client';
 type ComparisonItem = { key: string; label?: string; value: number };
 type AdminAlert = {
   id: string;
-  type: 'QUOTE_CONVERTED';
+  type: 'QUOTE_CONVERTED' | 'MANUAL_ORDER_CREATED';
   title: string;
   body: string;
   readAt: string | null;

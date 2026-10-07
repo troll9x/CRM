@@ -112,6 +112,7 @@ enum SalesOrderStatus {
 
 enum AdminAlertType {
   QUOTE_CONVERTED
+  MANUAL_ORDER_CREATED
 }
 
 model Business {
@@ -144,6 +145,7 @@ model Business {
   quotes            Quote[]
   quoteCommands     QuoteCommand[]
   salesOrders       SalesOrder[]
+  orderCommands     OrderCommand[]
   adminAlerts       AdminAlert[]
 
   @@map("businesses")
@@ -876,14 +878,28 @@ model QuoteCommand {
   @@map("quote_commands")
 }
 
+model OrderCommand {
+  id             String   @id @default(cuid())
+  businessId     String   @map("business_id")
+  idempotencyKey String   @map("idempotency_key")
+  requestHash    String   @map("request_hash")
+  response       Json
+  createdAt      DateTime @default(now()) @map("created_at")
+  business       Business @relation(fields: [businessId], references: [id], onDelete: Restrict)
+
+  @@unique([businessId, idempotencyKey])
+  @@index([businessId, createdAt])
+  @@map("order_commands")
+}
+
 model SalesOrder {
   id                 String             @id @default(cuid())
   businessId         String             @map("business_id")
   customerId         String             @map("customer_id")
   createdById        String             @map("created_by_id")
-  sourceQuoteId      String             @unique @map("source_quote_id")
+  sourceQuoteId      String?            @unique @map("source_quote_id")
   orderNumber        String             @map("order_number")
-  sourceRevision     Int                @map("source_revision")
+  sourceRevision     Int                @default(0) @map("source_revision")
   status             SalesOrderStatus   @default(DRAFT)
   version            Int                @default(1)
   lineSubtotalVnd    Decimal            @map("line_subtotal_vnd") @db.Decimal(20, 0)
@@ -903,7 +919,7 @@ model SalesOrder {
   business           Business           @relation(fields: [businessId], references: [id], onDelete: Restrict)
   customer           Customer           @relation(fields: [customerId], references: [id], onDelete: Restrict)
   createdBy          StaffUser          @relation("SalesOrderCreator", fields: [createdById], references: [id], onDelete: Restrict)
-  sourceQuote        Quote              @relation(fields: [sourceQuoteId], references: [id], onDelete: Restrict)
+  sourceQuote        Quote?             @relation(fields: [sourceQuoteId], references: [id], onDelete: Restrict)
   lines              SalesOrderLine[]
   alerts             AdminAlert[]
 

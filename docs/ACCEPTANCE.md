@@ -127,7 +127,15 @@ Kết quả 05C local ngày 2026-10-07: 14 migration + seed trên PostgreSQL 17.
 - Tìm kiếm theo mã đơn, mã/tên khách, mã báo giá hoặc SKU; `limit` được giới hạn 1–100.
 - Nhân viên sales xem được đơn; vai trò không có `orders.read` nhận `403`; ID không tồn tại hoặc ngoài business trả `404`.
 - Màn hình chỉ đọc, hiển thị nguồn báo giá, revision, dòng hàng và tổng tiền; không có lệnh xác nhận/hủy/giữ/xuất.
-- Lát cắt này không tạo/sửa đơn nháp thủ công; chỉ đọc đơn đã chuyển từ báo giá. 9 file/33 API E2E, lint, typecheck, 15 unit tests, format và production build pass trên môi trường local. Chưa nghiệm thu trực quan qua browser.
+- Lát cắt đọc ban đầu chỉ hiển thị đơn đã chuyển từ báo giá; nghiệm thu tạo nháp thủ công được theo dõi riêng bên dưới.
+
+### Nghiệm thu 06A — tạo đơn nháp nhập tay
+
+- `POST /orders` cần `orders.create`, `Idempotency-Key`, khách/SKU đang hoạt động thuộc đúng business; backend tự phân giải bậc giá và nhận quantity Decimal tối đa 6 số lẻ.
+- Giá trị mỗi dòng làm tròn VND HALF_UP; thiếu giá trả `422 PRICE_NOT_CONFIGURED`; payload lặp với cùng key replay một đơn, đổi payload với cùng key trả `409 IDEMPOTENCY_KEY_REUSED`.
+- Đơn tạo ở `DRAFT`, có snapshot SKU/đơn vị/giá; đơn báo giá giữ nguồn báo giá, đơn nhập tay không có nguồn báo giá.
+- Không có giảm giá/phí giao/thuế/cọc trong form nhập tay; không xác nhận đơn, giữ/ghi kho, tạo công nợ/thanh toán. Tạo thông báo nội bộ cho staff có `staff.manage`; chưa gửi thông báo qua nền tảng ngoài.
+- Xác minh local 2026-10-07: 15 migration + seed trên PostgreSQL 17.6 tạm biệt lập; 9 file/34 API E2E pass (gồm làm tròn nửa đồng, idempotency, RBAC, alert); lint, typecheck, 15 unit tests, format và production build pass. Chưa kiểm tra UI trực quan qua browser.
 
 ### Nghiệm thu giao diện và tổng quan
 
@@ -144,18 +152,18 @@ Kết quả 05C local ngày 2026-10-07: 14 migration + seed trên PostgreSQL 17.
 
 Đây là dữ liệu kiểm thử, không phải giá/tồn thật. Quy ước: phải thu phát sinh lúc xác nhận đơn; doanh thu hàng hóa theo phần giao; phí giao 30.000đ không hoàn.
 
-| Bước                                                       | Kỳ vọng                                                                                                                        |
-| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| Nhận 100 cái, giá vốn 50.000đ/cái                          | Thực tế 100; giữ 0; có thể bán 100                                                                                             |
-| Giá lẻ và các bậc do admin nhập theo đơn vị bán             | Dưới 5 dùng giá lẻ; 5–<10 dùng bậc 5; 10–<15 dùng bậc 10; thiếu giá thì không tự tính (minh họa, không phải giá thật)    |
-| Khách sỉ đặt 10 đơn vị + phí giao 30.000đ                  | Tiền hàng 800.000đ; tổng 830.000đ (giá chỉ là dữ liệu kiểm thử)                                                                |
-| Nhận cọc 300.000đ sau khi phát sinh phải thu               | Còn phải thu 530.000đ                                                                                                          |
-| Xác nhận                                                   | Thực tế 100; giữ 10; có thể bán 90                                                                                             |
-| Giao 6                                                     | Thực tế 94; giữ 4; có thể bán 90; doanh thu hàng 480.000đ; giá vốn 300.000đ; lãi gộp 180.000đ                                  |
-| Giao 4                                                     | Thực tế 90; giữ 0; có thể bán 90; doanh thu hàng 800.000đ; giá vốn 500.000đ; lãi gộp 300.000đ                                  |
-| Thu 530.000đ                                               | Tổng nhận 830.000đ; còn phải thu 0                                                                                             |
-| Trả 2 cái đủ điều kiện, hoàn 160.000đ                      | Thực tế/có thể bán 92; doanh thu hàng thuần 640.000đ; giá vốn ròng 400.000đ; lãi gộp 240.000đ; tiền ròng 670.000đ gồm phí giao |
-| Đổi bảng giá hiện tại                                      | Mọi snapshot và kết quả quá khứ ở trên không đổi                                                                               |
+| Bước                                            | Kỳ vọng                                                                                                                        |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| Nhận 100 cái, giá vốn 50.000đ/cái               | Thực tế 100; giữ 0; có thể bán 100                                                                                             |
+| Giá lẻ và các bậc do admin nhập theo đơn vị bán | Dưới 5 dùng giá lẻ; 5–<10 dùng bậc 5; 10–<15 dùng bậc 10; thiếu giá thì không tự tính (minh họa, không phải giá thật)          |
+| Khách sỉ đặt 10 đơn vị + phí giao 30.000đ       | Tiền hàng 800.000đ; tổng 830.000đ (giá chỉ là dữ liệu kiểm thử)                                                                |
+| Nhận cọc 300.000đ sau khi phát sinh phải thu    | Còn phải thu 530.000đ                                                                                                          |
+| Xác nhận                                        | Thực tế 100; giữ 10; có thể bán 90                                                                                             |
+| Giao 6                                          | Thực tế 94; giữ 4; có thể bán 90; doanh thu hàng 480.000đ; giá vốn 300.000đ; lãi gộp 180.000đ                                  |
+| Giao 4                                          | Thực tế 90; giữ 0; có thể bán 90; doanh thu hàng 800.000đ; giá vốn 500.000đ; lãi gộp 300.000đ                                  |
+| Thu 530.000đ                                    | Tổng nhận 830.000đ; còn phải thu 0                                                                                             |
+| Trả 2 cái đủ điều kiện, hoàn 160.000đ           | Thực tế/có thể bán 92; doanh thu hàng thuần 640.000đ; giá vốn ròng 400.000đ; lãi gộp 240.000đ; tiền ròng 670.000đ gồm phí giao |
+| Đổi bảng giá hiện tại                           | Mọi snapshot và kết quả quá khứ ở trên không đổi                                                                               |
 
 ## 7. Tình huống bắt buộc trước khi dùng thật
 

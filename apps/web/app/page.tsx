@@ -215,7 +215,7 @@ export default function Home() {
       ) : view === 'quotes' ? (
         <QuotesWorkspace staff={staff} onLogout={logout} loggingOut={submitting} />
       ) : view === 'orders' ? (
-        <OrdersWorkspace onLogout={logout} loggingOut={submitting} />
+        <OrdersWorkspace staff={staff} onLogout={logout} loggingOut={submitting} />
       ) : (
         <OverviewWorkspace
           staff={staff}

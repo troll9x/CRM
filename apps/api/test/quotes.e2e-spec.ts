@@ -36,6 +36,7 @@ describe('quotes API', () => {
       await prisma.salesOrderLine.deleteMany({ where: { orderId: { in: orderIds } } });
       await prisma.salesOrder.deleteMany({ where: { id: { in: orderIds } } });
     }
+    await prisma.orderCommand.deleteMany({ where: { idempotencyKey: { contains: suffix } } });
     if (quoteIds.length) {
       await prisma.quoteCommand.deleteMany({ where: { idempotencyKey: { contains: suffix } } });
       await prisma.quoteRevision.deleteMany({ where: { quoteId: { in: quoteIds } } });
@@ -145,6 +146,46 @@ describe('quotes API', () => {
   afterAll(async () => {
     await cleanup();
     await app.close();
+  });
+
+  it('creates manual draft orders with server-resolved prices and idempotent replay', async () => {
+    const input = { customerId, lines: [{ variantId, quantity: '0.00005' }] };
+    const key = `order-e2e-${suffix}-manual`;
+    const created = await sales.post('/api/v1/orders').set('Idempotency-Key', key).send(input);
+    expect(created.status, JSON.stringify(created.body)).toBe(201);
+    expect(created.body.data).toMatchObject({
+      status: 'DRAFT',
+      sourceQuote: null,
+      sourceRevision: 0,
+      lineSubtotalVnd: '1',
+      grandTotalVnd: '1',
+      lines: [{ quantity: '0.00005', unitPriceVnd: '10000', lineTotalVnd: '1' }],
+    });
+    const repeated = await sales.post('/api/v1/orders').set('Idempotency-Key', key).send(input);
+    expect(repeated.status).toBe(201);
+    expect(repeated.body.data.id).toBe(created.body.data.id);
+    await sales
+      .post('/api/v1/orders')
+      .set('Idempotency-Key', key)
+      .send({ ...input, lines: [{ variantId, quantity: '1' }] })
+      .expect(409);
+    await warehouse
+      .post('/api/v1/orders')
+      .set('Idempotency-Key', `order-e2e-${suffix}-forbidden`)
+      .send(input)
+      .expect(403);
+    const stored = await prisma.salesOrder.findUniqueOrThrow({
+      where: { id: created.body.data.id },
+    });
+    expect(stored.sourceQuoteId).toBeNull();
+    expect(stored.status).toBe('DRAFT');
+    const manualAlerts = await prisma.adminAlert.findMany({
+      where: { orderId: stored.id, type: 'MANUAL_ORDER_CREATED' },
+    });
+    expect(manualAlerts).toHaveLength(1);
+    const manualAlertId = manualAlerts[0]?.id;
+    if (!manualAlertId) throw new Error('Expected manual-order admin alert.');
+    await owner.post(`/api/v1/admin-alerts/${manualAlertId}/read`).expect(201);
   });
 
   it('tính tiền chính xác, bảo vệ giảm/thuế, idempotency, version và revision 72 giờ', async () => {
@@ -339,16 +380,21 @@ describe('quotes API', () => {
       .expect(409);
     await sales.get('/api/v1/admin-alerts').expect(403);
     const alerts = await owner.get('/api/v1/admin-alerts').expect(200);
-    expect(alerts.body.data).toMatchObject({
-      unreadCount: 1,
-      items: [
-        {
-          type: 'QUOTE_CONVERTED',
-          order: { id: convertedOrderId, status: 'DRAFT' },
-        },
-      ],
-    });
-    const alertId = alerts.body.data.items[0].id as string;
+    expect(alerts.body.data.unreadCount).toBe(1);
+    expect(alerts.body.data.items).toContainEqual(
+      expect.objectContaining({
+        type: 'QUOTE_CONVERTED',
+        order: { id: convertedOrderId, status: 'DRAFT', orderNumber: expect.any(String) },
+      }),
+    );
+    const alertItems = alerts.body.data.items as Array<{
+      id: string;
+      type: string;
+      order: { id: string; status: string };
+    }>;
+    const alertId = alertItems.find(
+      (alert) => alert.type === 'QUOTE_CONVERTED' && alert.order.id === convertedOrderId,
+    )!.id;
     await owner.post(`/api/v1/admin-alerts/${alertId}/read`).expect(201);
     const readAlerts = await owner.get('/api/v1/admin-alerts').expect(200);
     expect(readAlerts.body.data.unreadCount).toBe(0);

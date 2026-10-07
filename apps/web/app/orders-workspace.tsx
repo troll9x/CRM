@@ -1,7 +1,22 @@
 'use client';
 
-import { FormEvent, useCallback, useEffect, useState } from 'react';
-import { api } from './api-client';
+import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import { api, type Staff } from './api-client';
+
+type Customer = { id: string; customerCode: string; displayName: string };
+type Product = {
+  id: string;
+  name: string;
+  status: string;
+  variants: Array<{
+    id: string;
+    sku: string;
+    name: string;
+    sellingUnitName: string;
+    status: string;
+  }>;
+};
+type DraftLine = { variantId: string; quantity: string };
 
 type Order = {
   id: string;
@@ -17,7 +32,7 @@ type Order = {
   updatedAt: string;
   customer: { id: string; customerCode: string; displayName: string };
   createdBy: { id: string; displayName: string };
-  sourceQuote: { id: string; quoteNumber: string };
+  sourceQuote: { id: string; quoteNumber: string } | null;
   lines: Array<{
     id: string;
     lineNumber: number;
@@ -46,9 +61,11 @@ function quantity(value: string) {
 }
 
 export function OrdersWorkspace({
+  staff,
   onLogout,
   loggingOut,
 }: {
+  staff: Staff;
   onLogout: () => void;
   loggingOut: boolean;
 }) {
@@ -57,6 +74,25 @@ export function OrdersWorkspace({
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [customerId, setCustomerId] = useState('');
+  const [draftLines, setDraftLines] = useState<DraftLine[]>([{ variantId: '', quantity: '1' }]);
+  const [creating, setCreating] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
+  const canCreate = staff.permissions.includes('orders.create');
+  const variants = useMemo(
+    () =>
+      products.flatMap((product) =>
+        product.status === 'ACTIVE'
+          ? product.variants
+              .filter((variant) => variant.status === 'ACTIVE')
+              .map((variant) => ({ ...variant, productName: product.name }))
+          : [],
+      ),
+    [products],
+  );
   const selected = orders.find((order) => order.id === selectedId) ?? orders[0] ?? null;
 
   const load = useCallback(async (search = '') => {
@@ -82,9 +118,54 @@ export function OrdersWorkspace({
     return () => window.clearTimeout(timer);
   }, [load]);
 
+  useEffect(() => {
+    if (!canCreate) return;
+    let active = true;
+    Promise.all([api<{ items: Customer[] }>('/customers'), api<{ items: Product[] }>('/products')])
+      .then(([customerResult, productResult]) => {
+        if (!active) return;
+        setCustomers(customerResult.items);
+        setProducts(productResult.items);
+        setCustomerId(customerResult.items[0]?.id ?? '');
+        setDraftLines([
+          { variantId: productResult.items.flatMap((p) => p.variants)[0]?.id ?? '', quantity: '1' },
+        ]);
+      })
+      .catch((caught) =>
+        setError(caught instanceof Error ? caught.message : 'Không tải được khách hàng và SKU.'),
+      );
+    return () => {
+      active = false;
+    };
+  }, [canCreate]);
+
   function search(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     void load(query);
+  }
+
+  async function createDraft(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setCreating(true);
+    setError('');
+    setMessage('');
+    try {
+      await api<Order>('/orders', {
+        method: 'POST',
+        headers: { 'Idempotency-Key': crypto.randomUUID() },
+        body: JSON.stringify({ customerId, lines: draftLines }),
+      });
+      setMessage(
+        'Đã tạo đơn nháp. Giá được phân giải từ bảng giá; chưa giữ kho, ghi nợ hoặc thu tiền.',
+      );
+      setShowCreate(false);
+      setDraftLines([{ variantId: variants[0]?.id ?? '', quantity: '1' }]);
+      await load(query);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Không tạo được đơn nháp.');
+    } finally {
+      setCreating(false);
+    }
   }
 
   return (
@@ -117,6 +198,11 @@ export function OrdersWorkspace({
           {error}
         </div>
       )}
+      {message && (
+        <div className="notice purchase-warning" role="status">
+          {message}
+        </div>
+      )}
 
       <div className="orders-layout">
         <section className="customer-list-panel">
@@ -135,6 +221,107 @@ export function OrdersWorkspace({
             <b>Đơn bán</b>
             <span>{orders.length}</span>
           </div>
+          {canCreate && (
+            <button
+              type="button"
+              className="primary order-create-toggle"
+              onClick={() => setShowCreate((value) => !value)}
+            >
+              {showCreate ? 'Đóng biểu mẫu' : 'Tạo đơn nháp thủ công'}
+            </button>
+          )}
+          {showCreate && canCreate && (
+            <form className="order-create-form" onSubmit={createDraft}>
+              <label>
+                Khách hàng
+                <select
+                  value={customerId}
+                  onChange={(event) => setCustomerId(event.target.value)}
+                  required
+                >
+                  {customers.map((customer) => (
+                    <option key={customer.id} value={customer.id}>
+                      {customer.customerCode} · {customer.displayName}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {draftLines.map((line, index) => (
+                <div className="order-draft-line" key={index}>
+                  <label>
+                    Sản phẩm / SKU
+                    <select
+                      value={line.variantId}
+                      onChange={(event) =>
+                        setDraftLines((current) =>
+                          current.map((row, rowIndex) =>
+                            rowIndex === index ? { ...row, variantId: event.target.value } : row,
+                          ),
+                        )
+                      }
+                      required
+                    >
+                      <option value="">Chọn SKU</option>
+                      {variants.map((variant) => (
+                        <option key={variant.id} value={variant.id}>
+                          {variant.productName} · {variant.sku} · {variant.sellingUnitName}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    Số lượng
+                    <input
+                      inputMode="decimal"
+                      pattern="[0-9]+([.][0-9]{1,6})?"
+                      value={line.quantity}
+                      onChange={(event) =>
+                        setDraftLines((current) =>
+                          current.map((row, rowIndex) =>
+                            rowIndex === index ? { ...row, quantity: event.target.value } : row,
+                          ),
+                        )
+                      }
+                      required
+                    />
+                  </label>
+                  {draftLines.length > 1 && (
+                    <button
+                      type="button"
+                      className="ghost"
+                      onClick={() =>
+                        setDraftLines((current) =>
+                          current.filter((_, rowIndex) => rowIndex !== index),
+                        )
+                      }
+                    >
+                      Bỏ dòng
+                    </button>
+                  )}
+                </div>
+              ))}
+              <button
+                type="button"
+                className="ghost"
+                disabled={draftLines.length >= 100}
+                onClick={() =>
+                  setDraftLines((current) => [
+                    ...current,
+                    { variantId: variants[0]?.id ?? '', quantity: '1' },
+                  ])
+                }
+              >
+                Thêm dòng hàng
+              </button>
+              <p className="section-help">
+                Thành tiền dùng giá hiện tại trên server, làm tròn từng dòng. Thuế, phí giao và giảm
+                giá chưa nhập ở luồng này.
+              </p>
+              <button type="submit" disabled={creating || !customerId || variants.length === 0}>
+                {creating ? 'Đang tạo…' : 'Tạo đơn nháp'}
+              </button>
+            </form>
+          )}
           <div className="catalog-list">
             {loading ? (
               <p className="empty-copy">Đang tải…</p>
@@ -162,7 +349,7 @@ export function OrdersWorkspace({
 
         <section className="detail-card purchase-detail">
           {!selected ? (
-            <p className="empty-copy">Đơn nháp sẽ xuất hiện tại đây sau khi chuyển từ báo giá.</p>
+            <p className="empty-copy">Chọn đơn nháp hoặc tạo đơn mới từ báo giá / nhập thủ công.</p>
           ) : (
             <>
               <div className="section-heading">
@@ -170,8 +357,10 @@ export function OrdersWorkspace({
                   <p className="eyebrow">{selected.orderNumber}</p>
                   <h2>{selected.customer.displayName}</h2>
                   <p className="muted">
-                    {selected.customer.customerCode} · Báo giá {selected.sourceQuote.quoteNumber} ·{' '}
-                    phiên bản {selected.sourceRevision}
+                    {selected.customer.customerCode} ·{' '}
+                    {selected.sourceQuote
+                      ? `Báo giá ${selected.sourceQuote.quoteNumber} · phiên bản ${selected.sourceRevision}`
+                      : 'Tạo thủ công'}
                   </p>
                 </div>
                 <span className="status-pill">Đơn nháp</span>

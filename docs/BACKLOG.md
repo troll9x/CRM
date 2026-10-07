@@ -20,23 +20,23 @@ Trạng thái: `DONE` tài liệu/prototype đã tạo; `WAITING` cần xác nh�
 
 ## Roadmap
 
-| Đợt | Phạm vi                                               | Phụ thuộc                   | Trạng thái                                                                                     |
-| --- | ----------------------------------------------------- | --------------------------- | ---------------------------------------------------------------------------------------------- |
-| 01  | Monorepo, môi trường, auth nhân viên, RBAC, audit, CI | 00 đủ quyết định core       | DONE LOCAL; chờ lần chạy CI remote                                                             |
-| 02  | Khách, nhóm sỉ/lẻ, nhiều địa chỉ, nhắc việc           | 01                          | DONE LOCAL; chờ phản hồi người dùng                                                            |
-| 03  | Sản phẩm, SKU, đơn vị, ảnh                            | 01 + OPEN-02                | DONE LOCAL theo giả định tạm                                                                   |
-| 04  | Nhà cung cấp, nhập hàng, tồn đầu, sổ kho              | 03 + OPEN-05                | 04A–04C-B đã qua migration/E2E local; cần kiểm tra UI trực quan và chốt BR-STOCK-10            |
-| 05  | Giá sỉ/lẻ, bậc giá, báo giá                           | 02,03 + OPEN-03             | 05A–05C đã qua migration/seed/E2E local; còn browser check và xác nhận thuế trước vận hành |
-| 06  | Đơn, xác nhận, giữ, hủy, giao một phần                | 04,05 + OPEN-04/05          | 06A read/list foundation verified local; create/edit and 06B–D remain, confirmation waits OPEN-04/05 |
-| 07  | Thu tiền, đặt cọc, công nợ, chi phí                   | 06 + chốt ghi nhận phải thu | LATER                                                                                          |
-| 08  | Đổi trả, COD tay, báo cáo, import, backup/pilot       | 06,07                       | LATER                                                                                          |
-| 09  | Hộp thư connector đã kiểm chứng                       | 00,02,06 + quyền thật       | LATER                                                                                          |
-| 10  | AI gợi ý và đơn nháp                                  | 09 + chính sách duyệt       | LATER                                                                                          |
-| 11  | Website mua lại, OTP                                  | 02,05–08                    | LATER                                                                                          |
-| 12  | Online payment + một hãng giao                        | 11 + hợp đồng provider      | LATER                                                                                          |
-| 13  | Một sàn ưu tiên rồi sàn tiếp                          | 03–08 + quyền               | LATER                                                                                          |
-| 14  | Marketing/chăm sóc/báo cáo nâng cao                   | 09–13 theo nhu cầu          | LATER                                                                                          |
-| 15  | API đối tác, dự báo, tối ưu                           | Core ổn định, đủ dữ liệu    | LATER                                                                                          |
+| Đợt | Phạm vi                                               | Phụ thuộc                   | Trạng thái                                                                                                         |
+| --- | ----------------------------------------------------- | --------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| 01  | Monorepo, môi trường, auth nhân viên, RBAC, audit, CI | 00 đủ quyết định core       | DONE LOCAL; chờ lần chạy CI remote                                                                                 |
+| 02  | Khách, nhóm sỉ/lẻ, nhiều địa chỉ, nhắc việc           | 01                          | DONE LOCAL; chờ phản hồi người dùng                                                                                |
+| 03  | Sản phẩm, SKU, đơn vị, ảnh                            | 01 + OPEN-02                | DONE LOCAL theo giả định tạm                                                                                       |
+| 04  | Nhà cung cấp, nhập hàng, tồn đầu, sổ kho              | 03 + OPEN-05                | 04A–04C-B đã qua migration/E2E local; cần kiểm tra UI trực quan và chốt BR-STOCK-10                                |
+| 05  | Giá sỉ/lẻ, bậc giá, báo giá                           | 02,03 + OPEN-03             | 05A–05C đã qua migration/seed/E2E local; còn browser check và xác nhận thuế trước vận hành                         |
+| 06  | Đơn, xác nhận, giữ, hủy, giao một phần                | 04,05 + OPEN-04/05          | 06A read/list + manual draft creation verified local; browser/edit and 06B–D remain, confirmation waits OPEN-04/05 |
+| 07  | Thu tiền, đặt cọc, công nợ, chi phí                   | 06 + chốt ghi nhận phải thu | LATER                                                                                                              |
+| 08  | Đổi trả, COD tay, báo cáo, import, backup/pilot       | 06,07                       | LATER                                                                                                              |
+| 09  | Hộp thư connector đã kiểm chứng                       | 00,02,06 + quyền thật       | LATER                                                                                                              |
+| 10  | AI gợi ý và đơn nháp                                  | 09 + chính sách duyệt       | LATER                                                                                                              |
+| 11  | Website mua lại, OTP                                  | 02,05–08                    | LATER                                                                                                              |
+| 12  | Online payment + một hãng giao                        | 11 + hợp đồng provider      | LATER                                                                                                              |
+| 13  | Một sàn ưu tiên rồi sàn tiếp                          | 03–08 + quyền               | LATER                                                                                                              |
+| 14  | Marketing/chăm sóc/báo cáo nâng cao                   | 09–13 theo nhu cầu          | LATER                                                                                                              |
+| 15  | API đối tác, dự báo, tối ưu                           | Core ổn định, đủ dữ liệu    | LATER                                                                                                              |
 
 ### Phản hồi giao diện cần tiếp tục
 
@@ -71,7 +71,7 @@ Trạng thái: `DONE` tài liệu/prototype đã tạo; `WAITING` cần xác nh�
 - **03A:** product/variant/SKU; **03B:** unit conversion được backend kiểm tra; **03C:** ngừng bán + media metadata.
 - **04A:** purchase order không tăng tồn; **04B:** goods receipt từng phần sinh ledger; **04C:** tồn đầu/kiểm kê/điều chỉnh.
 - **05A:** price resolver có test thứ tự và 9/10/11; **05B:** quote snapshot/version; **05C:** convert thành draft order và kiểm tra lại.
-- **06A foundation:** list/detail of persisted quote-derived drafts implemented; manual draft create/edit and total-calculation acceptance remain; **06B:** confirm + reservation cạnh tranh/idempotency; **06C:** cancel/release; **06D:** shipment từng phần và timeline.
+- **06A:** list/detail plus manual draft create with server price resolution and idempotency; manual edit and full order totals (discount/tax/shipping) remain. **06B:** confirm + reservation cạnh tranh/idempotency waits OPEN-04/05; **06C:** cancel/release; **06D:** shipment từng phần và timeline. 07–08 wait for confirmed order/payment policy and 09 waits for channel/test credentials.
 
 Mỗi lát cắt phải có migration + API + UI + dữ liệu lưu thật + test nghiệp vụ; không gom cả đợt vào một thay đổi khổng lồ.
 

@@ -1,9 +1,10 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
-import type { RequestStaff } from '../common/request-context';
+import { Body, Controller, Get, Headers, Param, Post, Query, Req } from '@nestjs/common';
+import { ApiHeader, ApiOperation, ApiTags } from '@nestjs/swagger';
+import type { RequestStaff, RequestWithContext } from '../common/request-context';
 import { CurrentStaff } from '../identity/current-staff.decorator';
 import { PERMISSIONS } from '../identity/permissions';
 import { RequirePermissions } from '../identity/require-permissions.decorator';
+import { CreateOrderDto } from './dto/create-order.dto';
 import { ListOrdersQueryDto } from './dto/list-orders.dto';
 import { OrdersService } from './orders.service';
 
@@ -11,6 +12,19 @@ import { OrdersService } from './orders.service';
 @Controller('orders')
 export class OrdersController {
   constructor(private readonly orders: OrdersService) {}
+
+  @Post()
+  @RequirePermissions(PERMISSIONS.ORDERS_CREATE)
+  @ApiHeader({ name: 'Idempotency-Key', required: true })
+  @ApiOperation({ summary: 'Tạo đơn nháp thủ công; backend phân giải giá và tính tiền hàng' })
+  create(
+    @Body() dto: CreateOrderDto,
+    @Headers('idempotency-key') key: string | undefined,
+    @CurrentStaff() actor: RequestStaff,
+    @Req() request: RequestWithContext,
+  ) {
+    return this.orders.create(dto, key, actor, request.requestId);
+  }
 
   @Get()
   @RequirePermissions(PERMISSIONS.ORDERS_READ)

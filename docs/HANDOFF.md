@@ -121,3 +121,12 @@ Ngày cập nhật: 2026-10-06 (Asia/Ho_Chi_Minh)
 - 9 file/33 API E2E pass trên PostgreSQL 17.6 cô lập cổng 55437, gồm sales được đọc, vai trò kho bị 403, chi tiết và mã không tồn tại. Test container/volume tạm đã dọn; PostgreSQL local cổng 5432 không dùng. Lint, typecheck, 15 unit tests, format, production build pass.
 - 06B–D còn chờ chốt `OPEN-04/05` (công nợ, giữ hàng, giao từng phần/giá vốn). Đợt 07–08 phụ thuộc quy tắc đó và còn chưa triển khai. Đợt 09 cần chọn kênh, cấp tài khoản/quyền thử và bằng chứng API thật; hiện không có connector hoặc mock được bật.
 - Code 06A nền đã commit/push lên `main` tại `468d435` (`feat(orders): add draft order read workspace`); `HEAD` khớp `origin/main` tại thời điểm cập nhật.
+
+## Cập nhật 2026-10-07 — 06A tạo đơn nháp nhập tay
+
+- `POST /orders` nhận khách và dòng SKU/số lượng; backend kiểm tra cùng business, khách/SKU đang hoạt động, phân giải `PriceTier`, làm tròn từng dòng VND HALF_UP, và lưu snapshot. Có `OrderCommand`, idempotency key/hash, transaction Serializable, audit; lặp payload trả lại đơn cũ, dùng lại key với payload khác trả 409.
+- `SalesOrder.sourceQuoteId` nay nullable; đơn tay dùng `sourceRevision=0`, trong khi chuyển từ báo giá còn hạn vẫn giữ snapshot nguồn. Migration `20261007180000_phase06a_manual_order_drafts` tạo bảng command và loại alert `MANUAL_ORDER_CREATED`.
+- UI Đơn hàng có biểu mẫu tạo nháp, chọn khách/SKU và số lượng; thông báo nội bộ tới staff có `staff.manage` trong cùng transaction. Không gửi Facebook/Zalo/email, không giảm giá/phí giao/thuế/cọc, không xác nhận, giữ kho, ghi công nợ hay thanh toán.
+- Kiểm tra cuối local: migration + seed trên PostgreSQL 17.6 biệt lập, 9 file/34 API E2E pass; lint, typecheck, 15 unit test, format, production build và `git diff --check` pass. Không chạm PostgreSQL local cổng 5432. UI browser chưa được nghiệm thu trực quan.
+- Còn lại: 06A sửa nháp/chốt đủ thành phần tổng tiền; 06B–D chờ OPEN-04/05; 07–08 chờ chính sách tiền/trả hàng; 09 chờ kênh và thông tin tài khoản/quyền thử. Chưa deploy production.
+- Chỉ đưa các file triển khai và tài liệu thuộc 06A vào commit; giữ `accout.md` untracked/ngoài commit.
