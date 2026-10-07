@@ -1,6 +1,6 @@
 # PRD — CRM bán sỉ và bán lẻ
 
-Trạng thái: 05A và backend/UI cơ bản 05B đã qua kiểm tra local; 05B còn chờ kiểm tra trực quan trên browser, 05C chưa triển khai. Thuế báo giá hỗ trợ nhập theo phần trăm hoặc VND trên toàn báo giá. Tạm dùng: một cách thuế trên mỗi báo giá; phần trăm tính trên tiền hàng sau giảm cộng phí giao, không gồm cọc. Quy ước này chỉ phục vụ báo giá nội bộ, cần chủ dự án xác nhận trước vận hành. 04C-B còn chờ UI trực quan và xác nhận BR-STOCK-10 trước vận hành thật.
+Trạng thái: 05A/05B đã qua kiểm tra local và push. 05C đã có code local: chuyển báo giá gửi còn hạn thành đơn nháp, giữ revision đã chốt và tạo alert nội bộ cho người quản lý; migration, seed, E2E, typecheck/lint/build pass trên môi trường thử cô lập. Còn browser check 05B/UI tổng thể, quy ước thuế trước vận hành và BR-STOCK-10. Alert nội bộ không phải connector nền tảng.
 Nguồn: `ke-hoach-vibe-code-crm.md` phiên bản 1.0, ngày 30/09/2026
 
 ## 1. Bài toán

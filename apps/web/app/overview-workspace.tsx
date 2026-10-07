@@ -4,6 +4,15 @@ import { useEffect, useState } from 'react';
 import { api, type Staff } from './api-client';
 
 type ComparisonItem = { key: string; label?: string; value: number };
+type AdminAlert = {
+  id: string;
+  type: 'QUOTE_CONVERTED';
+  title: string;
+  body: string;
+  readAt: string | null;
+  createdAt: string;
+  order: { id: string; orderNumber: string; status: 'DRAFT' };
+};
 type Overview = {
   generatedAt: string;
   kpis: {
@@ -84,8 +93,11 @@ export function OverviewWorkspace({
   onNavigate: (view: 'customers' | 'products' | 'purchasing') => void;
 }) {
   const [overview, setOverview] = useState<Overview | null>(null);
+  const [adminAlerts, setAdminAlerts] = useState<AdminAlert[]>([]);
+  const [unreadAlertCount, setUnreadAlertCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const canReadAdminAlerts = staff.permissions.includes('admin.alerts.read');
 
   useEffect(() => {
     let active = true;
@@ -105,6 +117,32 @@ export function OverviewWorkspace({
       active = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (!canReadAdminAlerts) return;
+    api<{ items: AdminAlert[]; unreadCount: number }>('/admin-alerts')
+      .then(({ items, unreadCount }) => {
+        setAdminAlerts(items);
+        setUnreadAlertCount(unreadCount);
+      })
+      .catch((caught) => {
+        setError(caught instanceof Error ? caught.message : 'Không tải được thông báo quản lý.');
+      });
+  }, [canReadAdminAlerts]);
+
+  async function markAlertRead(id: string) {
+    try {
+      await api(`/admin-alerts/${id}/read`, { method: 'POST' });
+      setAdminAlerts((current) =>
+        current.map((alert) =>
+          alert.id === id && !alert.readAt ? { ...alert, readAt: new Date().toISOString() } : alert,
+        ),
+      );
+      setUnreadAlertCount((current) => Math.max(0, current - 1));
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Không cập nhật được thông báo.');
+    }
+  }
 
   return (
     <section className="dashboard-content overview-workspace">
@@ -156,6 +194,46 @@ export function OverviewWorkspace({
               </button>
             )}
           </div>
+
+          {canReadAdminAlerts && (
+            <section className="overview-card recent-table" aria-live="polite">
+              <div className="overview-card-head">
+                <div>
+                  <p className="eyebrow">THÔNG BÁO NỘI BỘ</p>
+                  <h2>Đơn cần quản lý xem ({unreadAlertCount} chưa đọc)</h2>
+                </div>
+              </div>
+              {adminAlerts.length === 0 ? (
+                <p className="empty-copy">Chưa có thông báo quản lý.</p>
+              ) : (
+                <div className="alert-list">
+                  {adminAlerts.map((alert) => (
+                    <article key={alert.id} className="alert-list-item">
+                      <div>
+                        <strong>{alert.title}</strong>
+                        <p>{alert.body}</p>
+                        <small>
+                          {alert.order.orderNumber} · {alert.order.status} ·{' '}
+                          {new Date(alert.createdAt).toLocaleString('vi-VN', {
+                            timeZone: 'Asia/Ho_Chi_Minh',
+                          })}
+                        </small>
+                      </div>
+                      {!alert.readAt && (
+                        <button
+                          className="ghost"
+                          onClick={() => void markAlertRead(alert.id)}
+                          aria-label={`Đánh dấu đã đọc: ${alert.title}`}
+                        >
+                          Đã xem
+                        </button>
+                      )}
+                    </article>
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
 
           <div className="overview-grid">
             {overview.comparisons.customersByGroup && (

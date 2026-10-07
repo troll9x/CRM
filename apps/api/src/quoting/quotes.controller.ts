@@ -15,7 +15,13 @@ import type { RequestStaff, RequestWithContext } from '../common/request-context
 import { CurrentStaff } from '../identity/current-staff.decorator';
 import { PERMISSIONS } from '../identity/permissions';
 import { RequirePermissions } from '../identity/require-permissions.decorator';
-import { CreateQuoteDto, ListQuotesQueryDto, SendQuoteDto, UpdateQuoteDto } from './dto/quote.dto';
+import {
+  ConvertQuoteDto,
+  CreateQuoteDto,
+  ListQuotesQueryDto,
+  SendQuoteDto,
+  UpdateQuoteDto,
+} from './dto/quote.dto';
 import { QuoteService } from './quote.service';
 
 @ApiTags('quotes')
@@ -46,6 +52,20 @@ export class QuotesController {
   @ApiOperation({ summary: 'Chi tiết báo giá, dòng hàng và lịch sử phát hành' })
   get(@Param('id') id: string, @CurrentStaff() actor: RequestStaff) {
     return this.quotes.get(id, actor.businessId);
+  }
+
+  @Post(':id/convert')
+  @RequirePermissions(PERMISSIONS.ORDERS_CREATE)
+  @ApiHeader({ name: 'Idempotency-Key', required: true })
+  @ApiOperation({ summary: 'Chuyển báo giá đã gửi, còn hạn thành đơn nháp' })
+  convert(
+    @Param('id') id: string,
+    @Body() dto: ConvertQuoteDto,
+    @Headers('idempotency-key') key: string | undefined,
+    @CurrentStaff() actor: RequestStaff,
+    @Req() request: RequestWithContext,
+  ) {
+    return this.quotes.convert(id, dto, key, actor, request.requestId);
   }
 
   @Post()

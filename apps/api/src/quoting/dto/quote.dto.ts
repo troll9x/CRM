@@ -109,6 +109,14 @@ export class SendQuoteDto {
   receivedAt: string;
 }
 
+export class ConvertQuoteDto {
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(2147483647)
+  expectedVersion: number;
+}
+
 export class ListQuotesQueryDto {
   @IsOptional()
   @IsString()

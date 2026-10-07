@@ -111,6 +111,16 @@ Kết quả xác minh phần mở rộng ngày 2026-10-06: đủ 12 migration de
 
 Kết quả 05B local ngày 2026-10-06: 13 migration + seed pass trên PostgreSQL 17.6 mới; 9 file / 33 API E2E pass. Gồm resolver không tự tính giá thiếu, Decimal × VND làm tròn từng dòng 0,5 lên, thuế phần trăm/VND, giảm theo quyền, version/idempotency, snapshot revision không đổi khi bảng giá đổi và thời hạn đúng 72 giờ. Typecheck/lint/unit/format/build đều pass trên Node 24. UI build pass nhưng chưa được nghiệm thu trực quan trên browser; phát hành hiện chỉ ghi nhận chia sẻ thủ công và in/lưu PDF bằng trình duyệt.
 
+### Nghiệm thu 05C — chuyển báo giá thành đơn nháp
+
+- Chỉ nhân viên có `orders.create` được chuyển quote `SENT` và chưa hết hạn; quote khác business không bị lộ, stale version/đã chuyển/hết hạn trả lỗi ổn định.
+- Backend tạo đúng một order `DRAFT` từ revision mới nhất, giữ nguyên dòng/số tiền/thuế/phí/cọc/ghi chú; không gọi lại price resolver và không nhận tổng tiền từ client.
+- Tạo order, order lines, cập nhật quote `ACCEPTED`, audit, `AdminAlert` tới mọi staff đang hoạt động có `staff.manage` và lệnh idempotency nằm trong một transaction. Cạnh tranh/ retry không tạo order hoặc alert trùng; cùng key/payload replay, key khác payload bị từ chối.
+- `GET /admin-alerts` chỉ lộ thông báo actor; đánh dấu đã đọc chỉ tác động alert thuộc actor/business. Admin thấy đơn chuyển thành công ở Tổng quan sau khi tải dữ liệu.
+- Đơn draft không thay đổi balance/movement, không xác nhận đơn, tạo giữ hàng, công nợ, payment hoặc shipment; không tuyên bố gửi alert qua Facebook/Zalo.
+
+Kết quả 05C local ngày 2026-10-07: 14 migration + seed trên PostgreSQL 17.6 thử cô lập; 9 file/33 E2E pass, gồm idempotency, hết hạn, RBAC, alert nội bộ và hai lệnh convert đồng thời chỉ tạo một đơn/alert. Typecheck, lint, 13 unit test, 2 test UTF-8, format và production build pass. UI API đã trả HTTP 200 sau restart web; chưa có nghiệm thu trực quan qua browser.
+
 ### Nghiệm thu giao diện và tổng quan
 
 - **AC-UI-UTF8 — PASS unit/build:** tài liệu HTML khai báo `lang=vi`, UTF-8 và font stack có glyph tiếng Việt; test quét source không có ký tự thay thế hoặc chuỗi mojibake thường gặp.

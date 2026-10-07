@@ -69,6 +69,9 @@ const quoteSelect = {
     orderBy: { revisionNumber: 'desc' as const },
     select: { id: true, revisionNumber: true, sentAt: true, receivedAt: true, expiresAt: true },
   },
+  salesOrder: {
+    select: { id: true, orderNumber: true, status: true, sourceRevision: true },
+  },
 } satisfies PrismaTypes.QuoteSelect;
 
 type QuoteRecord = PrismaTypes.QuoteGetPayload<{ select: typeof quoteSelect }>;
@@ -153,6 +156,7 @@ function present(row: QuoteRecord) {
       lineTotalVnd: vnd(line.lineTotalVnd),
     })),
     revisions: row.revisions,
+    salesOrder: row.salesOrder,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -787,6 +791,249 @@ export class QuoteService {
         { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
       ),
     );
+  }
+
+  async convert(
+    id: string,
+    dto: { expectedVersion: number },
+    keyRaw: string | undefined,
+    actor: RequestStaff,
+    requestId: string,
+  ) {
+    const key = this.key(keyRaw, `convert-${id}`);
+    const requestHash = this.hash({ id, dto });
+    const replay = await this.replay(actor.businessId, key, requestHash);
+    if (replay) return replay;
+
+    try {
+      return await this.runCommand(actor.businessId, key, requestHash, () =>
+        this.prisma.$transaction(
+          async (tx) => {
+            const duplicate = await tx.quoteCommand.findUnique({
+              where: {
+                businessId_idempotencyKey: {
+                  businessId: actor.businessId,
+                  idempotencyKey: key,
+                },
+              },
+              select: { requestHash: true, response: true },
+            });
+            if (duplicate) {
+              if (duplicate.requestHash !== requestHash)
+                throw new ProblemException(
+                  409,
+                  'IDEMPOTENCY_KEY_REUSED',
+                  'Idempotency-Key đã dùng với nội dung khác.',
+                );
+              return duplicate.response;
+            }
+
+            const quote = await tx.quote.findFirst({
+              where: { id, businessId: actor.businessId },
+              select: quoteSelect,
+            });
+            if (!quote)
+              throw new ProblemException(404, 'QUOTE_NOT_FOUND', 'Không tìm thấy báo giá.');
+            if (quote.salesOrder)
+              throw new ProblemException(
+                409,
+                'QUOTE_ALREADY_CONVERTED',
+                'Báo giá này đã được chuyển thành đơn nháp.',
+              );
+            if (quote.version !== dto.expectedVersion)
+              throw new ProblemException(
+                409,
+                'QUOTE_VERSION_CONFLICT',
+                'Báo giá đã thay đổi; hãy tải lại trước khi chuyển thành đơn.',
+              );
+            if (quote.status !== 'SENT' || !quote.expiresAt)
+              throw new ProblemException(
+                409,
+                'QUOTE_NOT_CONVERTIBLE',
+                'Chỉ báo giá đã gửi mới có thể chuyển thành đơn nháp.',
+              );
+            const now = new Date();
+            if (quote.expiresAt.getTime() <= now.getTime())
+              throw new ProblemException(
+                409,
+                'QUOTE_EXPIRED',
+                'Báo giá đã hết hạn; cần gửi lại báo giá mới trước khi tạo đơn.',
+              );
+            const sourceRevision = quote.revisions[0];
+            if (!sourceRevision)
+              throw new ProblemException(
+                409,
+                'QUOTE_REVISION_MISSING',
+                'Không tìm thấy revision đã phát hành của báo giá.',
+              );
+
+            const administrators = await tx.staffUser.findMany({
+              where: {
+                businessId: actor.businessId,
+                status: 'ACTIVE',
+                roles: {
+                  some: {
+                    role: {
+                      permissions: { some: { permissionKey: 'staff.manage' } },
+                    },
+                  },
+                },
+              },
+              select: { id: true },
+            });
+            if (administrators.length === 0)
+              throw new ProblemException(
+                409,
+                'ADMIN_RECIPIENT_NOT_CONFIGURED',
+                'Không có nhân viên quản lý đang hoạt động để nhận thông báo đơn mới.',
+              );
+
+            const day = now.toISOString().slice(0, 10).replaceAll('-', '');
+            const orderNumber = `SO-${day}-${randomBytes(4).toString('hex').toUpperCase()}`;
+            const order = await tx.salesOrder.create({
+              data: {
+                businessId: actor.businessId,
+                customerId: quote.customerId,
+                createdById: actor.id,
+                sourceQuoteId: quote.id,
+                orderNumber,
+                sourceRevision: sourceRevision.revisionNumber,
+                lineSubtotalVnd: quote.lineSubtotalVnd,
+                lineDiscountVnd: quote.lineDiscountVnd,
+                orderDiscountMode: quote.orderDiscountMode,
+                orderDiscountValue: quote.orderDiscountValue,
+                orderDiscountVnd: quote.orderDiscountVnd,
+                shippingFeeVnd: quote.shippingFeeVnd,
+                taxMode: quote.taxMode,
+                taxValue: quote.taxValue,
+                taxVnd: quote.taxVnd,
+                depositVnd: quote.depositVnd,
+                grandTotalVnd: quote.grandTotalVnd,
+                paymentNote: quote.paymentNote,
+                lines: {
+                  create: quote.lines.map((line) => ({
+                    variantId: line.variantId,
+                    lineNumber: line.lineNumber,
+                    productNameSnapshot: line.productNameSnapshot,
+                    skuSnapshot: line.skuSnapshot,
+                    variantNameSnapshot: line.variantNameSnapshot,
+                    unitCodeSnapshot: line.unitCodeSnapshot,
+                    unitNameSnapshot: line.unitNameSnapshot,
+                    sellingUnitFactor: line.sellingUnitFactor,
+                    quantity: line.quantity,
+                    quantityFrom: line.quantityFrom,
+                    unitPriceVnd: line.unitPriceVnd,
+                    lineSubtotalVnd: line.lineSubtotalVnd,
+                    discountMode: line.discountMode,
+                    discountValue: line.discountValue,
+                    discountVnd: line.discountVnd,
+                    lineTotalVnd: line.lineTotalVnd,
+                  })),
+                },
+              },
+              select: { id: true, orderNumber: true, status: true, sourceRevision: true },
+            });
+            const transitioned = await tx.quote.updateMany({
+              where: {
+                id: quote.id,
+                businessId: actor.businessId,
+                status: 'SENT',
+                version: dto.expectedVersion,
+                expiresAt: { gt: now },
+              },
+              data: { status: 'ACCEPTED', version: { increment: 1 } },
+            });
+            if (transitioned.count !== 1)
+              throw new ProblemException(
+                409,
+                'QUOTE_VERSION_CONFLICT',
+                'Báo giá đã thay đổi hoặc hết hạn; hãy tải lại trước khi chuyển thành đơn.',
+              );
+
+            await tx.adminAlert.createMany({
+              data: administrators.map(({ id: recipientId }) => ({
+                businessId: actor.businessId,
+                recipientId,
+                orderId: order.id,
+                type: 'QUOTE_CONVERTED' as const,
+                title: 'Có đơn hàng nháp mới',
+                body: `Đơn ${orderNumber} được tạo từ báo giá ${quote.quoteNumber}.`,
+              })),
+            });
+            await tx.auditLog.create({
+              data: {
+                businessId: actor.businessId,
+                actorId: actor.id,
+                action: 'quote.convert',
+                entityType: 'SalesOrder',
+                entityId: order.id,
+                requestId,
+                metadata: {
+                  quoteId: quote.id,
+                  quoteNumber: quote.quoteNumber,
+                  orderNumber,
+                  sourceRevision: sourceRevision.revisionNumber,
+                  idempotencyKey: keyRaw,
+                  alertRecipientCount: administrators.length,
+                },
+              },
+            });
+
+            const completeOrder = await tx.salesOrder.findUniqueOrThrow({
+              where: { id: order.id },
+              include: { lines: { orderBy: { lineNumber: 'asc' } } },
+            });
+            const completeQuote = await tx.quote.findUniqueOrThrow({
+              where: { id: quote.id },
+              select: quoteSelect,
+            });
+            const response = {
+              order: {
+                ...completeOrder,
+                lineSubtotalVnd: vnd(completeOrder.lineSubtotalVnd),
+                lineDiscountVnd: vnd(completeOrder.lineDiscountVnd),
+                orderDiscountValue: completeOrder.orderDiscountValue?.toString() ?? null,
+                orderDiscountVnd: vnd(completeOrder.orderDiscountVnd),
+                shippingFeeVnd: vnd(completeOrder.shippingFeeVnd),
+                taxValue: completeOrder.taxValue?.toString() ?? null,
+                taxVnd: vnd(completeOrder.taxVnd),
+                depositVnd: vnd(completeOrder.depositVnd),
+                grandTotalVnd: vnd(completeOrder.grandTotalVnd),
+                lines: completeOrder.lines.map((line) => ({
+                  ...line,
+                  sellingUnitFactor: line.sellingUnitFactor.toString(),
+                  quantity: line.quantity.toString(),
+                  unitPriceVnd: vnd(line.unitPriceVnd),
+                  lineSubtotalVnd: vnd(line.lineSubtotalVnd),
+                  discountValue: line.discountValue?.toString() ?? null,
+                  discountVnd: vnd(line.discountVnd),
+                  lineTotalVnd: vnd(line.lineTotalVnd),
+                })),
+              },
+              quote: present(completeQuote),
+              alertsCreated: administrators.length,
+            };
+            await this.saveCommand(tx, actor.businessId, key, requestHash, response);
+            return response;
+          },
+          { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+        ),
+      );
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        const existing = await this.prisma.salesOrder.findFirst({
+          where: { businessId: actor.businessId, sourceQuoteId: id },
+          select: { id: true },
+        });
+        if (existing)
+          throw new ProblemException(
+            409,
+            'QUOTE_ALREADY_CONVERTED',
+            'Báo giá này đã được chuyển thành đơn nháp.',
+          );
+      }
+      throw error;
+    }
   }
 
   async revision(id: string, revisionNumber: number, businessId: string) {

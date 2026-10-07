@@ -24,6 +24,16 @@ describe('quotes API', () => {
   async function cleanup() {
     const quotes = await prisma.quote.findMany({ where: { customerId }, select: { id: true } });
     const quoteIds = quotes.map((quote) => quote.id);
+    const orders = await prisma.salesOrder.findMany({
+      where: { customerId },
+      select: { id: true },
+    });
+    const orderIds = orders.map((order) => order.id);
+    if (orderIds.length) {
+      await prisma.adminAlert.deleteMany({ where: { orderId: { in: orderIds } } });
+      await prisma.salesOrderLine.deleteMany({ where: { orderId: { in: orderIds } } });
+      await prisma.salesOrder.deleteMany({ where: { id: { in: orderIds } } });
+    }
     if (quoteIds.length) {
       await prisma.quoteCommand.deleteMany({ where: { idempotencyKey: { contains: suffix } } });
       await prisma.quoteRevision.deleteMany({ where: { quoteId: { in: quoteIds } } });
@@ -245,6 +255,120 @@ describe('quotes API', () => {
       .send(sendInput)
       .expect(201);
     expect(sentAgain.body.data.revisionNumber).toBe(1);
+
+    const movementsBeforeConversion = await prisma.stockMovement.count({
+      where: { variantId },
+    });
+    const conversionKey = `quote-e2e-${suffix}-convert`;
+    const converted = await sales
+      .post(`/api/v1/quotes/${quoteId}/convert`)
+      .set('Idempotency-Key', conversionKey)
+      .send({ expectedVersion: 3 })
+      .expect(201);
+    expect(converted.body.data).toMatchObject({
+      order: {
+        status: 'DRAFT',
+        sourceRevision: 1,
+        lineSubtotalVnd: '70000',
+        shippingFeeVnd: '3000',
+        grandTotalVnd: '69300',
+        lines: [
+          { skuSnapshot: sku, unitPriceVnd: '10000', lineTotalVnd: '45000' },
+          { skuSnapshot: sku, unitPriceVnd: '10000', lineTotalVnd: '20000' },
+        ],
+      },
+      quote: { status: 'ACCEPTED', version: 4 },
+      alertsCreated: 1,
+    });
+    expect(await prisma.stockMovement.count({ where: { variantId } })).toBe(
+      movementsBeforeConversion,
+    );
+    const convertedOrderId = converted.body.data.order.id as string;
+    const quoteAfterConversion = await owner.get(`/api/v1/quotes/${quoteId}`).expect(200);
+    expect(quoteAfterConversion.body.data.salesOrder).toMatchObject({
+      id: convertedOrderId,
+      status: 'DRAFT',
+      sourceRevision: 1,
+    });
+    await sales
+      .post(`/api/v1/quotes/${quoteId}/convert`)
+      .set('Idempotency-Key', conversionKey)
+      .send({ expectedVersion: 3 })
+      .expect(201)
+      .then((response) => expect(response.body.data.order.id).toBe(convertedOrderId));
+    await sales
+      .post(`/api/v1/quotes/${quoteId}/convert`)
+      .set('Idempotency-Key', `quote-e2e-${suffix}-convert-again`)
+      .send({ expectedVersion: 4 })
+      .expect(409);
+    await sales.get('/api/v1/admin-alerts').expect(403);
+    const alerts = await owner.get('/api/v1/admin-alerts').expect(200);
+    expect(alerts.body.data).toMatchObject({
+      unreadCount: 1,
+      items: [
+        {
+          type: 'QUOTE_CONVERTED',
+          order: { id: convertedOrderId, status: 'DRAFT' },
+        },
+      ],
+    });
+    const alertId = alerts.body.data.items[0].id as string;
+    await owner.post(`/api/v1/admin-alerts/${alertId}/read`).expect(201);
+    const readAlerts = await owner.get('/api/v1/admin-alerts').expect(200);
+    expect(readAlerts.body.data.unreadCount).toBe(0);
+
+    const expiringQuote = await owner
+      .post('/api/v1/quotes')
+      .set('Idempotency-Key', `quote-e2e-${suffix}-expiring-create`)
+      .send({ customerId, lines: [{ variantId, quantity: '1' }] })
+      .expect(201);
+    const expiringQuoteId = expiringQuote.body.data.id as string;
+    await owner
+      .post(`/api/v1/quotes/${expiringQuoteId}/send`)
+      .set('Idempotency-Key', `quote-e2e-${suffix}-expiring-send`)
+      .send({ expectedVersion: 1, receivedAt: new Date().toISOString() })
+      .expect(201);
+    await prisma.quote.update({
+      where: { id: expiringQuoteId },
+      data: { expiresAt: new Date(Date.now() - 1) },
+    });
+    await sales
+      .post(`/api/v1/quotes/${expiringQuoteId}/convert`)
+      .set('Idempotency-Key', `quote-e2e-${suffix}-expiring-convert`)
+      .send({ expectedVersion: 2 })
+      .expect(409);
+
+    const concurrentQuote = await owner
+      .post('/api/v1/quotes')
+      .set('Idempotency-Key', `quote-e2e-${suffix}-concurrent-create`)
+      .send({ customerId, lines: [{ variantId, quantity: '1' }] })
+      .expect(201);
+    const concurrentQuoteId = concurrentQuote.body.data.id as string;
+    await owner
+      .post(`/api/v1/quotes/${concurrentQuoteId}/send`)
+      .set('Idempotency-Key', `quote-e2e-${suffix}-concurrent-send`)
+      .send({ expectedVersion: 1, receivedAt: new Date().toISOString() })
+      .expect(201);
+    const concurrentResults = await Promise.all([
+      sales
+        .post(`/api/v1/quotes/${concurrentQuoteId}/convert`)
+        .set('Idempotency-Key', `quote-e2e-${suffix}-concurrent-convert-a`)
+        .send({ expectedVersion: 2 }),
+      sales
+        .post(`/api/v1/quotes/${concurrentQuoteId}/convert`)
+        .set('Idempotency-Key', `quote-e2e-${suffix}-concurrent-convert-b`)
+        .send({ expectedVersion: 2 }),
+    ]);
+    expect(concurrentResults.map(({ status }) => status).sort()).toEqual([201, 409]);
+    const concurrentOrder = await prisma.salesOrder.findMany({
+      where: { sourceQuoteId: concurrentQuoteId },
+      select: { id: true },
+    });
+    expect(concurrentOrder).toHaveLength(1);
+    const concurrentOrderId = concurrentOrder[0]?.id;
+    expect(concurrentOrderId).toBeDefined();
+    if (!concurrentOrderId) throw new Error('Concurrent conversion did not create an order.');
+    expect(await prisma.adminAlert.count({ where: { orderId: concurrentOrderId } })).toBe(1);
 
     const fixedTax = await owner
       .post('/api/v1/quotes')

@@ -18,6 +18,7 @@ type Quote = {
   customerId: string;
   customer: Customer;
   status: 'DRAFT' | 'SENT' | 'ACCEPTED' | 'EXPIRED' | 'REJECTED';
+  salesOrder: { id: string; orderNumber: string; status: 'DRAFT'; sourceRevision: number } | null;
   version: number;
   lineSubtotalVnd: string;
   lineDiscountVnd: string;
@@ -94,6 +95,7 @@ export function QuotesWorkspace({
   const canManagePrice = staff.permissions.includes('price.edit');
   const canWrite = staff.permissions.includes('quotes.write');
   const canSend = staff.permissions.includes('quotes.send');
+  const canCreateOrder = staff.permissions.includes('orders.create');
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [quotes, setQuotes] = useState<Quote[]>([]);
@@ -293,6 +295,31 @@ export function QuotesWorkspace({
       setMessage('Đã đóng băng revision. Hãy in hoặc lưu thành PDF để chia sẻ thủ công.');
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Không phát hành được báo giá.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function convertQuote() {
+    if (!selected) return;
+    setSaving(true);
+    setError('');
+    setMessage('');
+    try {
+      const result = await api<{
+        order: { orderNumber: string; status: 'DRAFT'; sourceRevision: number };
+        alertsCreated: number;
+      }>(`/quotes/${selected.id}/convert`, {
+        method: 'POST',
+        headers: { 'Idempotency-Key': crypto.randomUUID() },
+        body: JSON.stringify({ expectedVersion: selected.version }),
+      });
+      await loadQuotes(selected.id);
+      setMessage(
+        `Đã tạo đơn nháp ${result.order.orderNumber} từ revision ${result.order.sourceRevision}; đã gửi ${result.alertsCreated} thông báo nội bộ cho quản lý. Đơn chưa giữ hàng hoặc ghi nhận tiền.`,
+      );
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Không chuyển được báo giá thành đơn.');
     } finally {
       setSaving(false);
     }
@@ -626,6 +653,23 @@ export function QuotesWorkspace({
                 <div className="notice">
                   Khách nhận: {new Date(selected.receivedAt ?? '').toLocaleString('vi-VN')} · Hết
                   hạn: {new Date(selected.expiresAt).toLocaleString('vi-VN')}
+                </div>
+              )}
+              {canCreateOrder && selected?.status === 'SENT' && selected.expiresAt && (
+                <button
+                  type="button"
+                  className="secondary"
+                  disabled={saving}
+                  onClick={() => void convertQuote()}
+                >
+                  {saving ? 'Đang tạo đơn nháp…' : 'Khách đồng ý · Tạo đơn nháp'}
+                </button>
+              )}
+              {selected?.salesOrder && (
+                <div className="notice" role="status">
+                  Đã chuyển thành đơn nháp <b>{selected.salesOrder.orderNumber}</b> từ revision{' '}
+                  {selected.salesOrder.sourceRevision}. Đơn chưa xác nhận, chưa giữ hàng và chưa ghi
+                  nhận công nợ.
                 </div>
               )}
             </form>

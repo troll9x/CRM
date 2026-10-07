@@ -104,3 +104,11 @@ Ngày cập nhật: 2026-10-06 (Asia/Ho_Chi_Minh)
 - Theo yêu cầu của chủ dự án, thay đổi 05B và tăng cỡ chữ đã commit/push lên `main` tại `363a3a7` (`feat(quotes): add quote workflow and improve readability`); `origin/main` đã khớp commit này.
 - File `account.md` chứa tài khoản local tiếp tục bị ignore, không được commit. `accout.md` là file untracked và cũng không được đưa lên GitHub.
 - Kiểm tra sau thay đổi: typecheck, lint, 15 unit tests, format, `git diff --check` và phản hồi CSS HTTP 200 đều pass. Migration/seed cùng 9 file/33 E2E đã pass trước đó trên PostgreSQL thử cô lập; không chạy lại và không chạm DB local cổng 5432 trong lượt này.
+
+## Cập nhật 2026-10-07 — Đợt 05C chuyển báo giá thành đơn nháp
+
+- Thêm `SalesOrder`/`SalesOrderLine` trạng thái `DRAFT`, liên kết duy nhất với báo giá nguồn và revision đã phát hành. `POST /quotes/{id}/convert` yêu cầu `orders.create`, `expectedVersion` và `Idempotency-Key`; chỉ chuyển báo giá `SENT` còn hạn, giữ nguyên toàn bộ snapshot/giá/thuế/phí/cọc/ghi chú, không gọi lại resolver giá.
+- Chuyển báo giá sang `ACCEPTED`, tạo order/dòng, audit và `AdminAlert` cho nhân viên đang hoạt động có `staff.manage` trong cùng transaction Serializable. Alert hiển thị ở Tổng quan, lọc theo business/người nhận và có thể đánh dấu đã đọc. Không có connector/email; không giữ tồn, phát sinh công nợ, thu tiền hay xác nhận đơn.
+- Migration `20261007133548_phase05c_quote_conversion` và seed đã chạy trên PostgreSQL 17.6 mới ở cổng thử 55436; 9 file/33 E2E pass, bao gồm stale/expired/already-converted, replay idempotency, role scope, alert, không tạo movement và hai request đồng thời không nhân đôi đơn/alert. Typecheck, lint, 13 unit test + 2 test UTF-8, format và production build pass.
+- PostgreSQL thử cô lập `crm-05c-review-20261007` cùng volume tạm đã được dừng/xóa; hai thư mục migration 04C-B rỗng được khôi phục nguyên trạng. PostgreSQL local 5432 không bị dùng để kiểm thử. Dịch vụ web được restart sau production build và trả HTTP 200.
+- Còn chờ browser check trực quan cho báo giá/Tổng quan, xác nhận quy tắc thuế và `BR-STOCK-10`; 05C không kích hoạt kho/công nợ. Thay đổi 05C hiện ở working tree, chưa commit/push.

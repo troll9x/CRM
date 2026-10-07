@@ -106,6 +106,14 @@ enum QuoteTaxMode {
   FIXED_VND
 }
 
+enum SalesOrderStatus {
+  DRAFT
+}
+
+enum AdminAlertType {
+  QUOTE_CONVERTED
+}
+
 model Business {
   id                String             @id @default(cuid())
   name              String
@@ -135,6 +143,8 @@ model Business {
   priceTierCommands PriceTierCommand[]
   quotes            Quote[]
   quoteCommands     QuoteCommand[]
+  salesOrders       SalesOrder[]
+  adminAlerts       AdminAlert[]
 
   @@map("businesses")
 }
@@ -162,6 +172,8 @@ model StaffUser {
   createdStockAdjustments StockAdjustment[]  @relation("StockAdjustmentCreator")
   createdQuotes           Quote[]            @relation("QuoteCreator")
   sentQuoteRevisions      QuoteRevision[]    @relation("QuoteRevisionSender")
+  createdSalesOrders      SalesOrder[]       @relation("SalesOrderCreator")
+  receivedAdminAlerts     AdminAlert[]       @relation("AdminAlertRecipient")
 
   @@index([businessId, status])
   @@map("staff_users")
@@ -288,6 +300,7 @@ model Customer {
   tasks            CustomerTask[]
   opportunities    SalesOpportunity[]
   quotes           Quote[]
+  salesOrders      SalesOrder[]
 
   @@unique([businessId, customerCode])
   @@index([businessId, status, updatedAt])
@@ -425,6 +438,7 @@ model ProductVariant {
   stockAdjustments   StockAdjustment[]
   priceTiers         PriceTier[]
   quoteLines         QuoteLine[]
+  salesOrderLines    SalesOrderLine[]
 
   @@unique([businessId, sku])
   @@unique([businessId, barcode])
@@ -794,6 +808,7 @@ model Quote {
   createdBy          StaffUser          @relation("QuoteCreator", fields: [createdById], references: [id], onDelete: Restrict)
   lines              QuoteLine[]
   revisions          QuoteRevision[]
+  salesOrder         SalesOrder?
 
   @@unique([businessId, quoteNumber])
   @@index([businessId, status, updatedAt])
@@ -859,4 +874,88 @@ model QuoteCommand {
   @@unique([businessId, idempotencyKey])
   @@index([businessId, createdAt])
   @@map("quote_commands")
+}
+
+model SalesOrder {
+  id                 String             @id @default(cuid())
+  businessId         String             @map("business_id")
+  customerId         String             @map("customer_id")
+  createdById        String             @map("created_by_id")
+  sourceQuoteId      String             @unique @map("source_quote_id")
+  orderNumber        String             @map("order_number")
+  sourceRevision     Int                @map("source_revision")
+  status             SalesOrderStatus   @default(DRAFT)
+  version            Int                @default(1)
+  lineSubtotalVnd    Decimal            @map("line_subtotal_vnd") @db.Decimal(20, 0)
+  lineDiscountVnd    Decimal            @map("line_discount_vnd") @db.Decimal(20, 0)
+  orderDiscountMode  QuoteDiscountMode? @map("order_discount_mode")
+  orderDiscountValue Decimal?           @map("order_discount_value") @db.Decimal(20, 6)
+  orderDiscountVnd   Decimal            @map("order_discount_vnd") @db.Decimal(20, 0)
+  shippingFeeVnd     Decimal            @map("shipping_fee_vnd") @db.Decimal(20, 0)
+  taxMode            QuoteTaxMode?      @map("tax_mode")
+  taxValue           Decimal?           @map("tax_value") @db.Decimal(20, 6)
+  taxVnd             Decimal            @map("tax_vnd") @db.Decimal(20, 0)
+  depositVnd         Decimal            @map("deposit_vnd") @db.Decimal(20, 0)
+  grandTotalVnd      Decimal            @map("grand_total_vnd") @db.Decimal(20, 0)
+  paymentNote        String?            @map("payment_note")
+  createdAt          DateTime           @default(now()) @map("created_at")
+  updatedAt          DateTime           @updatedAt @map("updated_at")
+  business           Business           @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  customer           Customer           @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  createdBy          StaffUser          @relation("SalesOrderCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  sourceQuote        Quote              @relation(fields: [sourceQuoteId], references: [id], onDelete: Restrict)
+  lines              SalesOrderLine[]
+  alerts             AdminAlert[]
+
+  @@unique([businessId, orderNumber])
+  @@index([businessId, status, updatedAt])
+  @@index([businessId, customerId, createdAt])
+  @@map("sales_orders")
+}
+
+model SalesOrderLine {
+  id                  String             @id @default(cuid())
+  orderId             String             @map("order_id")
+  variantId           String             @map("variant_id")
+  lineNumber          Int                @map("line_number")
+  productNameSnapshot String             @map("product_name_snapshot")
+  skuSnapshot         String             @map("sku_snapshot")
+  variantNameSnapshot String             @map("variant_name_snapshot")
+  unitCodeSnapshot    String             @map("unit_code_snapshot")
+  unitNameSnapshot    String             @map("unit_name_snapshot")
+  sellingUnitFactor   Decimal            @map("selling_unit_factor") @db.Decimal(20, 6)
+  quantity            Decimal            @db.Decimal(20, 6)
+  quantityFrom        Int                @map("quantity_from")
+  unitPriceVnd        Decimal            @map("unit_price_vnd") @db.Decimal(20, 0)
+  lineSubtotalVnd     Decimal            @map("line_subtotal_vnd") @db.Decimal(20, 0)
+  discountMode        QuoteDiscountMode? @map("discount_mode")
+  discountValue       Decimal?           @map("discount_value") @db.Decimal(20, 6)
+  discountVnd         Decimal            @map("discount_vnd") @db.Decimal(20, 0)
+  lineTotalVnd        Decimal            @map("line_total_vnd") @db.Decimal(20, 0)
+  createdAt           DateTime           @default(now()) @map("created_at")
+  order               SalesOrder         @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  variant             ProductVariant     @relation(fields: [variantId], references: [id], onDelete: Restrict)
+
+  @@unique([orderId, lineNumber])
+  @@index([variantId, createdAt])
+  @@map("sales_order_lines")
+}
+
+model AdminAlert {
+  id          String        @id @default(cuid())
+  businessId  String        @map("business_id")
+  recipientId String        @map("recipient_id")
+  orderId     String        @map("order_id")
+  type        AdminAlertType
+  title       String
+  body        String
+  readAt      DateTime?     @map("read_at")
+  createdAt   DateTime      @default(now()) @map("created_at")
+  business    Business      @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  recipient   StaffUser     @relation("AdminAlertRecipient", fields: [recipientId], references: [id], onDelete: Restrict)
+  order       SalesOrder    @relation(fields: [orderId], references: [id], onDelete: Restrict)
+
+  @@unique([businessId, recipientId, type, orderId])
+  @@index([businessId, recipientId, readAt, createdAt])
+  @@map("admin_alerts")
 }
