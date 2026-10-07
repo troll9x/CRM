@@ -1,6 +1,6 @@
 # PRD — CRM bán sỉ và bán lẻ
 
-Trạng thái: 05A/05B đã qua kiểm tra local và push. 05C đã có code local: chuyển báo giá gửi còn hạn thành đơn nháp, giữ revision đã chốt và tạo alert nội bộ cho người quản lý; migration, seed, E2E, typecheck/lint/build pass trên môi trường thử cô lập. Còn browser check 05B/UI tổng thể, quy ước thuế trước vận hành và BR-STOCK-10. Alert nội bộ không phải connector nền tảng.
+Trạng thái: 05A–05C đã được triển khai, kiểm tra local và push. Đã bắt đầu lát cắt 06A chỉ đọc đơn nháp; xác nhận/giữ/hủy/giao hàng chưa triển khai vì OPEN-04/05 chưa chốt. Còn browser check các màn hình hiện có, quy ước thuế và BR-STOCK-10 trước vận hành. Đợt 07–08 chưa triển khai; Đợt 09 chưa thể tích hợp thật khi chưa có tài khoản/quyền thử. Alert nội bộ không phải connector nền tảng.
 Nguồn: `ke-hoach-vibe-code-crm.md` phiên bản 1.0, ngày 30/09/2026
 
 ## 1. Bài toán

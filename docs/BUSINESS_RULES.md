@@ -52,6 +52,7 @@ Trạng thái: 05A và backend/UI cơ bản 05B đã migration/E2E verified loca
 - **BR-QUOTE-01:** Báo giá có trạng thái `DRAFT`, `SENT`, `ACCEPTED`, `EXPIRED`, `REJECTED`; gửi báo giá tạo phiên bản bất biến.
 - **BR-QUOTE-02 — Tạm dùng:** Báo giá không giữ hàng. Chuyển thành đơn phải kiểm tra lại giá, hiệu lực, quyền và tồn.
 - **BR-ORDER-01:** Đơn có trạng thái vòng đời riêng với trạng thái giao và thanh toán; không suy ra tất cả từ một trường.
+- **BR-ORDER-00:** Quyền `orders.read` chỉ cho phép đọc danh sách/chi tiết đơn trong business hiện tại; không cấp quyền xác nhận, hủy, giữ kho hay thu tiền.
 - **BR-ORDER-02:** Xác nhận đơn kiểm tra giá, quyền mua nợ, tồn và snapshot; thao tác lặp chỉ tạo một reservation/event.
 - **BR-ORDER-03:** Dòng đã giao/đã ghi nhận tiền không sửa làm đổi lịch sử; sửa bằng chứng từ trả/điều chỉnh có liên kết.
 - **BR-SHIP-01:** Một đơn có thể giao nhiều lần. Giao một phần không tự hoàn tất phần còn lại.

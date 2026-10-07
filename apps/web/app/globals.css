@@ -1221,6 +1221,45 @@ button {
   gap: 14px;
   align-items: start;
 }
+.orders-layout {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.72fr) minmax(420px, 1.5fr);
+  gap: 14px;
+  align-items: start;
+}
+.orders-workspace .customer-list-panel {
+  position: sticky;
+  top: 16px;
+}
+.order-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 18px 0;
+}
+.order-summary-grid > div {
+  display: grid;
+  gap: 5px;
+  padding: 12px;
+  background: #f7faf8;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+}
+.order-summary-grid span,
+.order-payment-note {
+  color: var(--muted);
+}
+.order-summary-grid b {
+  color: var(--ink);
+}
+.status-pill {
+  align-self: flex-start;
+  padding: 6px 10px;
+  color: var(--green-2);
+  background: var(--mint);
+  border-radius: 999px;
+  white-space: nowrap;
+}
 .supplier-list {
   display: grid;
   gap: 7px;
@@ -1846,6 +1885,8 @@ html body .login-page :is(button, input) {
   }
   .purchase-form,
   .purchase-layout,
+  .orders-layout,
+  .order-summary-grid,
   .purchase-lines article {
     grid-template-columns: 1fr;
   }

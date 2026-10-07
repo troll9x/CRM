@@ -27,7 +27,7 @@ Trạng thái: `DONE` tài liệu/prototype đã tạo; `WAITING` cần xác nh�
 | 03  | Sản phẩm, SKU, đơn vị, ảnh                            | 01 + OPEN-02                | DONE LOCAL theo giả định tạm                                                                   |
 | 04  | Nhà cung cấp, nhập hàng, tồn đầu, sổ kho              | 03 + OPEN-05                | 04A–04C-B đã qua migration/E2E local; cần kiểm tra UI trực quan và chốt BR-STOCK-10            |
 | 05  | Giá sỉ/lẻ, bậc giá, báo giá                           | 02,03 + OPEN-03             | 05A–05C đã qua migration/seed/E2E local; còn browser check và xác nhận thuế trước vận hành |
-| 06  | Đơn, xác nhận, giữ, hủy, giao một phần                | 04,05 + OPEN-04/05          | LATER                                                                                          |
+| 06  | Đơn, xác nhận, giữ, hủy, giao một phần                | 04,05 + OPEN-04/05          | 06A read/list foundation verified local; create/edit and 06B–D remain, confirmation waits OPEN-04/05 |
 | 07  | Thu tiền, đặt cọc, công nợ, chi phí                   | 06 + chốt ghi nhận phải thu | LATER                                                                                          |
 | 08  | Đổi trả, COD tay, báo cáo, import, backup/pilot       | 06,07                       | LATER                                                                                          |
 | 09  | Hộp thư connector đã kiểm chứng                       | 00,02,06 + quyền thật       | LATER                                                                                          |
@@ -71,7 +71,7 @@ Trạng thái: `DONE` tài liệu/prototype đã tạo; `WAITING` cần xác nh�
 - **03A:** product/variant/SKU; **03B:** unit conversion được backend kiểm tra; **03C:** ngừng bán + media metadata.
 - **04A:** purchase order không tăng tồn; **04B:** goods receipt từng phần sinh ledger; **04C:** tồn đầu/kiểm kê/điều chỉnh.
 - **05A:** price resolver có test thứ tự và 9/10/11; **05B:** quote snapshot/version; **05C:** convert thành draft order và kiểm tra lại.
-- **06A:** draft order backend tính tổng; **06B:** confirm + reservation cạnh tranh/idempotency; **06C:** cancel/release; **06D:** shipment từng phần và timeline.
+- **06A foundation:** list/detail of persisted quote-derived drafts implemented; manual draft create/edit and total-calculation acceptance remain; **06B:** confirm + reservation cạnh tranh/idempotency; **06C:** cancel/release; **06D:** shipment từng phần và timeline.
 
 Mỗi lát cắt phải có migration + API + UI + dữ liệu lưu thật + test nghiệp vụ; không gom cả đợt vào một thay đổi khổng lồ.
 

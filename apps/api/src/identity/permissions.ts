@@ -7,6 +7,7 @@ export const PERMISSIONS = {
   QUOTES_READ: 'quotes.read',
   QUOTES_WRITE: 'quotes.write',
   QUOTES_SEND: 'quotes.send',
+  ORDERS_READ: 'orders.read',
   ORDERS_CREATE: 'orders.create',
   ORDERS_CONFIRM: 'orders.confirm',
   ADMIN_ALERTS_READ: 'admin.alerts.read',

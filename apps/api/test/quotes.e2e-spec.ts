@@ -13,12 +13,14 @@ describe('quotes API', () => {
   let prisma: PrismaService;
   let owner: ReturnType<typeof request.agent>;
   let sales: ReturnType<typeof request.agent>;
+  let warehouse: ReturnType<typeof request.agent>;
   const suffix = randomUUID().slice(0, 8).toUpperCase();
   const sku = `E2E-QUOTE-${suffix}`;
   const name = `E2E Quote ${suffix}`;
   let customerId = '';
   let variantId = '';
   let salesEmail = '';
+  let warehouseEmail = '';
   let quoteId = '';
 
   async function cleanup() {
@@ -60,6 +62,10 @@ describe('quotes API', () => {
     }
     if (salesEmail)
       await prisma.staffUser.deleteMany({ where: { emailNormalized: salesEmail.toLowerCase() } });
+    if (warehouseEmail)
+      await prisma.staffUser.deleteMany({
+        where: { emailNormalized: warehouseEmail.toLowerCase() },
+      });
   }
 
   beforeAll(async () => {
@@ -118,6 +124,21 @@ describe('quotes API', () => {
     await sales
       .post('/api/v1/auth/sessions')
       .send({ email: salesEmail, password: 'Sales-test-password-123!' })
+      .expect(201);
+    warehouseEmail = `quote-warehouse-${suffix}@crm.local`;
+    await owner
+      .post('/api/v1/staff')
+      .send({
+        email: warehouseEmail,
+        displayName: 'Nhân viên kho',
+        password: 'Warehouse-test-password-123!',
+        roleCodes: ['warehouse'],
+      })
+      .expect(201);
+    warehouse = request.agent(app.getHttpServer());
+    await warehouse
+      .post('/api/v1/auth/sessions')
+      .send({ email: warehouseEmail, password: 'Warehouse-test-password-123!' })
       .expect(201);
   });
 
@@ -284,6 +305,21 @@ describe('quotes API', () => {
       movementsBeforeConversion,
     );
     const convertedOrderId = converted.body.data.order.id as string;
+    const orderList = await sales
+      .get(`/api/v1/orders?query=${converted.body.data.order.orderNumber}`)
+      .expect(200);
+    expect(orderList.body.data.items).toHaveLength(1);
+    expect(orderList.body.data.items[0]).toMatchObject({
+      id: convertedOrderId,
+      status: 'DRAFT',
+      customer: { id: customerId, displayName: name },
+      sourceQuote: { id: quoteId },
+      grandTotalVnd: '69300',
+    });
+    const orderDetail = await sales.get(`/api/v1/orders/${convertedOrderId}`).expect(200);
+    expect(orderDetail.body.data.lines).toHaveLength(2);
+    await sales.get('/api/v1/orders/not-an-order').expect(404);
+    await warehouse.get('/api/v1/orders').expect(403);
     const quoteAfterConversion = await owner.get(`/api/v1/quotes/${quoteId}`).expect(200);
     expect(quoteAfterConversion.body.data.salesOrder).toMatchObject({
       id: convertedOrderId,

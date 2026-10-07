@@ -121,6 +121,14 @@ Kết quả 05B local ngày 2026-10-06: 13 migration + seed pass trên PostgreSQ
 
 Kết quả 05C local ngày 2026-10-07: 14 migration + seed trên PostgreSQL 17.6 thử cô lập; 9 file/33 E2E pass, gồm idempotency, hết hạn, RBAC, alert nội bộ và hai lệnh convert đồng thời chỉ tạo một đơn/alert. Typecheck, lint, 13 unit test, 2 test UTF-8, format và production build pass. UI API đã trả HTTP 200 sau restart web; chưa có nghiệm thu trực quan qua browser.
 
+### Nghiệm thu nền 06A — tra cứu đơn nháp
+
+- `GET /orders` và `GET /orders/{id}` yêu cầu `orders.read`; chỉ trả dữ liệu thuộc business của actor và các snapshot đã lưu.
+- Tìm kiếm theo mã đơn, mã/tên khách, mã báo giá hoặc SKU; `limit` được giới hạn 1–100.
+- Nhân viên sales xem được đơn; vai trò không có `orders.read` nhận `403`; ID không tồn tại hoặc ngoài business trả `404`.
+- Màn hình chỉ đọc, hiển thị nguồn báo giá, revision, dòng hàng và tổng tiền; không có lệnh xác nhận/hủy/giữ/xuất.
+- Lát cắt này không tạo/sửa đơn nháp thủ công; chỉ đọc đơn đã chuyển từ báo giá. 9 file/33 API E2E, lint, typecheck, 15 unit tests, format và production build pass trên môi trường local. Chưa nghiệm thu trực quan qua browser.
+
 ### Nghiệm thu giao diện và tổng quan
 
 - **AC-UI-UTF8 — PASS unit/build:** tài liệu HTML khai báo `lang=vi`, UTF-8 và font stack có glyph tiếng Việt; test quét source không có ký tự thay thế hoặc chuỗi mojibake thường gặp.

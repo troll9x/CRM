@@ -112,3 +112,11 @@ Ngày cập nhật: 2026-10-06 (Asia/Ho_Chi_Minh)
 - Migration `20261007133548_phase05c_quote_conversion` và seed đã chạy trên PostgreSQL 17.6 mới ở cổng thử 55436; 9 file/33 E2E pass, bao gồm stale/expired/already-converted, replay idempotency, role scope, alert, không tạo movement và hai request đồng thời không nhân đôi đơn/alert. Typecheck, lint, 13 unit test + 2 test UTF-8, format và production build pass.
 - PostgreSQL thử cô lập `crm-05c-review-20261007` cùng volume tạm đã được dừng/xóa; hai thư mục migration 04C-B rỗng được khôi phục nguyên trạng. PostgreSQL local 5432 không bị dùng để kiểm thử. Dịch vụ web được restart sau production build và trả HTTP 200.
 - Còn chờ browser check trực quan cho báo giá/Tổng quan, xác nhận quy tắc thuế và `BR-STOCK-10`; 05C không kích hoạt kho/công nợ. Thay đổi đã commit và push lên `main` tại `46ee362` (`feat(orders): convert accepted quotes to draft orders`); `HEAD` khớp `origin/main`.
+
+## Cập nhật 2026-10-07 — nền tra cứu đơn Đợt 06A
+
+- Bổ sung quyền `orders.read` riêng, gán cho vai trò sales; API `GET /orders` và `GET /orders/{id}` chỉ đọc trong business hiện tại, tìm kiếm mã đơn/khách/báo giá/SKU và trả snapshot tiền dưới dạng chuỗi. Không thêm lệnh sửa trạng thái, giữ kho hoặc thu tiền.
+- Khi cập nhật môi trường local hiện có, chạy `npm run db:seed` để tạo permission mới và gán quyền đọc đơn cho role sales; lát cắt này không có migration schema.
+- Màn hình Đơn hàng cho phép tìm và xem đơn nháp từ báo giá, nguồn/revision, dòng hàng và tổng tiền. Chưa có tạo/sửa nháp thủ công; chưa có browser visual acceptance.
+- 9 file/33 API E2E pass trên PostgreSQL 17.6 cô lập cổng 55437, gồm sales được đọc, vai trò kho bị 403, chi tiết và mã không tồn tại. Test container/volume tạm đã dọn; PostgreSQL local cổng 5432 không dùng. Lint, typecheck, 15 unit tests, format, production build pass.
+- 06B–D còn chờ chốt `OPEN-04/05` (công nợ, giữ hàng, giao từng phần/giá vốn). Đợt 07–08 phụ thuộc quy tắc đó và còn chưa triển khai. Đợt 09 cần chọn kênh, cấp tài khoản/quyền thử và bằng chứng API thật; hiện không có connector hoặc mock được bật.
