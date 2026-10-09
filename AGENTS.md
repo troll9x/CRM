@@ -1,5 +1,12 @@
 # Hướng dẫn làm việc trong repo
 
+## Xác minh checkout trước khi làm
+
+- Repo chuẩn để tiếp tục là `C:\Users\Admin\Downloads\CRM`, remote dự kiến `https://github.com/troll9x/CRM.git`.
+- Trước khi sửa, xác minh `Get-Location`, `git remote -v`, branch, HEAD và `git status --short`; nếu path/remote không khớp, dừng và hỏi thay vì giả định đang ở repo chuẩn.
+- `C:\Users\Admin\Downloads\CRM-home` là checkout nguồn cũ để đối chiếu, không phải nơi tiếp tục phát triển. Không xóa/archive checkout hoặc repository GitHub này nếu chưa được chủ dự án yêu cầu.
+- Worktree có thể chứa thay đổi chưa commit, prompt chưa theo dõi, `.env` và cấu hình DB local. Không reset/clean, không stage toàn bộ, không đưa secret/tài khoản/dump vào commit.
+
 Đọc `docs/PRD.md`, `docs/BUSINESS_RULES.md`, `docs/DATA_MODEL.md`, `docs/API_CONTRACT.md`, `docs/DECISIONS.md` và nhiệm vụ hiện tại trước khi sửa.
 
 ## Nguyên tắc bắt buộc
