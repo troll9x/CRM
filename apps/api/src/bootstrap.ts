@@ -12,7 +12,7 @@ import { csrfProtection } from './common/csrf.middleware';
 import { requestIdMiddleware } from './common/request-id.middleware';
 
 export async function createApplication(): Promise<INestApplication> {
-  const app = await NestFactory.create(AppModule, { cors: false });
+  const app = await NestFactory.create(AppModule, { cors: false, rawBody: true });
   const config = app.get(ConfigService);
   const allowedOrigins = new Set(
     (config.get<string>('WEB_ORIGIN') ?? 'http://localhost:3000')

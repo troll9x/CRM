@@ -1,17 +1,33 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { api, type Staff } from './api-client';
+import { buildSalesReportCsv, reportMonths } from './sales-report-export';
 
 type ComparisonItem = { key: string; label?: string; value: number };
+type SalesReport = {
+  range: { from: string; to: string; timezone: string };
+  revenueBasis: string;
+  quantityBasis: string;
+  monthlyRevenue: Array<{ month: string; revenueVnd: string }>;
+  topProducts: Array<{
+    variantId: string;
+    sku: string;
+    productName: string;
+    variantName: string;
+    baseUnitName: string;
+    deliveredBaseQuantity: string;
+  }>;
+};
 type AdminAlert = {
   id: string;
-  type: 'QUOTE_CONVERTED' | 'MANUAL_ORDER_CREATED';
+  type: 'QUOTE_CONVERTED' | 'MANUAL_ORDER_CREATED' | 'EXTERNAL_ORDER_IMPORTED';
   title: string;
   body: string;
   readAt: string | null;
   createdAt: string;
-  order: { id: string; orderNumber: string; status: 'DRAFT' };
+  order: { id: string; orderNumber: string; status: 'DRAFT' | 'CONFIRMED' | 'CANCELED' } | null;
+  externalOrder: { id: string; externalOrderId: string; normalizedStatus: string } | null;
 };
 type Overview = {
   generatedAt: string;
@@ -81,6 +97,14 @@ function Comparison({ title, items }: { title: string; items: ComparisonItem[] }
   );
 }
 
+function formatVnd(value: string) {
+  try {
+    return `${BigInt(value).toLocaleString('vi-VN')} ₫`;
+  } catch {
+    return `${value} ₫`;
+  }
+}
+
 export function OverviewWorkspace({
   staff,
   onLogout,
@@ -93,11 +117,17 @@ export function OverviewWorkspace({
   onNavigate: (view: 'customers' | 'products' | 'purchasing') => void;
 }) {
   const [overview, setOverview] = useState<Overview | null>(null);
+  const [salesReport, setSalesReport] = useState<SalesReport | null>(null);
+  const [salesReportError, setSalesReportError] = useState('');
+  const [reportFrom, setReportFrom] = useState('');
+  const [reportTo, setReportTo] = useState('');
+  const [reportLoading, setReportLoading] = useState(false);
   const [adminAlerts, setAdminAlerts] = useState<AdminAlert[]>([]);
   const [unreadAlertCount, setUnreadAlertCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const canReadAdminAlerts = staff.permissions.includes('admin.alerts.read');
+  const canReadSalesReports = staff.permissions.includes('sales-reports.read');
 
   useEffect(() => {
     let active = true;
@@ -117,6 +147,58 @@ export function OverviewWorkspace({
       active = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (!canReadSalesReports) return;
+    let active = true;
+    api<SalesReport>('/reports/sales')
+      .then((report) => {
+        if (active) {
+          setSalesReport(report);
+          setReportFrom(report.range.from);
+          setReportTo(report.range.to);
+        }
+      })
+      .catch((caught) => {
+        if (active)
+          setSalesReportError(
+            caught instanceof Error ? caught.message : 'Không tải được báo cáo doanh thu.',
+          );
+      });
+    return () => {
+      active = false;
+    };
+  }, [canReadSalesReports]);
+
+  async function loadSalesReport(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setReportLoading(true);
+    setSalesReportError('');
+    try {
+      const params = new URLSearchParams({ from: reportFrom, to: reportTo });
+      const report = await api<SalesReport>(`/reports/sales?${params.toString()}`);
+      setSalesReport(report);
+      setReportFrom(report.range.from);
+      setReportTo(report.range.to);
+    } catch (caught) {
+      setSalesReportError(
+        caught instanceof Error ? caught.message : 'Không tải được báo cáo doanh thu.',
+      );
+    } finally {
+      setReportLoading(false);
+    }
+  }
+
+  function downloadSalesReport() {
+    if (!salesReport) return;
+    const csv = buildSalesReportCsv(salesReport);
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `bao-cao-giao-hang-${salesReport.range.from}-${salesReport.range.to}.csv`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
 
   useEffect(() => {
     if (!canReadAdminAlerts) return;
@@ -195,6 +277,128 @@ export function OverviewWorkspace({
             )}
           </div>
 
+          {canReadSalesReports && (
+            <section className="overview-card sales-report-card">
+              <div className="overview-card-head">
+                <div>
+                  <p className="eyebrow">BÁO CÁO GIAO HÀNG</p>
+                  <h2>Doanh thu theo tháng và sản phẩm giao nhiều</h2>
+                </div>
+                {salesReport && (
+                  <span>
+                    {salesReport.range.from} — {salesReport.range.to}
+                  </span>
+                )}
+              </div>
+              <div className="sales-report-toolbar">
+                <form className="sales-report-filters" onSubmit={loadSalesReport}>
+                  <label>
+                    Từ ngày
+                    <input
+                      type="date"
+                      value={reportFrom}
+                      onChange={(event) => setReportFrom(event.target.value)}
+                      required
+                    />
+                  </label>
+                  <label>
+                    Đến ngày
+                    <input
+                      type="date"
+                      value={reportTo}
+                      onChange={(event) => setReportTo(event.target.value)}
+                      required
+                    />
+                  </label>
+                  <button
+                    className="primary"
+                    type="submit"
+                    disabled={reportLoading || !reportFrom || !reportTo}
+                  >
+                    {reportLoading ? 'Đang tải…' : 'Xem báo cáo'}
+                  </button>
+                </form>
+                <button
+                  className="ghost"
+                  type="button"
+                  onClick={downloadSalesReport}
+                  disabled={!salesReport}
+                >
+                  Tải CSV
+                </button>
+              </div>
+              {salesReportError ? (
+                <p className="error-message">{salesReportError}</p>
+              ) : !salesReport ? (
+                <p className="empty-copy">Đang tải báo cáo…</p>
+              ) : (
+                <>
+                  <p className="sales-report-note">
+                    Doanh thu hàng hóa đã giao, không gồm phí giao/thuế và chưa trừ hàng trả. Sản
+                    phẩm xếp theo lượng giao quy về đơn vị gốc.
+                  </p>
+                  <div className="sales-report-grid">
+                    <div
+                      className="monthly-chart"
+                      role="img"
+                      aria-label="Biểu đồ doanh thu hàng hóa theo tháng"
+                    >
+                      {(() => {
+                        const rows = reportMonths(salesReport);
+                        const maximum = rows.reduce((max, row) => {
+                          const amount = BigInt(row.revenueVnd);
+                          return amount > max ? amount : max;
+                        }, BigInt(0));
+                        return rows.map((row) => {
+                          const amount = BigInt(row.revenueVnd);
+                          const height =
+                            maximum === BigInt(0) ? 0 : Number((amount * BigInt(100)) / maximum);
+                          return (
+                            <div
+                              className="monthly-column"
+                              key={row.month}
+                              title={`${row.month}: ${formatVnd(row.revenueVnd)}`}
+                            >
+                              <strong>
+                                {amount > BigInt(0) ? formatVnd(row.revenueVnd) : '—'}
+                              </strong>
+                              <div className="monthly-bar-track">
+                                <span style={{ height: `${height}%` }} />
+                              </div>
+                              <span>{row.month.slice(5)}</span>
+                            </div>
+                          );
+                        });
+                      })()}
+                    </div>
+                    <div className="bestseller-list">
+                      <h3>Sản phẩm giao nhiều</h3>
+                      {salesReport.topProducts.length ? (
+                        salesReport.topProducts.map((product, index) => (
+                          <div className="bestseller-row" key={product.variantId}>
+                            <span className="bestseller-rank">{index + 1}</span>
+                            <div>
+                              <strong>
+                                {product.productName} · {product.variantName}
+                              </strong>
+                              <small>{product.sku}</small>
+                            </div>
+                            <b>
+                              {Number(product.deliveredBaseQuantity).toLocaleString('vi-VN')}{' '}
+                              {product.baseUnitName}
+                            </b>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="empty-copy">Chưa có hàng giao trong khoảng thời gian này.</p>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+            </section>
+          )}
+
           {canReadAdminAlerts && (
             <section className="overview-card recent-table" aria-live="polite">
               <div className="overview-card-head">
@@ -213,7 +417,11 @@ export function OverviewWorkspace({
                         <strong>{alert.title}</strong>
                         <p>{alert.body}</p>
                         <small>
-                          {alert.order.orderNumber} · {alert.order.status} ·{' '}
+                          {alert.order
+                            ? `${alert.order.orderNumber} · ${alert.order.status}`
+                            : alert.externalOrder
+                              ? `Đơn ngoài ${alert.externalOrder.externalOrderId} · ${alert.externalOrder.normalizedStatus}`
+                              : 'Thông báo CRM'}{' '}
                           {new Date(alert.createdAt).toLocaleString('vi-VN', {
                             timeZone: 'Asia/Ho_Chi_Minh',
                           })}

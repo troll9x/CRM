@@ -1,0 +1,1 @@
+ALTER TYPE "StockMovementType" ADD VALUE 'CUSTOMER_RETURN';

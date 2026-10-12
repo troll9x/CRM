@@ -8,8 +8,8 @@ export class ListOrdersQueryDto {
   query?: string;
 
   @IsOptional()
-  @IsIn(['DRAFT'])
-  status?: 'DRAFT';
+  @IsIn(['DRAFT', 'CONFIRMED', 'CANCELED'])
+  status?: 'DRAFT' | 'CONFIRMED' | 'CANCELED';
 
   @IsOptional()
   @Type(() => Number)

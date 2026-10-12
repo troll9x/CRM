@@ -1,0 +1,107 @@
+{
+  "info": {
+    "name": "CRM CHANNEL-AUTH-01 (no secrets)",
+    "description": "Đăng nhập CRM bằng Postman trước, giữ cookie trong Postman. OAuth consent thực hiện trên browser. Các biến ID để trống cho đến khi lấy từ API thật. Graph requests chỉ để đối chiếu, không thay thế OAuth CRM.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "crmApiBase", "value": "http://localhost:4000/api/v1" },
+    { "key": "attemptId", "value": "" },
+    { "key": "zaloAttemptId", "value": "" },
+    { "key": "connectionId", "value": "" },
+    { "key": "zaloConnectionId", "value": "" },
+    { "key": "pageId", "value": "" },
+    { "key": "oaId", "value": "" },
+    { "key": "graphVersion", "value": "" },
+    { "key": "pageToken", "value": "", "type": "secret" }
+  ],
+  "item": [
+    {
+      "name": "CRM provider preflight",
+      "request": { "method": "GET", "url": "{{crmApiBase}}/integrations/providers/preflight" }
+    },
+    {
+      "name": "Facebook authorization start",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{}" },
+        "url": "{{crmApiBase}}/integrations/oauth/facebook/start",
+        "description": "Mở authorizationUrl trong browser nơi bạn tự đăng nhập và cấp quyền. Không dán code/token vào collection."
+      }
+    },
+    {
+      "name": "Facebook authorization attempt / Page list",
+      "request": {
+        "method": "GET",
+        "url": "{{crmApiBase}}/integrations/oauth/facebook/attempts/{{attemptId}}"
+      }
+    },
+    {
+      "name": "Finalize selected Page",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\"pageId\":\"{{pageId}}\"}" },
+        "url": "{{crmApiBase}}/integrations/oauth/facebook/attempts/{{attemptId}}/finalize"
+      }
+    },
+    {
+      "name": "CRM connections and sync status",
+      "request": { "method": "GET", "url": "{{crmApiBase}}/integrations/connections" }
+    },
+    {
+      "name": "CRM integration jobs",
+      "request": { "method": "GET", "url": "{{crmApiBase}}/integrations/jobs?limit=20" }
+    },
+    {
+      "name": "Disconnect locally (no upstream revoke)",
+      "request": {
+        "method": "POST",
+        "url": "{{crmApiBase}}/integrations/oauth/facebook/connections/{{connectionId}}/disconnect"
+      }
+    },
+    {
+      "name": "Optional Graph Page subscription diagnostic",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{pageToken}}" }],
+        "url": "https://graph.facebook.com/{{graphVersion}}/{{pageId}}/subscribed_apps",
+        "description": "Chỉ dùng token qua biến secret của Postman, không export giá trị. Graph success không chứng minh OAuth CRM đã hoàn tất."
+      }
+    },
+    {
+      "name": "Zalo OA authorization start",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{}" },
+        "url": "{{crmApiBase}}/integrations/oauth/zalo/start",
+        "description": "Mở authorizationUrl trong browser để admin OA tự cấp quyền. OA chưa duyệt/app chưa cấu hình sẽ không mở được luồng live."
+      }
+    },
+    {
+      "name": "Zalo OA authorization attempt",
+      "request": {
+        "method": "GET",
+        "url": "{{crmApiBase}}/integrations/oauth/zalo/attempts/{{zaloAttemptId}}"
+      }
+    },
+    {
+      "name": "Finalize verified OA",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\"oaId\":\"{{oaId}}\"}" },
+        "url": "{{crmApiBase}}/integrations/oauth/zalo/attempts/{{zaloAttemptId}}/finalize"
+      }
+    },
+    {
+      "name": "Disconnect Zalo locally",
+      "request": {
+        "method": "POST",
+        "url": "{{crmApiBase}}/integrations/oauth/zalo/connections/{{zaloConnectionId}}/disconnect"
+      }
+    }
+  ]
+}

@@ -30,6 +30,7 @@ export class AdminAlertsController {
           readAt: true,
           createdAt: true,
           order: { select: { id: true, orderNumber: true, status: true } },
+          externalOrder: { select: { id: true, externalOrderId: true, normalizedStatus: true } },
         },
       }),
       this.prisma.adminAlert.count({ where: { ...where, readAt: null } }),

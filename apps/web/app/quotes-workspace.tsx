@@ -18,7 +18,12 @@ type Quote = {
   customerId: string;
   customer: Customer;
   status: 'DRAFT' | 'SENT' | 'ACCEPTED' | 'EXPIRED' | 'REJECTED';
-  salesOrder: { id: string; orderNumber: string; status: 'DRAFT'; sourceRevision: number } | null;
+  salesOrder: {
+    id: string;
+    orderNumber: string;
+    status: 'DRAFT' | 'CONFIRMED' | 'CANCELED';
+    sourceRevision: number;
+  } | null;
   version: number;
   lineSubtotalVnd: string;
   lineDiscountVnd: string;
@@ -316,7 +321,7 @@ export function QuotesWorkspace({
       });
       await loadQuotes(selected.id);
       setMessage(
-        `Đã tạo đơn nháp ${result.order.orderNumber} từ revision ${result.order.sourceRevision}; đã gửi ${result.alertsCreated} thông báo nội bộ cho quản lý. Đơn chưa giữ hàng hoặc ghi nhận tiền.`,
+        `Đã tạo đơn nháp ${result.order.orderNumber} từ revision ${result.order.sourceRevision}; đã giữ tồn và gửi ${result.alertsCreated} thông báo nội bộ cho quản lý. Chưa ghi nhận tiền.`,
       );
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Không chuyển được báo giá thành đơn.');
@@ -667,9 +672,12 @@ export function QuotesWorkspace({
               )}
               {selected?.salesOrder && (
                 <div className="notice" role="status">
-                  Đã chuyển thành đơn nháp <b>{selected.salesOrder.orderNumber}</b> từ revision{' '}
-                  {selected.salesOrder.sourceRevision}. Đơn chưa xác nhận, chưa giữ hàng và chưa ghi
-                  nhận công nợ.
+                  Báo giá đã chuyển thành đơn <b>{selected.salesOrder.orderNumber}</b> từ revision{' '}
+                  {selected.salesOrder.sourceRevision}. Trạng thái đơn:{' '}
+                  {selected.salesOrder.status === 'CANCELED'
+                    ? 'đã hủy, tồn đã nhả'
+                    : 'nháp, tồn đang giữ'}
+                  .
                 </div>
               )}
             </form>

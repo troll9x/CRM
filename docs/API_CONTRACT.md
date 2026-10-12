@@ -1,8 +1,47 @@
 # Hợp đồng API v1
 
-Tài liệu này khóa quy ước chung. Endpoint Đợt 01–05B đã triển khai và kiểm tra local; OpenAPI sinh từ code tại `/docs-json` là hợp đồng máy đọc được. Các endpoint 05C trở đi vẫn chỉ là dự kiến. Thay đổi phá vỡ phải tạo version mới hoặc có kế hoạch chuyển đổi.
+## API đa kênh (local implementation; provider rollout vẫn chờ credentials/evidence)
+
+- `GET/POST /integrations/connections`: xem/khai báo external account; tạo mới luôn `NEEDS_SETUP`, không giả nhận OAuth.
+- `GET /integrations/providers/preflight` (`connectors.manage`): tên cấu hình server còn thiếu và trạng thái adapter; không trả secret. Facebook và Zalo OA có `canStartAuthorization=true` chỉ khi đủ cấu hình hợp lệ; Shopee/TikTok Shop vẫn false.
+- Preflight là chẩn đoán cho người triển khai, không phải biểu mẫu để chủ Page nhập App ID/secret. UI mặc định chỉ báo tính năng sẵn sàng hay chưa; chi tiết tên biến nằm trong mục kỹ thuật thu gọn. Cấu hình app thuộc backend dùng chung, không nằm trong từng `IntegrationConnection`.
+- `POST /integrations/oauth/facebook/start` (`connectors.manage`) nhận `{ reconnectConnectionId? }`, trả `{ attemptId, expiresAt, authorizationUrl }`. Reconnect ID phải cùng business/provider. URL chỉ chứa app ID, redirect, scope/config ID và state ngẫu nhiên; không có secret/token.
+- Public `GET /integrations/oauth/facebook/callback` nhận `state` và `code` hoặc `error`, claim attempt PENDING atomically và redirect 303 về `WEB_ORIGIN` cấu hình cố định với attempt ID/status. Unknown/expired/replayed state trả 400/409. Callback không trả token.
+- `GET /integrations/oauth/facebook/attempts/:id` và `POST .../:id/finalize` (`connectors.manage`) gắn actor/business của attempt; finalize nhận `{ pageId }` chỉ từ Page list được Graph API cấp. Thiếu task Page, scope, subscription hoặc ID không hợp lệ bị từ chối. Thành công upsert connection cùng business/Page, giữ history/mapping và mã hóa token; lặp finalize trả 409. `pageSubscription=VERIFIED` chỉ xác nhận Page-level `subscribed_apps`; `webhookSubscription=APP_CONFIGURATION_PENDING` cho tới khi webhook app-level và delivery inbound được xác minh, không coi OAuth/subscription call là bằng chứng đã đồng bộ.
+- `POST /integrations/oauth/facebook/connections/:id/disconnect` (`connectors.manage`) dừng local sync, xóa ciphertext local, giữ history. Response `upstreamUnsubscribed=false`: không tuyên bố đã revoke subscription phía Meta.
+- `POST /integrations/oauth/zalo/start` (`connectors.manage`) nhận `{ reconnectConnectionId? }`, trả `{ attemptId, expiresAt, authorizationUrl }`; URL OA permission chứa state và PKCE challenge, verifier chỉ lưu mã hóa phía backend.
+- Public `GET /integrations/oauth/zalo/callback` nhận `state`, `code`, `oa_id` hoặc `error`; claim một lần, đổi code tại OA token endpoint, xác minh metadata từ `/v2.0/oa/getoa`, đối chiếu callback OA ID rồi redirect 303 về `WEB_ORIGIN` với attempt/status, không đưa token/code ra frontend.
+- `GET /integrations/oauth/zalo/attempts/:id`, `POST .../:id/finalize` (`connectors.manage`): actor/business scoped; finalize nhận `{ oaId }` chỉ đúng OA đã xác minh, upsert cùng connection/history, mã hóa access/refresh token. Worker làm mới token gần expiry dưới DB lock; refresh hết hạn yêu cầu reconnect. Lặp finalize trả 409.
+- `POST /integrations/oauth/zalo/connections/:id/disconnect` (`connectors.manage`) dừng sync và xóa token local, giữ history, trả `upstreamUnsubscribed=false`. OAuth không tự chứng minh app-level webhook đã cấu hình; capability ghi `APP_CONFIGURATION_PENDING` tới khi sự kiện thật được thử.
+- Facebook/Zalo webhook chỉ route tới connection có `status=CONNECTED|REAUTH_REQUIRED` và `capabilities.authorization=VERIFIED`; signed delivery không tự cấp quyền hoặc tự đổi status. Khai báo Page/OA thủ công không đủ điều kiện dispatch.
+- `POST /integrations/identities/:id/link-preview`, `POST .../link-customer`, `POST .../transfer-customer`, `POST .../unlink-customer`: preview/link/chuyển/gỡ identity social. Lệnh ghi cần `integrations.customer.link`, `integrations.read`, `customers.read`, expected version và trạng thái Customer hiện tại; chuyển/gỡ là thao tác riêng có audit. External user ID được mask trong response.
+- `GET /integrations/inbox`, `GET /integrations/comments`, `PATCH /integrations/conversations/:id`, `POST /integrations/conversations/:id/notes`.
+- `POST /integrations/comments/:id/link-customer` không chấp nhận comment author ID làm Messenger identity khi chưa có mapping được xác minh.
+- `GET /integrations/orders`, `POST /integrations/orders/:id/link-customer`, `POST /integrations/product-mappings`.
+- `GET /integrations/jobs`, `POST /integrations/jobs/:id/retry` (connector manager only).
+- Public `GET/POST /webhooks/facebook`: challenge trả plain text; POST requires raw-body Meta `x-hub-signature-256`; nhận Page Messenger/feed-comment event, lưu durable job trước response. Public `POST /webhooks/zalo` chỉ nhận event inbound được hỗ trợ khi chữ ký `X-ZEvent-Signature` hợp lệ và đúng một OA đã xác minh; không mở endpoint giả cho Shopee/TikTok.
+
+### SOCIAL-IDENTITY-01 — Customer duplicate và merge
+
+- `GET /customers/duplicate-suggestions` liệt kê đề xuất Customer pair pending; `POST /customers/{id}/duplicate-suggestions/scan` nhận `{ version }` để scan incremental từ Customer vừa đổi; `POST /customers/duplicate-suggestions/{suggestionId}/decision` nhận `{ decision, versionA, versionB, reason? }`. Decision là `CONFIRM_SAME`, `REJECT` hoặc `REVIEW_AGAIN`; lý do bắt buộc cho REJECT/REVIEW_AGAIN. Đây là quyết định review, không tự merge.
+- Matching dùng exact normalized phone/email hoặc tên kèm địa chỉ có cấu trúc đầy đủ; chỉ giống tên, avatar, phone bị mask hoặc nội dung tin nhắn không tạo bằng chứng. 0/+84 được quy về cùng phone VN; email không bỏ dấu chấm/`+tag`. Suggestion lưu fingerprint/version và chống tạo lại khi cùng evidence đã bị reject.
+- `POST /customers/{sourceId}/merge-preview` nhận `{ targetCustomerId }`; `POST /customers/{sourceId}/merge` nhận `{ targetCustomerId, sourceVersion, targetVersion }` cùng `Idempotency-Key`. Cần `customers.read` và `customers.merge`; service kiểm thêm quyền trên từng loại quan hệ bị chuyển. Target profile fields được giữ; source redirect thành `MERGED`. Owner khác nhau hoặc xung đột số dư tín dụng bị chặn để xử lý thủ công. Cùng key/payload trả kết quả cũ; khác payload trả conflict.
+- Merge chỉ chuyển liên kết lịch sử, không sửa snapshot chứng từ và không phát sinh event/AdminAlert, kho hay tiền. ID cũ resolve về target trong detail/timeline; không xóa source.
+- Identity-to-Customer auto-suggestion chưa có vì model provider hiện không có phone/email đã xác minh; tìm/link thủ công qua S2 vẫn khả dụng. Facebook OAuth code local đã có; credentials/consent/provider evidence vẫn thiếu.
+
+Tất cả API quản trị yêu cầu session, permission và tenant-scoped lookup. Payload đơn ngoài lưu decimal strings thành Decimal, không có API chuyển sang SalesOrder trong lát cắt này.
+
+Tài liệu này khóa quy ước chung. Endpoint Đợt 01–07, 08A đổi trả và 08B báo cáo giao hàng được triển khai/kiểm tra local; OpenAPI sinh từ code tại `/docs-json` là hợp đồng máy đọc được. COD, hoàn tiền, báo cáo net sau trả và connector Facebook vẫn chưa hoàn tất. Thay đổi phá vỡ phải tạo version mới hoặc có kế hoạch chuyển đổi.
 
 ## 1. Quy ước giao tiếp
+
+### Hồ sơ khách hàng 360° (Đợt A)
+
+- `GET /api/v1/customers/{id}/timeline?limit=20&cursor=...` yêu cầu `customers.read`; giới hạn 1–50, cursor opaque base64url. Trả danh sách theo thời điểm tạo giảm dần và khóa type/id ổn định, `sourceId`, loại hoạt động, trạng thái hiện tại và `hasMore/nextCursor`.
+- Timeline chỉ truy vấn từng nguồn theo quyền: `tasks.manage`, `opportunities.manage`, `quotes.read`, `orders.read`, `receivables.view`; ghi chú chỉ dành cho business hiện tại. Không trả count hoặc preview của module người xem thiếu quyền. `amountVnd` của quote/order chỉ là tổng snapshot chứng từ; phiếu thu là tiền thực nhận, không phải doanh thu. Hội thoại/bình luận/ticket/đơn staging không được tự suy ra từ snapshot và chưa vào timeline này.
+- `POST /api/v1/customers/{id}/notes` yêu cầu `customers.write`; body `{ content }` tối đa 2.000 ký tự. Ghi chú append-only vào `customer_notes`, actor/time UTC và audit `customer.note.created`; khách ngoài business trả 404.
+- `GET /customers/{id}` và `GET /customers` không trả task/opportunity hoặc count của module đó nếu thiếu quyền module tương ứng.
+- Timeline dùng thời điểm tạo và trạng thái hiện tại của bản ghi, không giả lập lịch sử chuyển trạng thái/gửi/giao từ snapshot. `DRAFT` được gắn nhãn “Đơn nháp”, không có trường “đã mua” hay doanh thu ở hồ sơ.
 
 - Base path: `/api/v1`.
 - JSON UTF-8; tên trường `camelCase`; ID truyền dạng chuỗi.
@@ -128,11 +167,46 @@ Khi tạo SKU, `sellingUnitCode` tùy chọn chọn đơn vị bán cố định
 | 04C-B | `GET/POST /stock-adjustments` kiểm kê/điều chỉnh | `inventory.read/adjust`; giá vốn chỉ hiện với `cost.view` |
 | 05A | `GET /price-tiers`, `PUT /price-tiers`, `GET /price-tiers/resolve` | `price.edit`; admin set-price, idempotency/version; missing price is unresolved |
 | 05B | `GET/POST /quotes`, `GET/PATCH /quotes/{id}`, `POST /quotes/{id}/send`, `GET /quotes/{id}/revisions/{n}` | `quotes.read/write/send`; giảm và cấu hình thuế cần `price.edit`; quote snapshot/revision |
-| 05C | `POST /quotes/{id}/convert`, `GET /admin-alerts`, `POST /admin-alerts/{id}/read` | `orders.create`, `admin.alerts.read/acknowledge`; đơn nháp từ snapshot còn hạn, thông báo nội bộ cho `staff.manage` |
+| 05C/06B | `POST /quotes/{id}/convert`, `POST /orders/{id}/cancel` | giữ hàng khi chấp nhận báo giá và nhả giữ khi hủy đơn nháp đã triển khai local; xác nhận sau khi thu đủ thuộc 06C và đã triển khai |
 | 06A | `GET /orders?query=&status=&limit=`, `GET /orders/{id}`, `POST /orders` | `orders.read` / `orders.create`; đọc trong business hiện tại; tạo đơn nháp thủ công với giá do backend phân giải |
-| 06B–D | `POST /orders/{id}/confirm`, `POST /orders/{id}/cancel`, `POST /shipments` | `orders.confirm` / fulfillment; chờ chốt OPEN-04/05 |
-| 07 | `/payments`, `/payment-allocations`, `/receivables`, `/expenses`, `/refunds` | collect/pay/refund / receivable view |
-| 08 | `/returns`, `/reports/*`, `/imports` | returns / report permission / import |
+| 06C | `POST /orders/{id}/confirm` | `orders.confirm`; chỉ xác nhận khi đã thu đủ; ghi receivable/settlements và giữ đủ hàng trong transaction |
+| 06D/06E | `GET /shipments`, `GET /shipments/ready-orders`, `POST /shipments`, `POST /shipments/{id}/deliver` | `shipments.read/create/deliver`; warehouse-scoped queue, full shipment, stock/WAC ledger at dispatch, revenue recognized at delivery; COD reconciliation pending |
+| 07A | `POST /payments`, `GET /payments/suggestions`, `GET /customer-credit/{customerId}` | `payments.manage` / `receivables.view`; partial/multiple receipts, explicit allocation, unallocated overpayment to customer credit |
+| 07B | `POST /customer-credit/{customerId}/applications`, `GET /receivables` | `payments.manage` / `receivables.view`; credit apply/reversal and AR list; expenses and cash refunds pending |
+| 08A | `GET/PATCH /business-policy/return-window`, `GET /returns`, `GET /returns/eligible-shipments`, `POST /returns`, `POST /returns/{id}/inspect` | `returns.read/manage/inspect`, `returns.policy.manage`; cấu hình ngày để trống tới khi quản lý đặt; nhận hàng và QA/ledger kho; chưa hoàn tiền/COD |
+| 08B | `GET /reports/sales?from=&to=` | `sales-reports.read`; doanh thu hàng giao theo tháng và top sản phẩm theo lượng gốc giao; doanh thu gross trước hàng trả. UI cho chọn kỳ và xuất CSV |
+
+Hợp đồng khách hàng: `POST /customers` và `PATCH /customers/{id}` vẫn nhận `source` dạng chuỗi và `groupCode`. Nếu `source` nhận diện được là `Facebook`, `Facebook Messenger`/`Messenger` hoặc `Zalo`, backend lưu nhóm `wholesale`; nếu là `Shopee`, `TikTok` hoặc `TikTok Shop`, backend lưu nhóm `retail`, bất kể `groupCode` gửi kèm. Không phân biệt hoa/thường và khoảng trắng thừa. Nguồn khác/để trống giữ quy tắc chọn `groupCode` hiện có. Response trả nhóm thực tế sau phân loại; connector nền tảng không nằm trong hợp đồng này.
+| 08C | `/reports/*`, `/imports`, COD reconciliation | Báo cáo net sau trả, import và COD còn chờ chính sách/quy tắc đối soát |
+
+`POST /payments` nhận `{ customerId, amountVnd, allocations?: [{ orderId, amountVnd }], reference?, note? }`; `amountVnd`/allocation phải là VND nguyên dương. Nhân viên có `payments.manage` ghi nhận số thực nhận do server đóng dấu UTC; tổng phân bổ không vượt khoản thu, đơn phải thuộc cùng customer/business và còn `DRAFT`, không phân bổ trùng đơn hoặc vượt tổng đơn. Phần chưa phân bổ được ghi thành số dư khách. `Idempotency-Key` bắt buộc, cùng payload trả lại cùng phiếu thu. `GET /payments/suggestions?customerId=...` gợi ý đơn nháp còn thiếu tiền theo thứ tự cũ nhất trước. `GET /customer-credit/{customerId}` cần `receivables.view`.
+
+`POST /orders/{id}/confirm` nhận `{ expectedVersion }`, cần `orders.confirm` và `Idempotency-Key`. Server kiểm tra đã thu đủ 100%, reservation đủ, tạo receivable và settlement từ các allocation đã có, xác nhận đơn và audit trong transaction Serializable. Không bán chịu; lệnh giao ở 06D chỉ xuất đủ một lần.
+
+`POST /shipments` nhận `{ orderId, expectedVersion }`, cần `shipments.create` và `Idempotency-Key`; chỉ đơn `CONFIRMED` có đủ reservation tại đúng một kho mới được xuất. Không nhận trường số lượng từ client và không giao thiếu; một đơn chỉ có một shipment. Trong một transaction Serializable, server trừ on-hand và reserved, ghi `SALE_SHIPMENT` âm theo giá vốn bình quân gia quyền đã snapshot, shipment/line, audit và command chống trùng. Retry cùng key/payload trả cùng shipment; shipment thứ hai hoặc stale order trả conflict. `POST /shipments/{id}/deliver` nhận `{ expectedVersion }`, cần `shipments.deliver` và `Idempotency-Key`; chỉ shipment `IN_TRANSIT` được giao đủ, đóng dấu UTC và ghi nhận doanh thu hàng hóa từ snapshot đơn (không gồm phí giao/thuế) đúng một lần. Trước delivery, recognized revenue là 0. Không có endpoint COD/đối soát ở lát cắt này.
+
+`GET /shipments/ready-orders` và `GET /shipments?status=IN_TRANSIT` cần `shipments.read`, chỉ truy vấn business của phiên đăng nhập và trả tối đa 100 bản ghi. Queue đơn sẵn sàng chỉ gồm đơn `CONFIRMED` chưa có shipment; vai trò kho không cần `orders.read`. Tạo/xác nhận giao vẫn qua command có version, quyền riêng và idempotency; danh sách không làm thay đổi tồn hoặc trạng thái.
+
+`POST /customer-credit/{customerId}/applications` nhận `{ orderId, amountVnd, expectedVersion }`, cần `payments.manage` và `Idempotency-Key`. Backend kiểm tra khách/đơn trong business và cùng customer, đơn phải `DRAFT`, số tiền là VND nguyên dương không vượt customer credit balance hoặc phần đơn còn thiếu. Trong một transaction Serializable, server khóa version đơn và balance, giảm balance, ghi `CustomerCreditApplication`, event append-only, audit và kết quả idempotent. Đơn được trả `paidVnd` gồm phiếu thu phân bổ và credit application; xác nhận chỉ thành công nếu tổng đúng bằng 100%, rồi tạo `ReceivableSettlement` cho cả hai nguồn. Hủy đơn nháp khi không có phiếu thu tiền mặt đảo application và cộng lại customer credit trong transaction; nếu đã có tiền mặt thì vẫn từ chối hủy để chờ quy trình hoàn/đối trừ. Lặp key/payload trả kết quả ban đầu; dùng key cho payload khác trả 409.
+
+COD hiện chưa thể vận hành: BR-COD-01 yêu cầu chỉ ghi nhận tiền COD sau khi nhân viên đối soát tiền thực nhận, trong khi BR-AR-02 cấm xác nhận đơn nếu chưa thu đủ 100%. Cần một quyết định nghiệp vụ dung hòa thời điểm xác nhận, giao và thu COD trước khi thêm lệnh đối soát; không tự ghi nhận tiền COD.
+
+`GET /receivables` cần `receivables.view`, chỉ trả dữ liệu `businessId` hiện tại (tối đa 200, cũ trước), gồm khách/đơn, tổng phải thu, đã thanh toán/đối trừ và số dư còn lại. Đây là endpoint và màn hình đọc; không tự phân bổ tiền hay đổi trạng thái khoản phải thu.
+
+### 08A — Đổi trả đã tiếp nhận và kiểm tra (không gồm hoàn tiền)
+
+- `GET /business-policy/return-window` cần `returns.read`; `PATCH` nhận `{ days, expectedVersion }`, cần `returns.policy.manage`, số ngày nguyên 1–3650 và version chống ghi đè. Mặc định `days=null`; chưa cấu hình thì API từ chối tiếp nhận trả hàng.
+- `GET /returns/eligible-shipments` và `GET /returns` giới hạn theo `businessId` phiên đăng nhập; danh sách tối đa 100 mục. Phiếu đủ điều kiện phải đã giao, còn trong hạn và còn số lượng giao có thể trả.
+- `POST /returns` cần `returns.manage`, `Idempotency-Key`, `{ shipmentId, lines: [{ shipmentLineId, quantity }], notes? }`. Chỉ nhận shipment đã giao; backend snapshot ngày giao, số ngày chính sách và hạn trả, kiểm tra thời hạn inclusive (`now <= deliveredAt + days * 24h`) và tổng số lượng trả không vượt số đã giao. Một transaction Serializable khóa version shipment, ghi chứng từ/dòng, audit và command idempotent.
+- `POST /returns/{id}/inspect` cần `returns.inspect`, `Idempotency-Key`, `{ expectedVersion, lines: [{ returnLineId, saleableQuantity, quarantineQuantity, reason? }] }`. Phải phân loại đầy đủ mọi dòng và tổng hai lượng khớp chính xác lượng nhận. Cùng transaction cộng lượng nhận vào on-hand; phần lỗi cộng unavailable; giá vốn nhập lại theo unit cost snapshot của lần xuất, bình quân gia quyền; ghi `CUSTOMER_RETURN` positive movement, inspection, audit và version.
+- Dữ liệu Decimal trả dạng chuỗi. Không có lệnh hoàn tiền, điều chỉnh khoản phải thu, hủy/trừ doanh thu hay tự ghi nhận COD trong 08A. Những nghiệp vụ tiền cần quy tắc riêng trước khi mở.
+
+### 08B — Báo cáo doanh thu hàng giao và sản phẩm giao nhiều
+
+- `GET /reports/sales?from=YYYY-MM-DD&to=YYYY-MM-DD` cần `sales-reports.read`; mặc định trả 12 tháng lịch gần nhất theo timezone doanh nghiệp; khoảng tối đa 731 ngày và hai đầu ngày được tính inclusive theo `Business.timezone`.
+- Doanh thu tháng là tổng `Shipment.recognizedRevenueVnd` cho shipment `DELIVERED` (chỉ hàng hóa, không phí giao/thuế theo hợp đồng 06D). Top 10 SKU xếp theo tổng `ShipmentLine.baseQuantity`, hiển thị đơn vị gốc.
+- Response nêu `revenueBasis=DELIVERED_GOODS_GROSS_BEFORE_RETURNS` và `quantityBasis=DELIVERED_BASE_UNIT_QUANTITY`: báo cáo gross hàng đã giao, chưa trừ trả. Không xem đây là doanh thu thuần/kế toán; chưa có chính sách hoàn giảm doanh thu.
+- Mọi truy vấn khóa `businessId`; finance/owner mặc định được quyền. Quản lý vai trò có thể cấp `sales-reports.read` tường minh.
 
 Đợt 06A: `GET /orders` trả `{ items }`, mặc định tối đa 50 và giới hạn `limit` 1–100; `status` hiện chỉ nhận `DRAFT`. `query` tìm không phân biệt hoa thường theo mã đơn/tên khách và theo mã khách/báo giá/SKU. `GET /orders/{id}` và list đều yêu cầu `orders.read`, giới hạn `businessId` từ phiên đăng nhập; ID ngoài phạm vi trả 404. VND và Decimal trả dạng chuỗi; hai endpoint chỉ đọc, không thay đổi trạng thái hoặc dữ liệu kho/tiền.
 
@@ -148,7 +222,7 @@ Lệnh `POST /stock-openings` nhận `{ warehouseId, variantId, quantity, unitCo
 
 Hợp đồng 05B: `POST /quotes` nhận `{ customerId, lines: [{ variantId, quantity, discountMode?, discountValue? }], orderDiscountMode?, orderDiscountValue?, shippingFeeVnd?, taxMode?, taxValue?, depositVnd?, paymentNote? }`. Số lượng/VND/tỷ lệ truyền dạng chuỗi thập phân; server phân giải bậc admin, làm tròn từng dòng half-up VND, tính giảm/tổng/thuế/cọc. Giảm dòng được áp dụng trước giảm toàn báo giá; mỗi loại giảm không được vượt số tiền làm cơ sở. Thiếu giá trả `422 PRICE_NOT_CONFIGURED`. Giảm dòng/toàn báo giá và thuế do server kiểm soát quyền `price.edit`; sales có thể tạo nháp/gửi nhưng không tự đặt giảm/thuế. `Idempotency-Key` bắt buộc; cùng key/nội dung trả kết quả cũ, payload khác `409 IDEMPOTENCY_KEY_REUSED`.
 
-`PATCH /quotes/{id}` chỉ sửa `DRAFT`, cần `expectedVersion` và `Idempotency-Key`; stale version trả `409 QUOTE_VERSION_CONFLICT`. Sửa bảng giá không thay giá trong báo giá nháp đã lưu hoặc revision. `POST /quotes/{id}/send` nhận `{ expectedVersion, receivedAt }`; ghi nhận việc người dùng đã chia sẻ thủ công, tạo revision snapshot bất biến và `expiresAt = receivedAt + 72h`; không tự gửi email/Zalo/Facebook. `GET /quotes/{id}/revisions/{n}` trả snapshot dùng để in/lưu PDF bằng trình duyệt. `POST /quotes/{id}/convert` nhận `{ expectedVersion }` cùng `Idempotency-Key`, chỉ chấp nhận quote `SENT` có `expiresAt > now`; backend chép đúng revision mới nhất thành một `SalesOrder`/`SalesOrderLine` ở `DRAFT`, đổi quote thành `ACCEPTED`, ghi audit và tạo alert nội bộ cho mọi nhân viên có `staff.manage` trong một transaction. Stale version trả `409 QUOTE_VERSION_CONFLICT`; quote hết hạn trả `409 QUOTE_EXPIRED`; quote đã chuyển trả `409 QUOTE_ALREADY_CONVERTED`; một quote có tối đa một order. Retry cùng key/payload trả response cũ; key với payload khác trả `409 IDEMPOTENCY_KEY_REUSED`. Đơn nháp không giữ hàng/ghi tiền; không gửi thông báo ra ngoài. `GET /admin-alerts` chỉ trả alert của actor, cùng business, tối đa 100 mới nhất; `POST /admin-alerts/{id}/read` chỉ đánh dấu alert của actor trong business hiện tại, ID ngoài phạm vi trả 404. Alert tạo bởi lệnh chuyển đơn được lưu cùng transaction.
+`PATCH /quotes/{id}` chỉ sửa `DRAFT`, cần `expectedVersion` và `Idempotency-Key`; stale version trả `409 QUOTE_VERSION_CONFLICT`. Sửa bảng giá không thay giá trong báo giá nháp đã lưu hoặc revision. `POST /quotes/{id}/send` nhận `{ expectedVersion, receivedAt }`; ghi nhận việc người dùng đã chia sẻ thủ công, tạo revision snapshot bất biến và `expiresAt = receivedAt + 72h`; không tự gửi email/Zalo/Facebook. `GET /quotes/{id}/revisions/{n}` trả snapshot dùng để in/lưu PDF bằng trình duyệt. `POST /quotes/{id}/convert` nhận `{ expectedVersion }` cùng `Idempotency-Key`, chỉ chấp nhận quote `SENT` có `expiresAt > now`; trong cùng transaction, code kiểm tra đúng một kho đang hoạt động, cộng gộp lượng cần theo SKU, kiểm tra tồn khả dụng, tạo đơn nháp từ revision bất biến, tăng `reservedQuantity`, ghi ledger `RESERVED`, đổi quote thành `ACCEPTED`, audit, alert nội bộ và idempotency command. Thiếu tồn trả `409 INSUFFICIENT_AVAILABLE_STOCK` và rollback toàn bộ; không giữ một phần. Không có kho trả `409 ACTIVE_WAREHOUSE_REQUIRED`; nhiều kho trả `409 WAREHOUSE_SELECTION_REQUIRED` cho tới khi kho được chọn ở hợp đồng. Giữ hàng không tự hết hạn. `POST /orders/{id}/cancel` cần quyền `orders.cancel`, `{ expectedVersion }` và `Idempotency-Key`; chỉ hủy đơn nháp, ghi ledger `RELEASED`, giảm projection giữ kho và chuyển `CANCELED` cùng transaction. Chỉ vai trò được cấp quyền quản lý mặc định được hủy. Lệnh retry an toàn; hủy đơn đã giao/xác nhận chưa được hỗ trợ. Xác nhận và thu đủ trước xác nhận đã được triển khai ở 06C/07A; xem hợp đồng endpoint phía trên. Không gửi thông báo Facebook ra ngoài cho tới khi connector được thử thật. Alert nội bộ vẫn được lưu cùng transaction.
 
 ## 8. Ví dụ hợp đồng xác nhận đơn
 
@@ -163,13 +237,16 @@ Content-Type: application/json
 }
 ```
 
-Server phải: tải đơn trong phạm vi business; kiểm tra permission; kiểm tra transition; tính lại giá/tổng; kiểm tra điều kiện nợ; khóa balance cần thiết; tạo reservation; ghi event/audit/idempotency record; commit một lần. Response trả snapshot mới và `version`; không dựa trên `availableStock` do client gửi.
+Hợp đồng đích khi bổ sung `/confirm`: tải đơn trong business; kiểm tra permission; kiểm tra transition và đã thu đủ; yêu cầu reservation còn hiệu lực; tạo phải thu và phân bổ khoản thu; ghi audit/idempotency; commit một lần. Reservation đã được tạo ở thời điểm chấp nhận quote, không tạo lại lúc xác nhận. Không dựa trên `availableStock` hoặc tổng tiền do client gửi.
 
-## 9. Webhook và job (khi tới đợt tích hợp)
+## 9. Webhook và job (nền inbound hiện hành)
 
-- Endpoint theo connector, xác minh chữ ký trước parse nghiệp vụ; raw payload lưu tối thiểu theo chính sách dữ liệu.
-- Trả nhanh sau khi ghi duy nhất `WebhookEvent`; xử lý nền có retry/backoff/dead-letter.
-- Event key gồm connector + account/shop + external event id. Sai thứ tự được so với version/event time, không làm lùi trạng thái.
+- `POST /webhooks/facebook`: Meta challenge `GET` và POST `x-hub-signature-256`; chỉ ACK HTTP 200 sau khi event vào durable queue.
+- `POST /webhooks/zalo`: xác minh `X-ZEvent-Signature` trên raw body theo SHA-256 của `app_id + raw JSON body + timestamp + OA secret`; chỉ `user_send_*` tạo message job. Cần `ZALO_OA_SECRET_KEY` server-side.
+- Webhook chỉ ACK sau khi ghi durable `IntegrationJob`; worker có lease, retry/backoff/dead-letter. Event key gồm connection + provider message/comment/order ID; dữ liệu staging dùng external IDs duy nhất.
+- `GET /integrations/connections`, `/inbox`, `/comments`, `/orders`, `/jobs` và các lệnh link customer/SKU/note/retry được mô tả trong `INTEGRATIONS_SETUP.md`; mọi query giới hạn theo business và RBAC.
+- Inbox webhook hiện nhận-only. Chưa có endpoint gửi tin; Zalo lịch sử hội thoại/API comments chưa bật. Shopee/TikTok poller chưa triển khai.
+- Sai thứ tự không được làm lùi trạng thái nghiệp vụ; dữ liệu đơn ngoài chỉ nằm trong staging.
 - Outbound side effect dùng transactional outbox; worker không nhân đôi logic giá/kho/đơn.
 
 ## 10. OpenAPI checklist từ Đợt 01

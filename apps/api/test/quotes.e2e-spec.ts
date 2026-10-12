@@ -22,6 +22,7 @@ describe('quotes API', () => {
   let salesEmail = '';
   let warehouseEmail = '';
   let quoteId = '';
+  let warehouseId = '';
 
   async function cleanup() {
     const quotes = await prisma.quote.findMany({ where: { customerId }, select: { id: true } });
@@ -32,10 +33,36 @@ describe('quotes API', () => {
     });
     const orderIds = orders.map((order) => order.id);
     if (orderIds.length) {
+      await prisma.stockReservationEvent.deleteMany({ where: { orderId: { in: orderIds } } });
       await prisma.adminAlert.deleteMany({ where: { orderId: { in: orderIds } } });
+      const receivables = await prisma.receivable.findMany({
+        where: { orderId: { in: orderIds } },
+        select: { id: true },
+      });
+      const receivableIds = receivables.map(({ id }) => id);
+      if (receivableIds.length) {
+        await prisma.receivableSettlement.deleteMany({
+          where: { receivableId: { in: receivableIds } },
+        });
+        await prisma.receivable.deleteMany({ where: { id: { in: receivableIds } } });
+      }
+      await prisma.paymentAllocation.deleteMany({ where: { orderId: { in: orderIds } } });
       await prisma.salesOrderLine.deleteMany({ where: { orderId: { in: orderIds } } });
       await prisma.salesOrder.deleteMany({ where: { id: { in: orderIds } } });
     }
+    if (customerId) {
+      const receipts = await prisma.paymentReceipt.findMany({
+        where: { customerId },
+        select: { id: true },
+      });
+      const receiptIds = receipts.map(({ id }) => id);
+      if (receiptIds.length) {
+        await prisma.customerCreditEvent.deleteMany({ where: { paymentId: { in: receiptIds } } });
+        await prisma.paymentReceipt.deleteMany({ where: { id: { in: receiptIds } } });
+      }
+      await prisma.customerCreditBalance.deleteMany({ where: { customerId } });
+    }
+    if (variantId) await prisma.stockBalance.deleteMany({ where: { variantId } });
     await prisma.orderCommand.deleteMany({ where: { idempotencyKey: { contains: suffix } } });
     if (quoteIds.length) {
       await prisma.quoteCommand.deleteMany({ where: { idempotencyKey: { contains: suffix } } });
@@ -91,6 +118,20 @@ describe('quotes API', () => {
       })
       .expect(201);
     variantId = product.body.data.variants[0].id as string;
+    const warehouseRecord = await prisma.warehouse.findFirstOrThrow({
+      where: { businessId: 'business_local_default', status: 'ACTIVE' },
+      select: { id: true },
+    });
+    warehouseId = warehouseRecord.id;
+    await prisma.stockBalance.create({
+      data: {
+        businessId: 'business_local_default',
+        warehouseId: warehouseRecord.id,
+        variantId,
+        onHandQuantity: '10',
+        averageCostVnd: '1000',
+      },
+    });
     await owner
       .put('/api/v1/price-tiers')
       .set('Idempotency-Key', `quote-e2e-${suffix}-price`)
@@ -186,6 +227,108 @@ describe('quotes API', () => {
     const manualAlertId = manualAlerts[0]?.id;
     if (!manualAlertId) throw new Error('Expected manual-order admin alert.');
     await owner.post(`/api/v1/admin-alerts/${manualAlertId}/read`).expect(201);
+
+    const payableOrder = await sales
+      .post('/api/v1/orders')
+      .set('Idempotency-Key', `order-e2e-${suffix}-payable`)
+      .send({ customerId, lines: [{ variantId, quantity: '1' }] })
+      .expect(201);
+    const payableOrderId = payableOrder.body.data.id as string;
+    const payableAlert = await prisma.adminAlert.findFirstOrThrow({
+      where: { orderId: payableOrderId, type: 'MANUAL_ORDER_CREATED' },
+      select: { id: true },
+    });
+    await owner.post(`/api/v1/admin-alerts/${payableAlert.id}/read`).expect(201);
+
+    const firstReceiptKey = `payment-e2e-${suffix}-partial`;
+    const firstReceipt = await owner
+      .post('/api/v1/payments')
+      .set('Idempotency-Key', firstReceiptKey)
+      .send({
+        customerId,
+        amountVnd: '4000',
+        allocations: [{ orderId: payableOrderId, amountVnd: '4000' }],
+        note: 'Thu lần một',
+      })
+      .expect(201);
+    expect(firstReceipt.body.data).toMatchObject({
+      amountVnd: '4000',
+      allocatedVnd: '4000',
+      unallocatedVnd: '0',
+    });
+    const firstReceiptReplay = await owner
+      .post('/api/v1/payments')
+      .set('Idempotency-Key', firstReceiptKey)
+      .send({
+        customerId,
+        amountVnd: '4000',
+        allocations: [{ orderId: payableOrderId, amountVnd: '4000' }],
+        note: 'Thu lần một',
+      })
+      .expect(201);
+    expect(firstReceiptReplay.body.data.id).toBe(firstReceipt.body.data.id);
+    const afterPartialPayment = await sales.get(`/api/v1/orders/${payableOrderId}`).expect(200);
+    expect(afterPartialPayment.body.data).toMatchObject({
+      status: 'DRAFT',
+      paidVnd: '4000',
+      remainingVnd: '6000',
+      version: 2,
+    });
+    await owner
+      .post(`/api/v1/orders/${payableOrderId}/cancel`)
+      .set('Idempotency-Key', `payment-e2e-${suffix}-cancel-paid`)
+      .send({ expectedVersion: 2 })
+      .expect(409)
+      .then((response) =>
+        expect(response.body.error.code).toBe('ORDER_HAS_PAYMENTS_CANNOT_CANCEL'),
+      );
+    await sales
+      .post(`/api/v1/orders/${payableOrderId}/confirm`)
+      .set('Idempotency-Key', `payment-e2e-${suffix}-premature-confirm`)
+      .send({ expectedVersion: 2 })
+      .expect(409)
+      .then((response) => expect(response.body.error.code).toBe('PAYMENT_REQUIRED_TO_CONFIRM'));
+
+    const secondReceipt = await owner
+      .post('/api/v1/payments')
+      .set('Idempotency-Key', `payment-e2e-${suffix}-overpayment`)
+      .send({
+        customerId,
+        amountVnd: '7000',
+        allocations: [{ orderId: payableOrderId, amountVnd: '6000' }],
+      })
+      .expect(201);
+    expect(secondReceipt.body.data).toMatchObject({
+      allocatedVnd: '6000',
+      unallocatedVnd: '1000',
+      customerCreditBalanceVnd: '1000',
+    });
+    const credit = await owner.get(`/api/v1/customer-credit/${customerId}`).expect(200);
+    expect(credit.body.data.balanceVnd).toBe('1000');
+    const paidOrder = await sales.get(`/api/v1/orders/${payableOrderId}`).expect(200);
+    expect(paidOrder.body.data).toMatchObject({
+      paidVnd: '10000',
+      remainingVnd: '0',
+      version: 3,
+    });
+    const confirmed = await sales
+      .post(`/api/v1/orders/${payableOrderId}/confirm`)
+      .set('Idempotency-Key', `payment-e2e-${suffix}-confirm`)
+      .send({ expectedVersion: 3 })
+      .expect(201);
+    expect(confirmed.body.data).toMatchObject({ status: 'CONFIRMED', remainingVnd: '0' });
+    await sales
+      .post(`/api/v1/orders/${payableOrderId}/confirm`)
+      .set('Idempotency-Key', `payment-e2e-${suffix}-confirm`)
+      .send({ expectedVersion: 3 })
+      .expect(201);
+    const receivable = await prisma.receivable.findUniqueOrThrow({
+      where: { orderId: payableOrderId },
+      include: { settlements: true },
+    });
+    expect(receivable.amountVnd.toString()).toBe('10000');
+    expect(receivable.balanceVnd.toString()).toBe('0');
+    expect(receivable.settlements).toHaveLength(2);
   });
 
   it('tính tiền chính xác, bảo vệ giảm/thuế, idempotency, version và revision 72 giờ', async () => {
@@ -345,6 +488,21 @@ describe('quotes API', () => {
     expect(await prisma.stockMovement.count({ where: { variantId } })).toBe(
       movementsBeforeConversion,
     );
+    const reservedAfterConversion = await prisma.stockBalance.findUniqueOrThrow({
+      where: {
+        businessId_warehouseId_variantId: {
+          businessId: 'business_local_default',
+          warehouseId,
+          variantId,
+        },
+      },
+    });
+    expect(reservedAfterConversion.reservedQuantity.toString()).toBe('8');
+    expect(
+      await prisma.stockReservationEvent.count({
+        where: { orderId: converted.body.data.order.id, type: 'RESERVED' },
+      }),
+    ).toBe(2);
     const convertedOrderId = converted.body.data.order.id as string;
     const orderList = await sales
       .get(`/api/v1/orders?query=${converted.body.data.order.orderNumber}`)
@@ -451,6 +609,69 @@ describe('quotes API', () => {
     expect(concurrentOrderId).toBeDefined();
     if (!concurrentOrderId) throw new Error('Concurrent conversion did not create an order.');
     expect(await prisma.adminAlert.count({ where: { orderId: concurrentOrderId } })).toBe(1);
+
+    const insufficientQuote = await owner
+      .post('/api/v1/quotes')
+      .set('Idempotency-Key', `quote-e2e-${suffix}-insufficient-create`)
+      .send({
+        customerId,
+        lines: [
+          { variantId, quantity: '1' },
+          { variantId, quantity: '1' },
+          { variantId, quantity: '1' },
+        ],
+      })
+      .expect(201);
+    const insufficientQuoteId = insufficientQuote.body.data.id as string;
+    await owner
+      .post(`/api/v1/quotes/${insufficientQuoteId}/send`)
+      .set('Idempotency-Key', `quote-e2e-${suffix}-insufficient-send`)
+      .send({ expectedVersion: 1, receivedAt: new Date().toISOString() })
+      .expect(201);
+    await sales
+      .post(`/api/v1/quotes/${insufficientQuoteId}/convert`)
+      .set('Idempotency-Key', `quote-e2e-${suffix}-insufficient-convert`)
+      .send({ expectedVersion: 2 })
+      .expect(409)
+      .then((response) => expect(response.body.error.code).toBe('INSUFFICIENT_AVAILABLE_STOCK'));
+    expect(await prisma.salesOrder.count({ where: { sourceQuoteId: insufficientQuoteId } })).toBe(
+      0,
+    );
+    expect(
+      (await owner.get(`/api/v1/quotes/${insufficientQuoteId}`).expect(200)).body.data.status,
+    ).toBe('SENT');
+
+    await sales
+      .post(`/api/v1/orders/${convertedOrderId}/cancel`)
+      .set('Idempotency-Key', `quote-e2e-${suffix}-forbidden-cancel`)
+      .send({ expectedVersion: 1 })
+      .expect(403);
+    const canceledOrder = await owner
+      .post(`/api/v1/orders/${convertedOrderId}/cancel`)
+      .set('Idempotency-Key', `quote-e2e-${suffix}-cancel`)
+      .send({ expectedVersion: 1 })
+      .expect(201);
+    expect(canceledOrder.body.data.status).toBe('CANCELED');
+    const balanceAfterCancel = await prisma.stockBalance.findUniqueOrThrow({
+      where: {
+        businessId_warehouseId_variantId: {
+          businessId: 'business_local_default',
+          warehouseId,
+          variantId,
+        },
+      },
+    });
+    expect(balanceAfterCancel.reservedQuantity.toString()).toBe('2');
+    await owner
+      .post(`/api/v1/orders/${convertedOrderId}/cancel`)
+      .set('Idempotency-Key', `quote-e2e-${suffix}-cancel`)
+      .send({ expectedVersion: 1 })
+      .expect(201);
+    expect(
+      await prisma.stockReservationEvent.count({
+        where: { orderId: convertedOrderId, type: 'RELEASED' },
+      }),
+    ).toBe(2);
 
     const fixedTax = await owner
       .post('/api/v1/quotes')

@@ -1,55 +1,80 @@
-# CRM bán sỉ và bán lẻ
+# Sơn CRM — quản lý bán sỉ và bán lẻ
 
-Đã có các luồng **web → API → PostgreSQL** cho đăng nhập/RBAC, CRM khách hàng, danh mục, mua hàng, kho và 05A nhập giá admin theo SKU/bậc. Đợt 05A lưu giá có quyền/version/idempotency/audit; resolver chọn đúng bậc và báo trạng thái rõ nếu giá còn trống. Chưa có công thức giá tự tính, giá lẻ, báo giá, đơn bán hoặc giảm thêm. 04C-B trước đó qua migration và 29 E2E trên PostgreSQL thử cô lập; UI Kho còn chờ kiểm tra trực quan và BR-STOCK-10 còn chờ xác nhận. Prototype trong `prototype/` vẫn dùng dữ liệu mẫu.
+CRM nội bộ theo mô hình **web → API → PostgreSQL**, viết bằng tiếng Việt. Ứng dụng hướng tới quản lý khách hàng, sản phẩm, mua hàng, tồn kho, báo giá, đơn bán, giao hàng, thu tiền và công nợ trong cùng một hệ thống.
 
-## Chạy nhanh
+> **GitHub:** [troll9x/CRM](https://github.com/troll9x/CRM), nhánh phát hành `main`. Checkout phát triển có thể chứa thay đổi local chưa đẩy; kiểm tra `git status -sb` và so sánh với `origin/main` trước khi tiếp tục trên máy khác. Không dùng `git reset/clean` để xử lý chênh lệch này.
 
-Yêu cầu Docker Desktop đang chạy. Từ thư mục dự án:
+## Tính năng hiện có trong checkout local
+
+- Đăng nhập nhân viên, phiên làm việc, phân quyền RBAC ở backend và nhật ký thao tác.
+- Hồ sơ khách hàng 360°: nhóm sỉ/lẻ, nguồn, nhiều địa chỉ, công việc/cơ hội, ghi chú và timeline. Không tự gộp khách chỉ vì tên hoặc số điện thoại giống nhau.
+- Danh mục sản phẩm, SKU/barcode, đơn vị bán và quy đổi; nhà cung cấp, đơn mua, nhận hàng và sổ kho.
+- Giá admin theo SKU/bậc; báo giá có revision, phí giao, giảm giá, thuế, tiền cọc dự kiến và chuyển báo giá hợp lệ thành đơn nháp.
+- Đơn bán, giữ/nhả tồn, thu tiền nhiều lần, phân bổ tiền và số dư khách hàng; xuất kho/giao đủ; tiếp nhận đổi trả và kiểm tra chất lượng.
+- Dashboard và báo cáo doanh thu hàng đã giao, cùng sản phẩm giao nhiều. Đây là báo cáo **gross**, chưa trừ hàng trả/hoàn tiền.
+- Nền đồng bộ đa kênh gồm kết nối, webhook, hàng đợi/worker, nhật ký đồng bộ, hộp thư, bình luận, đơn ngoài và liên kết khách hàng/SKU.
+
+Các tính năng trên không đồng nghĩa mọi màn hình đã được nghiệm thu trực quan hoặc sẵn sàng vận hành. API/E2E và migration đã được kiểm tra trên các database PostgreSQL cô lập theo checkpoint từng đợt; xem [HANDOFF](docs/HANDOFF.md) và các handoff theo đợt để biết chính xác bằng chứng.
+
+## Tình trạng tích hợp kênh
+
+- **Facebook/Messenger:** có luồng OAuth/Page và webhook trong code; connection và Page authorization đã được xác minh ở local. Meta hiện cảnh báo app chưa phát hành nên chỉ gửi webhook thử từ dashboard, không phân phối sự kiện production. CRM chưa nhận tin nhắn thật (`LIVE_VERIFIED` chưa đạt).
+- **Zalo OA:** có code OAuth/webhook và kiểm thử local/mock; chưa xác minh với OA thật. API đọc bình luận chưa được xác nhận.
+- **Shopee/TikTok Shop:** có nền lưu hàng đợi/đơn ngoài; chưa có đồng bộ đơn qua API thật.
+
+Bản đầu chỉ nhập dữ liệu về CRM; không gửi tin ra ngoài, không tự chuyển đơn sàn thành đơn bán, không tự trừ kho hoặc ghi nhận thanh toán. Payload test/mock không phải dữ liệu khách thật. Hướng dẫn và blocker mới nhất ở [INTEGRATIONS_SETUP](docs/INTEGRATIONS_SETUP.md) và [INTEGRATION_READINESS](docs/INTEGRATION_READINESS.md).
+
+## Chạy local
+
+Yêu cầu: Windows/PowerShell hoặc môi trường tương thích, Node.js `>=24 <25`, npm `>=11`; Docker Desktop nếu chạy PostgreSQL/API/web bằng Compose.
+
+1. Tạo `.env` từ `.env.example` **chỉ khi chưa có `.env`**. Điền cấu hình local và secrets trực tiếp trong `.env`; không gửi secrets qua chat, không commit `.env`.
+2. Cài/generate và migrate database local mới:
 
 ```powershell
-Copy-Item .env.example .env
-# Đổi các secret local trong .env trước khi chạy
 docker compose run --rm api npm ci
 docker compose run --rm api npm run db:generate
 docker compose run --rm api npm run db:migrate:deploy
 docker compose run --rm api npm run db:seed
-docker compose up -d api web
+docker compose up -d
 ```
 
-- Web: http://localhost:3000
-- API health: http://localhost:4000/api/v1/health/ready
-- OpenAPI: http://localhost:4000/docs
+Không chạy migrate/seed lên database đang có dữ liệu trước khi xác định đúng database và có backup đã thử phục hồi. Máy phát triển hiện có cấu hình Compose override local trỏ tới database giao diện; chi tiết, lưu ý migration và cách chạy từng service nằm trong [docs/LOCAL_DEVELOPMENT.md](docs/LOCAL_DEVELOPMENT.md). Không commit file override hoặc database local.
 
-Đăng nhập bằng `SEED_OWNER_EMAIL` và `SEED_OWNER_PASSWORD` trong `.env`. Xem hướng dẫn đầy đủ và bộ lệnh kiểm tra tại [docs/LOCAL_DEVELOPMENT.md](docs/LOCAL_DEVELOPMENT.md).
+Sau khi khởi động:
 
-## Tài liệu điều hành
+- Web: <http://localhost:3000>
+- API live: <http://localhost:4000/api/v1/health/live>
+- API ready: <http://localhost:4000/api/v1/health/ready>
+- OpenAPI: <http://localhost:4000/docs>
 
-- [PRD](docs/PRD.md): mục tiêu, người dùng, phạm vi và yêu cầu.
-- [Quy tắc nghiệp vụ](docs/BUSINESS_RULES.md): nguồn sự thật cho giá, kho, đơn và tiền.
-- [Mô hình dữ liệu](docs/DATA_MODEL.md): thực thể, quan hệ, quyền sở hữu dữ liệu và bất biến.
-- [Hợp đồng API](docs/API_CONTRACT.md): quy ước API v1 và inventory endpoint theo đợt.
-- [Backlog](docs/BACKLOG.md): thứ tự các đợt và lát cắt triển khai.
-- [Nghiệm thu](docs/ACCEPTANCE.md): dữ liệu mẫu và tình huống bắt buộc.
-- [Quyết định](docs/DECISIONS.md): quyết định đã chốt, tạm dùng và tối đa 5 câu hỏi cần xác nhận.
-- [Sẵn sàng tích hợp](docs/INTEGRATION_READINESS.md): quyền, bằng chứng và trạng thái Facebook/Zalo cùng các kênh sau.
-- [Hướng dẫn prototype](docs/UI_PROTOTYPE.md): kịch bản thử sáu màn hình.
-- [Phát triển local](docs/LOCAL_DEVELOPMENT.md): cài đặt, migration, seed, chạy và kiểm tra Đợt 01–05A.
-- [Handoff](docs/HANDOFF.md): trạng thái hiện tại, kết quả kiểm tra và bước tiếp theo.
-- [Báo cáo tiến độ](report.md): các phần đã làm/chưa làm và hướng tiếp tục.
+Đăng nhập bằng thông tin owner được cấu hình trong `.env`/seed local. Không lưu mật khẩu thử nghiệm trong README.
 
-## Xem prototype Đợt 00
-
-Mở trực tiếp `prototype/index.html`, hoặc chạy một máy chủ tĩnh tại thư mục dự án:
+## Kiểm tra
 
 ```powershell
-python -m http.server 4173
+npm run lint
+npm run typecheck
+npm run test
+npm run format:check
+npm run build
+npm run test:e2e
 ```
 
-Sau đó mở `http://localhost:4173/prototype/`. Mọi số liệu đều có nhãn **DỮ LIỆU MẪU** và không được lưu.
+E2E cần PostgreSQL thử nghiệm riêng, đã migrate/seed và đáp ứng guard của test. Không trỏ E2E vào database vận hành hoặc database local có dữ liệu cần giữ. Các lệnh pass trên DB scratch chỉ chứng minh code path local, không chứng minh đã kết nối nền tảng thật.
 
-## Trạng thái và bước tiếp theo
+## Giới hạn trước khi dùng vận hành
 
-1. Đợt 01–04C-B đã qua kiểm tra local; 05A đã thêm giá admin theo SKU/bậc và qua lint, typecheck, unit, format, production build, migration, seed và 32 E2E trên PostgreSQL thử cô lập. 04C-B và 05A còn chờ kiểm tra UI trực quan; BR-STOCK-10 cần xác nhận.
-2. CI remote gần nhất success trên commit nền `6639854`; các thay đổi local chưa commit chưa có lần chạy CI tương ứng.
-3. Giá tự tính bậc trống, giá lẻ/nhóm khách, giảm thêm và báo giá tiếp tục phụ thuộc `OPEN-03`; không tính tiền cho phần chưa chốt. Các quyết định `OPEN-01..05` còn cần xác nhận trước vận hành thật.
-4. Xem [HANDOFF](docs/HANDOFF.md) để chạy demo/test hiện tại. Prototype Đợt 00 vẫn là dữ liệu mẫu; không dùng bản hiện tại cho hàng cần lô/hạn dùng/serial hoặc dữ liệu vận hành chưa được duyệt.
+- Facebook chưa nhận được sự kiện Messenger production; app phải được phát hành và có quyền Meta phù hợp. Không tuyên bố đồng bộ thật dựa trên trạng thái OAuth hoặc webhook handshake đơn lẻ.
+- COD còn vướng quy tắc thu đủ trước xác nhận; hoàn tiền mặt, chi phí và báo cáo thuần sau đổi trả chưa hoàn thiện.
+- Chính sách số ngày nhận trả và một số quyết định vận hành cần được quản lý xác nhận/cấu hình trước pilot.
+- Nhiều màn hình đã có API thật nhưng còn chờ nghiệm thu giao diện bằng trình duyệt. Chưa deploy production.
+- Không dùng dữ liệu prototype trong `prototype/` làm bằng chứng hoạt động; prototype là dữ liệu mẫu.
+
+## Tài liệu dự án
+
+- [PRD](docs/PRD.md) · [Quy tắc nghiệp vụ](docs/BUSINESS_RULES.md) · [Quyết định](docs/DECISIONS.md)
+- [Mô hình dữ liệu](docs/DATA_MODEL.md) · [Hợp đồng API](docs/API_CONTRACT.md) · [Nghiệm thu](docs/ACCEPTANCE.md)
+- [Backlog](docs/BACKLOG.md) · [Handoff hiện tại](docs/HANDOFF.md) · [Hướng dẫn local](docs/LOCAL_DEVELOPMENT.md)
+- [Sẵn sàng tích hợp](docs/INTEGRATION_READINESS.md) · [Cấu hình tích hợp](docs/INTEGRATIONS_SETUP.md)
+- [Ma trận chức năng AMIS](docs/AMIS_FEATURE_MATRIX.md)

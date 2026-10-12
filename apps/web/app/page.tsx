@@ -10,6 +10,10 @@ import { PurchasingWorkspace } from './purchasing-workspace';
 import { PricingWorkspace } from './pricing-workspace';
 import { QuotesWorkspace } from './quotes-workspace';
 import { OrdersWorkspace } from './orders-workspace';
+import { ReturnsWorkspace } from './returns-workspace';
+import { ReceivablesWorkspace } from './receivables-workspace';
+import { ShipmentsWorkspace } from './shipments-workspace';
+import { IntegrationsWorkspace } from './integrations-workspace';
 
 export default function Home() {
   const [staff, setStaff] = useState<Staff | null>(null);
@@ -25,6 +29,10 @@ export default function Home() {
     | 'pricing'
     | 'quotes'
     | 'orders'
+    | 'returns'
+    | 'receivables'
+    | 'shipments'
+    | 'integrations'
   >('overview');
 
   useEffect(() => {
@@ -196,6 +204,38 @@ export default function Home() {
               Đơn hàng
             </button>
           )}
+          {staff.permissions.includes('shipments.read') && (
+            <button
+              className={view === 'shipments' ? 'active' : ''}
+              onClick={() => setView('shipments')}
+            >
+              Xuất kho & giao
+            </button>
+          )}
+          {staff.permissions.some((permission) => permission.startsWith('returns.')) && (
+            <button
+              className={view === 'returns' ? 'active' : ''}
+              onClick={() => setView('returns')}
+            >
+              Đổi trả
+            </button>
+          )}
+          {staff.permissions.includes('receivables.view') && (
+            <button
+              className={view === 'receivables' ? 'active' : ''}
+              onClick={() => setView('receivables')}
+            >
+              Công nợ
+            </button>
+          )}
+          {staff.permissions.includes('integrations.read') && (
+            <button
+              className={view === 'integrations' ? 'active' : ''}
+              onClick={() => setView('integrations')}
+            >
+              Đồng bộ đa kênh
+            </button>
+          )}
         </nav>
         <div className="staff-mini">
           <b>{staff.displayName}</b>
@@ -216,6 +256,14 @@ export default function Home() {
         <QuotesWorkspace staff={staff} onLogout={logout} loggingOut={submitting} />
       ) : view === 'orders' ? (
         <OrdersWorkspace staff={staff} onLogout={logout} loggingOut={submitting} />
+      ) : view === 'returns' ? (
+        <ReturnsWorkspace staff={staff} onLogout={logout} loggingOut={submitting} />
+      ) : view === 'receivables' ? (
+        <ReceivablesWorkspace staff={staff} onLogout={logout} loggingOut={submitting} />
+      ) : view === 'shipments' ? (
+        <ShipmentsWorkspace staff={staff} onLogout={logout} loggingOut={submitting} />
+      ) : view === 'integrations' ? (
+        <IntegrationsWorkspace staff={staff} onLogout={logout} loggingOut={submitting} />
       ) : (
         <OverviewWorkspace
           staff={staff}

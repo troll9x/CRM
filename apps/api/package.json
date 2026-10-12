@@ -5,7 +5,9 @@
   "scripts": {
     "build": "npm run db:generate && nest build",
     "dev": "nest start --watch",
+    "dev:worker": "npm run db:generate && nest build && node dist/src/worker.main.js",
     "start": "node dist/main.js",
+    "start:worker": "node dist/src/worker.main.js",
     "lint": "eslint \"{src,test,prisma}/**/*.ts\" --max-warnings=0",
     "typecheck": "npm run db:generate && tsc -p tsconfig.json --noEmit",
     "test": "vitest run src",

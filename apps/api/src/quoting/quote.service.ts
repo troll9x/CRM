@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { createHash, randomBytes } from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { ProblemException } from '../common/problem.exception';
 import type { RequestStaff } from '../common/request-context';
 import { Prisma, type Prisma as PrismaTypes } from '../generated/prisma/client';
@@ -15,6 +15,7 @@ import type {
 const RETRIES = 3;
 const HOUR_MS = 60 * 60 * 1000;
 const MAX_VND = new Prisma.Decimal('99999999999999999999');
+const MAX_STOCK_QUANTITY = new Prisma.Decimal('100000000000000');
 
 const quoteSelect = {
   id: true,
@@ -392,14 +393,18 @@ export class QuoteService {
     };
   }
 
-  async list(businessId: string, filters: { customerId?: string; status?: string }) {
+  async list(
+    businessId: string,
+    filters: {
+      customerId?: string;
+      status?: 'DRAFT' | 'SENT' | 'ACCEPTED' | 'EXPIRED' | 'REJECTED';
+    },
+  ) {
     const rows = await this.prisma.quote.findMany({
       where: {
         businessId,
         ...(filters.customerId ? { customerId: filters.customerId } : {}),
-        ...(filters.status && filters.status !== 'EXPIRED'
-          ? { status: filters.status as PrismaTypes.QuoteWhereInput['status'] }
-          : {}),
+        ...(filters.status && filters.status !== 'EXPIRED' ? { status: filters.status } : {}),
         ...(filters.status === 'EXPIRED' ? { status: 'SENT', expiresAt: { lte: new Date() } } : {}),
       },
       orderBy: { updatedAt: 'desc' },
@@ -867,6 +872,86 @@ export class QuoteService {
                 'Không tìm thấy revision đã phát hành của báo giá.',
               );
 
+            const activeWarehouses = await tx.warehouse.findMany({
+              where: { businessId: actor.businessId, status: 'ACTIVE' },
+              take: 2,
+              select: { id: true },
+            });
+            if (activeWarehouses.length !== 1) {
+              throw new ProblemException(
+                409,
+                activeWarehouses.length === 0
+                  ? 'ACTIVE_WAREHOUSE_REQUIRED'
+                  : 'WAREHOUSE_SELECTION_REQUIRED',
+                activeWarehouses.length === 0
+                  ? 'Cần có một kho đang hoạt động để giữ hàng cho đơn.'
+                  : 'Có nhiều kho đang hoạt động; cần chọn kho giữ hàng trước khi chấp nhận báo giá.',
+              );
+            }
+            const warehouseId = activeWarehouses[0]!.id;
+            const requiredByVariant = new Map<string, Prisma.Decimal>();
+            for (const line of quote.lines) {
+              const required = line.quantity.mul(line.sellingUnitFactor);
+              if (
+                required.decimalPlaces() > 6 ||
+                required.greaterThanOrEqualTo(MAX_STOCK_QUANTITY)
+              ) {
+                throw new ProblemException(
+                  422,
+                  'BASE_QUANTITY_PRECISION_EXCEEDED',
+                  `Số lượng quy đổi của SKU ${line.skuSnapshot} vượt độ chính xác/lưu trữ kho.`,
+                );
+              }
+              requiredByVariant.set(
+                line.variantId,
+                (requiredByVariant.get(line.variantId) ?? new Prisma.Decimal(0)).add(required),
+              );
+              if (requiredByVariant.get(line.variantId)!.greaterThanOrEqualTo(MAX_STOCK_QUANTITY)) {
+                throw new ProblemException(
+                  422,
+                  'STOCK_QUANTITY_LIMIT_EXCEEDED',
+                  `Tổng số lượng giữ cho SKU ${line.skuSnapshot} vượt giới hạn kho.`,
+                );
+              }
+            }
+            for (const [variantId, required] of requiredByVariant) {
+              const balance = await tx.stockBalance.findUnique({
+                where: {
+                  businessId_warehouseId_variantId: {
+                    businessId: actor.businessId,
+                    warehouseId,
+                    variantId,
+                  },
+                },
+                select: {
+                  id: true,
+                  version: true,
+                  onHandQuantity: true,
+                  reservedQuantity: true,
+                  unavailableQuantity: true,
+                },
+              });
+              const available = balance
+                ? balance.onHandQuantity
+                    .sub(balance.reservedQuantity)
+                    .sub(balance.unavailableQuantity)
+                : new Prisma.Decimal(0);
+              if (!balance || available.lessThan(required)) {
+                const line = quote.lines.find((row) => row.variantId === variantId)!;
+                throw new ProblemException(
+                  409,
+                  'INSUFFICIENT_AVAILABLE_STOCK',
+                  `Không đủ tồn khả dụng cho SKU ${line.skuSnapshot}; báo giá chưa được chấp nhận.`,
+                  [
+                    {
+                      field: 'stock',
+                      reason: `${line.skuSnapshot}:${required.toString()}:${available.toString()}`,
+                    },
+                  ],
+                );
+              }
+            }
+
             const administrators = await tx.staffUser.findMany({
               where: {
                 businessId: actor.businessId,
@@ -890,6 +975,7 @@ export class QuoteService {
 
             const day = now.toISOString().slice(0, 10).replaceAll('-', '');
             const orderNumber = `SO-${day}-${randomBytes(4).toString('hex').toUpperCase()}`;
+            const orderLineIds = quote.lines.map(() => randomUUID());
             const order = await tx.salesOrder.create({
               data: {
                 businessId: actor.businessId,
@@ -911,7 +997,8 @@ export class QuoteService {
                 grandTotalVnd: quote.grandTotalVnd,
                 paymentNote: quote.paymentNote,
                 lines: {
-                  create: quote.lines.map((line) => ({
+                  create: quote.lines.map((line, index) => ({
+                    id: orderLineIds[index],
                     variantId: line.variantId,
                     lineNumber: line.lineNumber,
                     productNameSnapshot: line.productNameSnapshot,
@@ -932,6 +1019,45 @@ export class QuoteService {
                 },
               },
               select: { id: true, orderNumber: true, status: true, sourceRevision: true },
+            });
+            for (const [variantId, required] of requiredByVariant) {
+              const balance = await tx.stockBalance.findUniqueOrThrow({
+                where: {
+                  businessId_warehouseId_variantId: {
+                    businessId: actor.businessId,
+                    warehouseId,
+                    variantId,
+                  },
+                },
+                select: { id: true, version: true },
+              });
+              const updated = await tx.stockBalance.updateMany({
+                where: { id: balance.id, version: balance.version },
+                data: {
+                  reservedQuantity: { increment: required },
+                  version: { increment: 1 },
+                },
+              });
+              if (updated.count !== 1) {
+                throw new ProblemException(
+                  409,
+                  'STOCK_CHANGED_RETRY',
+                  'Tồn vừa được thay đổi; tải lại báo giá và kiểm tra tồn trước khi chấp nhận.',
+                );
+              }
+            }
+            await tx.stockReservationEvent.createMany({
+              data: quote.lines.map((line, index) => ({
+                businessId: actor.businessId,
+                warehouseId,
+                variantId: line.variantId,
+                orderId: order.id,
+                orderLineId: orderLineIds[index]!,
+                eventKey: `${order.id}:${orderLineIds[index]}:reserve`,
+                type: 'RESERVED' as const,
+                quantity: line.quantity.mul(line.sellingUnitFactor),
+                occurredAt: now,
+              })),
             });
             const transitioned = await tx.quote.updateMany({
               where: {

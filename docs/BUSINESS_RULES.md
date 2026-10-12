@@ -1,6 +1,14 @@
 # Quy tắc nghiệp vụ
 
-Trạng thái: 05A và backend/UI cơ bản 05B đã migration/E2E verified local; 05B còn chờ browser check. Thuế báo giá hỗ trợ phần trăm hoặc VND toàn báo giá. Tạm dùng một cách trên mỗi báo giá; giảm dòng rồi giảm toàn báo giá; phần trăm thuế tính trên tiền hàng sau giảm cộng phí giao, không gồm cọc. Đây là giả định chưa xác nhận cho vận hành thật. Mỗi quy tắc có mã ổn định để API, test và audit cùng tham chiếu. Ký hiệu **Tạm dùng** nghĩa là chưa được chủ dự án xác nhận để chạy dữ liệu thật.
+## Đồng bộ đa kênh — quy tắc được giao 2026-10-08
+
+- Dữ liệu ngoài là bản ghi staging riêng. Import/replay tuyệt đối không tạo `SalesOrder`, không đổi stock/reservation, receipt/payment, receivable hay revenue.
+- External IDs được lưu dưới dạng chuỗi và unique theo connection. Job/webhook/message/comment/order replay phải idempotent; một external order chỉ tạo một AdminAlert cho mỗi người nhận.
+- Không tự hợp nhất khách. Người có quyền liên kết thủ công external identity, comment author hoặc external order với CRM customer. Việc link không tự đổi group/source của customer đã có.
+- Nguồn Facebook/Messenger và Zalo được backend phân nhóm wholesale; Shopee/TikTok Shop được phân nhóm retail khi tạo/cập nhật Customer theo `Customer.source`. External order/identity chưa link không tự tạo customer hoặc đổi group của hồ sơ đã có.
+- Chỉ nhận event sau xác thực provider-specific signature. Provider chưa có verifier/payload được kiểm chứng không được mở webhook tạm.
+
+Trạng thái: 06A–06D, 07A/07B, đổi trả 08A và báo cáo gross giao hàng 08B đã kiểm tra local trên PostgreSQL cô lập; COD, hoàn tiền, báo cáo net và connector Facebook còn mở. Thời hạn trả mặc định để trống tới khi quản lý cấu hình; Page/app/quyền Facebook vẫn thiếu. Mỗi quy tắc có mã ổn định để API, test và audit cùng tham chiếu. Ký hiệu **Tạm dùng** nghĩa là chưa được chủ dự án xác nhận để chạy dữ liệu thật.
 
 ## 1. Khách hàng và quyền
 
@@ -8,6 +16,7 @@ Trạng thái: 05A và backend/UI cơ bản 05B đã migration/E2E verified loca
 - **BR-CUS-02:** Số điện thoại/email chỉ dùng tìm kiếm và gợi ý trùng. Trùng tên hoặc số không tự chứng minh hai hồ sơ là một người.
 - **BR-CUS-03:** Gộp khách cần người có quyền, bằng chứng, bản ghi sống sót và audit; hội thoại, đơn, địa chỉ và lịch sử không được mất.
 - **BR-CUS-04:** Cơ hội bán, trạng thái hội thoại, nhóm sỉ/lẻ và mua lần đầu/mua lại là các khái niệm riêng.
+- **BR-CUS-05 (đã chốt 2026-10-08):** Khách có nguồn Facebook/Messenger hoặc Zalo thuộc nhóm khách sỉ; khách có nguồn Shopee hoặc TikTok Shop thuộc nhóm khách lẻ. Backend tự áp nhóm tương ứng khi tạo/cập nhật hồ sơ, kể cả khi client gửi nhóm khác. Nguồn khác/không rõ vẫn dùng nhóm được chọn thủ công. Đây là quy tắc phân loại nguồn, không chứng minh connector đã tích hợp.
 - **BR-AUTH-01:** Backend kiểm tra cả quyền hành động và phạm vi bản ghi; khách/nhân viên không thể đổi ID trên URL/API để đọc bản ghi ngoài quyền.
 - **BR-AUTH-02:** Các quyền nhạy cảm tách riêng: xem giá vốn, sửa giá, xác nhận đơn, điều chỉnh kho, thu/chi, xem công nợ, xuất khách và cấu hình connector.
 
@@ -15,13 +24,13 @@ Trạng thái: 05A và backend/UI cơ bản 05B đã migration/E2E verified loca
 
 - **BR-MON-01:** Tiền VND dùng số nguyên đồng. Không dùng `number` JavaScript để tính tiền nếu phép tính có thể tạo sai số.
 - **BR-MON-02:** Tổng đơn, giảm giá, phí và thuế (nếu có sau này) do backend tính; tổng frontend gửi lên chỉ là dữ liệu hiển thị, không phải nguồn sự thật.
-- **BR-PRICE-01 — OPEN-03 chốt một phần:** Bảng giá dùng chung cho khách. Mỗi SKU có một đơn vị bán cố định do admin cấu hình (gói, kg, thùng...). Giá admin nhập theo đơn vị bán này. Lượng dưới 5 dùng giá lẻ theo đơn vị bán; từ 5 trở lên, bậc 5–<10 dùng giá bậc 5, 10–<15 dùng bậc 10, 15–<20 dùng bậc 15 và tiếp tục mỗi 5 đơn vị bán; với lượng lẻ, bậc được xác định bằng `floor(quantity / 5) * 5`. Giá lẻ và mọi bậc đều do admin nhập; không tự suy đoán giá còn thiếu.
-- **BR-PRICE-02 — OPEN-03 chốt một phần:** Cho phép giảm thêm theo phần trăm hoặc số VND, áp dụng ở dòng hàng hoặc toàn báo giá. Backend chỉ cho người có quyền quản lý (`price.edit`) đặt mức giảm; không áp trần số riêng, nhưng tổng giảm không được vượt tiền hàng. Tạm áp giảm dòng trước, rồi giảm toàn báo giá trên phần hàng còn lại. Thuế toàn báo giá được nhập theo phần trăm hoặc VND; tạm dùng chọn một cách trên mỗi báo giá, phần trăm áp dụng trên tiền hàng sau mọi giảm cộng phí giao, không gồm cọc. Thứ tự giảm/cơ sở thuế cần xác nhận trước vận hành.
+- **BR-PRICE-01:** Bảng giá dùng chung cho khách. Mỗi SKU có một đơn vị bán cố định do admin cấu hình (gói, kg, thùng...). Giá admin nhập theo đơn vị bán này. Lượng dưới 5 dùng giá lẻ theo đơn vị bán; từ 5 trở lên, bậc 5–<10 dùng giá bậc 5, 10–<15 dùng bậc 10, 15–<20 dùng bậc 15 và tiếp tục mỗi 5 đơn vị bán; với lượng lẻ, bậc được xác định bằng `floor(quantity / 5) * 5`. Giá lẻ và mọi bậc đều do admin nhập; không tự suy đoán giá còn thiếu.
+- **BR-PRICE-02:** Cho phép giảm thêm theo phần trăm hoặc số VND ở dòng hàng hoặc toàn báo giá. Người có `price.edit` tự đặt mức giảm; không áp trần số riêng, nhưng tổng giảm không được vượt tiền hàng. Áp dụng giảm dòng trước, sau đó giảm toàn báo giá trên phần hàng còn lại. Thuế toàn báo giá nhập theo phần trăm hoặc VND; mỗi báo giá chọn một cách. Thuế phần trăm tính trên tiền hàng sau mọi giảm cộng phí giao, không gồm cọc. Đây là cách tính chủ dự án chọn ngày 2026-10-07.
 - **BR-PRICE-03:** Cho phép số lượng lẻ tối đa 6 chữ số thập phân theo đơn vị bán. Đơn giá là VND nguyên; backend tính bằng số thập phân chính xác và làm tròn thành tiền từng dòng về VND nguyên, nửa đồng làm tròn lên.
 - **BR-QUOTE-03:** Báo giá hết hạn sau đúng 72 giờ từ lúc khách nhận. Khi gửi bằng PDF/chia sẻ thủ công, nhân viên ghi nhận thời điểm khách xác nhận đã nhận; timestamp lưu UTC.
-- **BR-QUOTE-04:** Báo giá hỗ trợ phí giao, giảm giá, thuế, tiền cọc dự kiến và ghi chú thanh toán; các khoản là snapshot của báo giá. Thuế nhập theo phần trăm hoặc VND toàn báo giá. Tạm dùng chọn một cách trên mỗi báo giá; thuế phần trăm tính trên tiền hàng sau giảm dòng/toàn báo giá cộng phí giao, không gồm cọc; thứ tự giảm và cơ sở thuế phải xác nhận trước vận hành thật. Chuyển báo giá còn hạn thành đơn nháp giữ nguyên giá đã chốt.
+- **BR-QUOTE-04:** Báo giá hỗ trợ phí giao, giảm giá, thuế, tiền cọc dự kiến và ghi chú thanh toán; các khoản là snapshot của báo giá. Thuế nhập theo phần trăm hoặc VND toàn báo giá; mỗi báo giá chọn một cách. Thuế phần trăm tính trên tiền hàng sau giảm dòng/toàn báo giá cộng phí giao, không gồm cọc. Chuyển báo giá còn hạn thành đơn nháp giữ nguyên giá đã chốt.
 - **BR-QUOTE-05:** Khi khách đặt qua nền tảng, hệ thống cần thông báo Admin. Kênh và cơ chế thông báo cụ thể được chốt theo phạm vi tích hợp; không tuyên bố gửi thật khi chưa thử bằng tài khoản/quyền thật.
-- **BR-QUOTE-06:** Nhân viên có `orders.create` có thể xác nhận khách đồng ý một báo giá `SENT` còn hạn và chuyển thành đúng một đơn bán `DRAFT`. Backend lấy revision đã phát hành mới nhất, không tính lại giá và ghi đơn/dòng snapshot, cập nhật báo giá sang `ACCEPTED`, tạo audit và thông báo nội bộ cho nhân viên có `staff.manage` trong cùng transaction. Đơn nháp không giữ tồn, xác nhận giao dịch, tạo công nợ hay thanh toán; báo giá hết hạn/đã chuyển không tạo đơn mới. Thông báo nội bộ không thay thế thông báo qua kênh ngoài.
+- **BR-QUOTE-06:** Nhân viên có `orders.create` có thể xác nhận khách đồng ý báo giá `SENT` còn hạn. Backend lấy revision đã phát hành mới nhất, giữ nguyên giá; đổi báo giá thành `ACCEPTED`, tạo một đơn nháp, giữ đủ lượng tồn cho đơn và ghi audit/thông báo nội bộ cho `staff.manage` trong cùng transaction. Nếu không đủ tồn để giữ toàn bộ đơn, không chấp nhận báo giá/không tạo đơn (hệ quả được suy ra từ lựa chọn giữ hàng khi chấp nhận và không giao thiếu). Thông báo nội bộ không thay thế thông báo qua kênh ngoài.
 - **BR-SNAP-01:** Báo giá/đơn lưu snapshot tên hàng, SKU, đơn vị, hệ số quy đổi, giá, giảm giá, địa chỉ và điều kiện tại thời điểm chốt.
 - **BR-SNAP-02:** Đổi danh mục, địa chỉ, quy đổi hoặc bảng giá không làm thay đổi chứng từ cũ.
 
@@ -41,23 +50,27 @@ Trạng thái: 05A và backend/UI cơ bản 05B đã migration/E2E verified loca
 - **BR-STOCK-04A — Tạm dùng:** Mỗi SKU/kho chỉ ghi tồn đầu khi chưa có balance hoặc biến động; chứng từ lưu snapshot SKU/tên/đơn vị, lượng đơn vị gốc và giá vốn nguyên VND. Cùng idempotency key và nội dung chỉ tạo một chứng từ; khác nội dung bị từ chối. Chưa dùng dữ liệu hàng thật trước khi xác nhận `OPEN-02/05`.
 - **BR-STOCK-09:** Kiểm kê nhận số đếm thực tế và version tồn đã xem; backend tính chênh lệch với tồn hệ thống, từ chối nếu version cũ, không cho số tồn thấp hơn lượng đang giữ/không đủ điều kiện bán. Mỗi lần chênh lệch ghi chứng từ snapshot, movement và audit bất biến trong một transaction; không sửa trực tiếp balance.
 - **BR-STOCK-10 — Tạm dùng chờ xác nhận:** Tăng tồn trên balance còn hàng dùng giá vốn bình quân hiện tại; giảm tồn định giá theo giá vốn bình quân hiện tại. Giá trị chênh lệch làm tròn về VND nguyên gần nhất; tồn về 0 có giá trị và giá vốn bình quân bằng 0. Tăng từ 0 cần giá vốn đơn vị được ghi rõ trên chứng từ.
-- **BR-STOCK-05:** Xác nhận đơn kiểm tra hàng có thể bán và tạo giữ hàng trong cùng giao dịch có kiểm soát cạnh tranh.
+- **BR-STOCK-05:** Khi khách chấp nhận báo giá còn hạn, hệ thống kiểm tra và giữ toàn bộ lượng đơn trong một transaction có kiểm soát cạnh tranh; báo giá không giữ hàng trước khi khách chấp nhận. Không đủ tồn thì từ chối chuyển báo giá, không giữ một phần.
 - **BR-STOCK-06:** Xuất hàng giảm tồn thực tế và giảm giữ tương ứng trong cùng nghiệp vụ. Cùng idempotency key không tạo lần xuất thứ hai.
 - **BR-STOCK-07:** Hủy đơn chỉ giải phóng phần chưa xuất. Phần đã giao phải qua trả hàng/điều chỉnh.
 - **BR-STOCK-08:** Hàng trả/lỗi chỉ trở lại tồn có thể bán sau kiểm tra chất lượng.
+- **BR-RETURN-01:** Chỉ nhận trả cho shipment đã giao, còn trong thời hạn quản lý cấu hình và không vượt lượng đã giao còn có thể trả; chưa cấu hình thời hạn thì từ chối tiếp nhận. Quy tắc kỹ thuật hiện dùng hạn inclusive 24 giờ × số ngày kể từ `deliveredAt`; request snapshot ngày giao/số ngày/hạn tại thời điểm nhận. Cần xác nhận diễn giải ngày này trước pilot nếu doanh nghiệp muốn tính ngày lịch thay vì số giờ.
+- **BR-RETURN-02:** Sau QA, tổng lượng đạt + cách ly phải bằng lượng đã nhận. Tất cả lượng thực nhận vào on-hand; hàng lỗi đồng thời vào `unavailableQuantity`, nên chưa thể bán. Hàng đạt sau QA mới tăng lượng khả dụng.
+- **BR-RETURN-03 — Tạm dùng kỹ thuật:** WAC nhập hàng trả dùng đơn giá vốn đã snapshot ở shipment gốc; không tạo doanh thu/hoàn tiền/AR adjustment trong lát cắt 08A. Đây là quy tắc truy nguyên giá vốn local, cần xác nhận kế toán trước pilot.
+- **BR-REPORT-01:** Báo cáo 08B tính gross doanh thu hàng đã giao từ `recognizedRevenueVnd`; top SKU theo lượng cơ sở đã giao. Hạn ngày theo `Business.timezone`, hai đầu ngày inclusive. Chưa trừ hàng trả/hoàn tiền và không gọi là doanh thu thuần.
 - **BR-COST-01 — Tạm dùng:** Giá vốn bình quân gia quyền theo đơn vị cơ sở được cập nhật khi nhận hàng; giá vốn xuất được snapshot và không đổi theo chỉnh sửa danh mục sau đó.
 
 ## 4. Báo giá, đơn và giao hàng
 
 - **BR-QUOTE-01:** Báo giá có trạng thái `DRAFT`, `SENT`, `ACCEPTED`, `EXPIRED`, `REJECTED`; gửi báo giá tạo phiên bản bất biến.
-- **BR-QUOTE-02 — Tạm dùng:** Báo giá không giữ hàng. Chuyển thành đơn phải kiểm tra lại giá, hiệu lực, quyền và tồn.
+- **BR-QUOTE-02:** Báo giá chưa chấp nhận không giữ hàng. Khi khách chấp nhận báo giá còn hạn, hệ thống giữ tồn ngay trong transaction chuyển thành đơn nháp; thời hạn giữ không tự hết, chỉ giải phóng khi đơn bị hủy.
 - **BR-ORDER-01:** Đơn có trạng thái vòng đời riêng với trạng thái giao và thanh toán; không suy ra tất cả từ một trường.
 - **BR-ORDER-00:** Quyền `orders.read` chỉ cho phép đọc danh sách/chi tiết đơn trong business hiện tại; không cấp quyền xác nhận, hủy, giữ kho hay thu tiền.
-- **BR-ORDER-02:** Xác nhận đơn kiểm tra giá, quyền mua nợ, tồn và snapshot; thao tác lặp chỉ tạo một reservation/event.
+- **BR-ORDER-02:** Xác nhận đơn kiểm tra quyền, khoản thu đủ 100% tổng phải trả và reservation còn hiệu lực; không cấp bán chịu. Khoản phải thu được ghi nhận khi xác nhận rồi đối trừ khoản thu đã ghi trước đó. Thao tác lặp không tạo reservation/payment/AR trùng.
 - **BR-ORDER-03:** Dòng đã giao/đã ghi nhận tiền không sửa làm đổi lịch sử; sửa bằng chứng từ trả/điều chỉnh có liên kết.
-- **BR-SHIP-01:** Một đơn có thể giao nhiều lần. Giao một phần không tự hoàn tất phần còn lại.
+- **BR-SHIP-01:** Không giao thiếu đơn; chỉ xuất/giao đủ toàn bộ số lượng còn lại của đơn trong một lần. Không sinh backorder.
 - **BR-SHIP-02:** Mã đơn nội bộ tách khỏi mã kênh; trạng thái kênh tách khỏi trạng thái nội bộ.
-- **BR-COD-01:** Đã giao không có nghĩa COD đã về; COD chỉ được ghi nhận tiền qua đối soát/giao dịch hợp lệ.
+- **BR-COD-01:** Đã giao không có nghĩa COD đã về; COD chỉ được ghi nhận tiền qua đối soát/giao dịch hợp lệ. Việc này hiện xung đột với BR-AR-02 (thu đủ trước xác nhận); chưa mở COD cho tới khi chốt cách dung hòa thời điểm xác nhận/giao/thu.
 
 ## 5. Thu tiền và công nợ
 
@@ -65,13 +78,16 @@ Trạng thái: 05A và backend/UI cơ bản 05B đã migration/E2E verified loca
 - **BR-PAY-02:** Không ghi đè “đã nhận”. Mỗi thu/hoàn/đảo là giao dịch có lịch sử và khóa chống trùng.
 - **BR-PAY-03:** Đặt cọc và tiền trả thừa/tạm ứng theo dõi riêng, không tạo khoản phải thu âm.
 - **BR-PAY-04:** Không xóa chứng từ đã ghi sổ để sửa sai; dùng đảo/điều chỉnh với quyền và audit.
-- **BR-AR-01 — Tạm dùng cho bộ mẫu:** Phải thu phát sinh khi đơn được xác nhận; doanh thu hàng hóa ghi nhận theo phần đã giao. Quy tắc chạy thật phải được chốt trước Đợt 07.
-- **BR-AR-02:** Mua nợ chỉ áp dụng cho khách được cấp quyền, trong hạn mức/kỳ hạn; vượt mức cần quy trình duyệt đã chốt.
+- **BR-AR-01:** Phải thu phát sinh khi đơn được xác nhận; doanh thu hàng hóa ghi nhận theo hàng đã giao. Chủ dự án xác nhận ngày 2026-10-07.
+- **BR-AR-02:** Không bán chịu; đơn chỉ được xác nhận sau khi đã thu đủ 100% tổng phải trả. Có thể ghi nhận nhiều lần/thu từng phần trước xác nhận; đơn chưa đủ tiền vẫn là nháp và giữ reservation theo BR-QUOTE-02.
+- **BR-PAY-05:** Nhân viên chọn khoản phải thu/đơn để phân bổ; UI có thể gợi ý khoản cũ nhất. Tiền thu thừa lưu thành số dư khách hàng, không tự tạo AR âm.
+- **BR-PAY-06 — Cách triển khai số dư khách:** số dư trả thừa được nhân viên có `payments.manage` phân bổ tường minh vào đơn `DRAFT` cùng khách; không vượt số dư hoặc phần chưa thanh toán. Áp dụng giảm số dư và tăng phần đã thanh toán của đơn trong một transaction. Hủy đơn nháp chưa thu tiền mặt sẽ đảo phân bổ và trả số dư về khách; không phát sinh hoàn tiền mặt. Đây là cơ chế dùng số dư, không phải quyền bán chịu.
 
 ## 6. Đổi trả, đồng bộ và AI
 
 - **BR-RET-01:** Dòng trả liên kết dòng đã giao; tổng trả không vượt số đã giao trừ số đã trả trước đó.
 - **BR-RET-02:** Tiền hoàn không vượt số đủ điều kiện hoàn; giảm nợ và hoàn tiền là hai tác động riêng được hạch toán rõ.
+- **BR-RET-03:** Hàng trả chỉ được nhập lại tồn khả dụng sau kiểm tra chất lượng; hàng lỗi đưa vào tồn chờ xử lý. Thời hạn tối đa nhận trả hàng chưa được chốt.
 - **BR-SYNC-01:** Sự kiện ngoài có khóa duy nhất theo kênh + shop/tài khoản + mã sự kiện/đơn. Webhook trùng và retry phải an toàn.
 - **BR-SYNC-02:** Sự kiện sai thứ tự không được làm lùi trạng thái; sự kiện không ánh xạ được vào hàng chờ xử lý, không tự trừ kho.
 - **BR-SYNC-03:** Không suy ra quyền chat từ quyền đơn/sản phẩm; mỗi năng lực connector có bằng chứng riêng.

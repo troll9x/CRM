@@ -14,6 +14,11 @@ import { OverviewModule } from './overview/overview.module';
 import { InventoryModule } from './inventory/inventory.module';
 import { QuotingModule } from './quoting/quoting.module';
 import { OrdersModule } from './orders/orders.module';
+import { PaymentsModule } from './payments/payments.module';
+import { ShipmentsModule } from './shipments/shipments.module';
+import { ReturnsModule } from './returns/returns.module';
+import { ReportsModule } from './reports/reports.module';
+import { IntegrationsModule } from './integrations/integrations.module';
 
 @Module({
   imports: [
@@ -29,6 +34,11 @@ import { OrdersModule } from './orders/orders.module';
     InventoryModule,
     QuotingModule,
     OrdersModule,
+    PaymentsModule,
+    ShipmentsModule,
+    ReturnsModule,
+    ReportsModule,
+    IntegrationsModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: AuthenticationGuard },

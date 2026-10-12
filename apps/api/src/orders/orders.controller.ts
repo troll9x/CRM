@@ -5,6 +5,8 @@ import { CurrentStaff } from '../identity/current-staff.decorator';
 import { PERMISSIONS } from '../identity/permissions';
 import { RequirePermissions } from '../identity/require-permissions.decorator';
 import { CreateOrderDto } from './dto/create-order.dto';
+import { CancelOrderDto } from './dto/cancel-order.dto';
+import { ConfirmOrderDto } from './dto/confirm-order.dto';
 import { ListOrdersQueryDto } from './dto/list-orders.dto';
 import { OrdersService } from './orders.service';
 
@@ -24,6 +26,34 @@ export class OrdersController {
     @Req() request: RequestWithContext,
   ) {
     return this.orders.create(dto, key, actor, request.requestId);
+  }
+
+  @Post(':id/cancel')
+  @RequirePermissions(PERMISSIONS.ORDERS_CANCEL)
+  @ApiHeader({ name: 'Idempotency-Key', required: true })
+  @ApiOperation({ summary: 'Hủy đơn nháp và giải phóng lượng hàng đã giữ' })
+  cancel(
+    @Param('id') id: string,
+    @Body() dto: CancelOrderDto,
+    @Headers('idempotency-key') key: string | undefined,
+    @CurrentStaff() actor: RequestStaff,
+    @Req() request: RequestWithContext,
+  ) {
+    return this.orders.cancel(id, dto, key, actor, request.requestId);
+  }
+
+  @Post(':id/confirm')
+  @RequirePermissions(PERMISSIONS.ORDERS_CONFIRM)
+  @ApiHeader({ name: 'Idempotency-Key', required: true })
+  @ApiOperation({ summary: 'Xác nhận đơn khi đã thu đủ và giữ đủ hàng' })
+  confirm(
+    @Param('id') id: string,
+    @Body() dto: ConfirmOrderDto,
+    @Headers('idempotency-key') key: string | undefined,
+    @CurrentStaff() actor: RequestStaff,
+    @Req() request: RequestWithContext,
+  ) {
+    return this.orders.confirm(id, dto, key, actor, request.requestId);
   }
 
   @Get()

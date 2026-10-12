@@ -21,9 +21,14 @@ type DraftLine = { variantId: string; quantity: string };
 type Order = {
   id: string;
   orderNumber: string;
-  status: 'DRAFT';
+  status: 'DRAFT' | 'CONFIRMED' | 'CANCELED';
+  version: number;
   sourceRevision: number;
   grandTotalVnd: string;
+  paidVnd: string;
+  cashPaidVnd: string;
+  creditAppliedVnd: string;
+  remainingVnd: string;
   shippingFeeVnd: string;
   taxVnd: string;
   depositVnd: string;
@@ -33,6 +38,15 @@ type Order = {
   customer: { id: string; customerCode: string; displayName: string };
   createdBy: { id: string; displayName: string };
   sourceQuote: { id: string; quoteNumber: string } | null;
+  shipment: {
+    id: string;
+    shipmentCode: string;
+    status: 'IN_TRANSIT' | 'DELIVERED';
+    version: number;
+    shippedAt: string;
+    deliveredAt: string | null;
+    recognizedRevenueVnd: string;
+  } | null;
   lines: Array<{
     id: string;
     lineNumber: number;
@@ -44,6 +58,14 @@ type Order = {
     unitPriceVnd: string;
     lineTotalVnd: string;
   }>;
+};
+type PaymentSuggestion = {
+  id: string;
+  orderNumber: string;
+  createdAt: string;
+  totalVnd: string;
+  allocatedVnd: string;
+  remainingVnd: string;
 };
 
 function money(value: string) {
@@ -80,8 +102,28 @@ export function OrdersWorkspace({
   const [customerId, setCustomerId] = useState('');
   const [draftLines, setDraftLines] = useState<DraftLine[]>([{ variantId: '', quantity: '1' }]);
   const [creating, setCreating] = useState(false);
+  const [canceling, setCanceling] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [shipping, setShipping] = useState(false);
+  const [delivering, setDelivering] = useState(false);
+  const [recordingPayment, setRecordingPayment] = useState(false);
+  const [applyingCredit, setApplyingCredit] = useState(false);
+  const [customerCreditBalance, setCustomerCreditBalance] = useState('0');
+  const [creditDraft, setCreditDraft] = useState<{ orderId: string; amount: string } | null>(null);
+  const [paymentDraft, setPaymentDraft] = useState<{
+    orderId: string;
+    amount: string;
+    allocation: string;
+  } | null>(null);
+  const [paymentNote, setPaymentNote] = useState('');
+  const [paymentSuggestions, setPaymentSuggestions] = useState<PaymentSuggestion[]>([]);
   const [showCreate, setShowCreate] = useState(false);
   const canCreate = staff.permissions.includes('orders.create');
+  const canCancel = staff.permissions.includes('orders.cancel');
+  const canConfirm = staff.permissions.includes('orders.confirm');
+  const canShip = staff.permissions.includes('shipments.create');
+  const canDeliver = staff.permissions.includes('shipments.deliver');
+  const canReceivePayment = staff.permissions.includes('payments.manage');
   const variants = useMemo(
     () =>
       products.flatMap((product) =>
@@ -94,6 +136,26 @@ export function OrdersWorkspace({
     [products],
   );
   const selected = orders.find((order) => order.id === selectedId) ?? orders[0] ?? null;
+
+  const selectedCustomerId = selected?.customer.id;
+  const paymentAmount =
+    paymentDraft?.orderId === selected?.id ? paymentDraft.amount : (selected?.remainingVnd ?? '');
+  const paymentAllocation =
+    paymentDraft?.orderId === selected?.id
+      ? paymentDraft.allocation
+      : (selected?.remainingVnd ?? '');
+  const creditApplicationAmount =
+    creditDraft?.orderId === selected?.id
+      ? creditDraft.amount
+      : (() => {
+          try {
+            const remaining = BigInt(selected?.remainingVnd ?? '0');
+            const balance = BigInt(customerCreditBalance);
+            return (remaining < balance ? remaining : balance).toString();
+          } catch {
+            return '0';
+          }
+        })();
 
   const load = useCallback(async (search = '') => {
     setLoading(true);
@@ -117,6 +179,38 @@ export function OrdersWorkspace({
     const timer = window.setTimeout(() => void load(), 0);
     return () => window.clearTimeout(timer);
   }, [load]);
+
+  useEffect(() => {
+    if (!canReceivePayment || !selectedCustomerId) return;
+    let active = true;
+    api<{ items: PaymentSuggestion[] }>(
+      `/payments/suggestions?customerId=${encodeURIComponent(selectedCustomerId)}`,
+    )
+      .then((result) => {
+        if (active) setPaymentSuggestions(result.items);
+      })
+      .catch(() => {
+        if (active) setPaymentSuggestions([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, [canReceivePayment, selectedCustomerId]);
+
+  useEffect(() => {
+    if (!canReceivePayment || !selectedCustomerId) return;
+    let active = true;
+    api<{ balanceVnd: string }>(`/customer-credit/${encodeURIComponent(selectedCustomerId)}`)
+      .then((result) => {
+        if (active) setCustomerCreditBalance(result.balanceVnd);
+      })
+      .catch(() => {
+        if (active) setCustomerCreditBalance('0');
+      });
+    return () => {
+      active = false;
+    };
+  }, [canReceivePayment, selectedCustomerId]);
 
   useEffect(() => {
     if (!canCreate) return;
@@ -155,9 +249,7 @@ export function OrdersWorkspace({
         headers: { 'Idempotency-Key': crypto.randomUUID() },
         body: JSON.stringify({ customerId, lines: draftLines }),
       });
-      setMessage(
-        'Đã tạo đơn nháp. Giá được phân giải từ bảng giá; chưa giữ kho, ghi nợ hoặc thu tiền.',
-      );
+      setMessage('Đã tạo đơn nháp. Giá được phân giải từ bảng giá; đơn nhập tay chưa giữ kho.');
       setShowCreate(false);
       setDraftLines([{ variantId: variants[0]?.id ?? '', quantity: '1' }]);
       await load(query);
@@ -165,6 +257,162 @@ export function OrdersWorkspace({
       setError(caught instanceof Error ? caught.message : 'Không tạo được đơn nháp.');
     } finally {
       setCreating(false);
+    }
+  }
+
+  async function cancelDraft(order: Order) {
+    if (!window.confirm(`Hủy ${order.orderNumber} và giải phóng lượng hàng đang giữ?`)) return;
+    setCanceling(true);
+    setError('');
+    setMessage('');
+    try {
+      await api<Order>(`/orders/${order.id}/cancel`, {
+        method: 'POST',
+        headers: { 'Idempotency-Key': crypto.randomUUID() },
+        body: JSON.stringify({ expectedVersion: order.version }),
+      });
+      const credit = await api<{ balanceVnd: string }>(
+        `/customer-credit/${encodeURIComponent(order.customer.id)}`,
+      );
+      setCustomerCreditBalance(credit.balanceVnd);
+      setMessage(`Đã hủy ${order.orderNumber}; lượng hàng đang giữ (nếu có) đã được giải phóng.`);
+      await load(query);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Không hủy được đơn.');
+    } finally {
+      setCanceling(false);
+    }
+  }
+
+  async function receivePayment(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!selected) return;
+    setRecordingPayment(true);
+    setError('');
+    setMessage('');
+    try {
+      const receipt = await api<{ unallocatedVnd: string; customerCreditBalanceVnd: string }>(
+        '/payments',
+        {
+          method: 'POST',
+          headers: { 'Idempotency-Key': crypto.randomUUID() },
+          body: JSON.stringify({
+            customerId: selected.customer.id,
+            amountVnd: paymentAmount,
+            allocations: [{ orderId: selected.id, amountVnd: paymentAllocation }],
+            note: paymentNote.trim() || undefined,
+          }),
+        },
+      );
+      setCustomerCreditBalance(receipt.customerCreditBalanceVnd);
+      setMessage(
+        `Đã ghi nhận khoản thu; ${money(receipt.unallocatedVnd)} chưa phân bổ được cộng vào số dư khách hàng.`,
+      );
+      setPaymentNote('');
+      await load(query);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Không ghi nhận được khoản thu.');
+    } finally {
+      setRecordingPayment(false);
+    }
+  }
+
+  async function applyCustomerCredit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!selected) return;
+    setApplyingCredit(true);
+    setError('');
+    setMessage('');
+    try {
+      const result = await api<{
+        customerCreditBalanceVnd: string;
+        application: { amountVnd: string };
+      }>(`/customer-credit/${encodeURIComponent(selected.customer.id)}/applications`, {
+        method: 'POST',
+        headers: { 'Idempotency-Key': crypto.randomUUID() },
+        body: JSON.stringify({
+          orderId: selected.id,
+          amountVnd: creditApplicationAmount,
+          expectedVersion: selected.version,
+        }),
+      });
+      setCustomerCreditBalance(result.customerCreditBalanceVnd);
+      setCreditDraft(null);
+      setMessage(
+        `Đã dùng ${money(result.application.amountVnd)} số dư khách cho đơn ${selected.orderNumber}.`,
+      );
+      await load(query);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Không sử dụng được số dư khách hàng.');
+    } finally {
+      setApplyingCredit(false);
+    }
+  }
+
+  async function confirmOrder(order: Order) {
+    setConfirming(true);
+    setError('');
+    setMessage('');
+    try {
+      await api<Order>(`/orders/${order.id}/confirm`, {
+        method: 'POST',
+        headers: { 'Idempotency-Key': crypto.randomUUID() },
+        body: JSON.stringify({ expectedVersion: order.version }),
+      });
+      setMessage(
+        `Đã xác nhận ${order.orderNumber}; phải thu đã ghi nhận và đối trừ đủ tiền đã thu.`,
+      );
+      await load(query);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Không xác nhận được đơn.');
+    } finally {
+      setConfirming(false);
+    }
+  }
+
+  async function shipOrder(order: Order) {
+    setShipping(true);
+    setError('');
+    setMessage('');
+    try {
+      const shipment = await api<{ shipmentCode: string }>('/shipments', {
+        method: 'POST',
+        headers: { 'Idempotency-Key': crypto.randomUUID() },
+        body: JSON.stringify({ orderId: order.id, expectedVersion: order.version }),
+      });
+      setMessage(`Đã xuất đủ hàng theo phiếu ${shipment.shipmentCode}.`);
+      await load(query);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Không xuất giao được đơn.');
+    } finally {
+      setShipping(false);
+    }
+  }
+
+  async function markDelivered(order: Order) {
+    if (!order.shipment) return;
+    setDelivering(true);
+    setError('');
+    setMessage('');
+    try {
+      const shipment = await api<{ recognizedRevenueVnd: string }>(
+        `/shipments/${order.shipment.id}/deliver`,
+        {
+          method: 'POST',
+          headers: { 'Idempotency-Key': crypto.randomUUID() },
+          body: JSON.stringify({ expectedVersion: order.shipment.version }),
+        },
+      );
+      setMessage(
+        `Đã ghi nhận giao đủ; doanh thu hàng hóa ${money(shipment.recognizedRevenueVnd)}.`,
+      );
+      await load(query);
+    } catch (caught) {
+      setError(
+        caught instanceof Error ? caught.message : 'Không ghi nhận được trạng thái đã giao.',
+      );
+    } finally {
+      setDelivering(false);
     }
   }
 
@@ -187,10 +435,10 @@ export function OrdersWorkspace({
       </header>
 
       <div className="notice purchase-warning">
-        <b>Đơn đang ở trạng thái nháp.</b>
+        <b>Thu đủ trước khi xác nhận đơn.</b>
         <span>
-          Chưa xác nhận đơn, giữ/trừ tồn, ghi nhận công nợ hay thu tiền. Các thao tác này chờ chốt
-          chính sách nghiệp vụ.
+          Báo giá được giữ hàng khi khách chấp nhận; đơn nhập tay kiểm tra và giữ hàng lúc xác nhận.
+          Chỉ giao đủ một lần; COD đang chờ chốt quy tắc đối soát.
         </span>
       </div>
       {error && (
@@ -340,7 +588,14 @@ export function OrdersWorkspace({
                       {order.customer.displayName} · {order.lines.length} dòng
                     </small>
                   </div>
-                  <i>Nháp · {money(order.grandTotalVnd)}</i>
+                  <i>
+                    {order.status === 'CANCELED'
+                      ? 'Đã hủy'
+                      : order.status === 'CONFIRMED'
+                        ? 'Đã xác nhận'
+                        : 'Nháp'}{' '}
+                    · {money(order.grandTotalVnd)}
+                  </i>
                 </button>
               ))
             )}
@@ -363,7 +618,13 @@ export function OrdersWorkspace({
                       : 'Tạo thủ công'}
                   </p>
                 </div>
-                <span className="status-pill">Đơn nháp</span>
+                <span className={`status-pill${selected.status === 'CANCELED' ? ' canceled' : ''}`}>
+                  {selected.status === 'CANCELED'
+                    ? 'Đã hủy'
+                    : selected.status === 'CONFIRMED'
+                      ? 'Đã xác nhận'
+                      : 'Đơn nháp'}
+                </span>
               </div>
               <div className="order-summary-grid">
                 <div>
@@ -382,7 +643,130 @@ export function OrdersWorkspace({
                   <span>Cọc dự kiến</span>
                   <b>{money(selected.depositVnd)}</b>
                 </div>
+                <div>
+                  <span>Tiền thực nhận đã phân bổ</span>
+                  <b>{money(selected.cashPaidVnd)}</b>
+                </div>
+                <div>
+                  <span>Số dư khách đã sử dụng</span>
+                  <b>{money(selected.creditAppliedVnd)}</b>
+                </div>
+                <div>
+                  <span>Tổng đã thanh toán/đối trừ</span>
+                  <b>{money(selected.paidVnd)}</b>
+                </div>
+                <div>
+                  <span>Còn phải thu trước xác nhận</span>
+                  <b>{money(selected.remainingVnd)}</b>
+                </div>
               </div>
+              {canReceivePayment && selected.status === 'DRAFT' && (
+                <section className="payment-receipt-panel">
+                  <h3>Ghi nhận tiền thực nhận</h3>
+                  {paymentSuggestions.length > 0 && (
+                    <div className="notice" role="status">
+                      Gợi ý khoản cần thu cũ nhất: <b>{paymentSuggestions[0]?.orderNumber}</b> · còn{' '}
+                      {money(paymentSuggestions[0]?.remainingVnd ?? '0')}
+                      {paymentSuggestions[0]?.id !== selected.id && (
+                        <button
+                          className="ghost"
+                          type="button"
+                          onClick={() => setSelectedId(paymentSuggestions[0]!.id)}
+                        >
+                          Mở đơn được gợi ý
+                        </button>
+                      )}
+                    </div>
+                  )}
+                  <form className="order-create-form" onSubmit={receivePayment}>
+                    <label>
+                      Số tiền thực nhận (VND)
+                      <input
+                        inputMode="numeric"
+                        pattern="[0-9]+"
+                        value={paymentAmount}
+                        onChange={(event) =>
+                          setPaymentDraft({
+                            orderId: selected.id,
+                            amount: event.target.value,
+                            allocation: paymentAllocation,
+                          })
+                        }
+                        required
+                      />
+                    </label>
+                    <label>
+                      Phân bổ cho đơn này (VND)
+                      <input
+                        inputMode="numeric"
+                        pattern="[0-9]+"
+                        value={paymentAllocation}
+                        onChange={(event) =>
+                          setPaymentDraft({
+                            orderId: selected.id,
+                            amount: paymentAmount,
+                            allocation: event.target.value,
+                          })
+                        }
+                        required
+                      />
+                    </label>
+                    <label>
+                      Ghi chú / mã tham chiếu
+                      <input
+                        value={paymentNote}
+                        onChange={(event) => setPaymentNote(event.target.value)}
+                        maxLength={500}
+                      />
+                    </label>
+                    <p className="section-help">
+                      Có thể thu nhiều lần. Phần nhận vượt mức phân bổ sẽ vào số dư khách hàng; hệ
+                      thống không tự chọn đơn để phân bổ.
+                    </p>
+                    <button
+                      type="submit"
+                      disabled={recordingPayment || selected.remainingVnd === '0'}
+                    >
+                      {recordingPayment ? 'Đang ghi nhận…' : 'Ghi nhận khoản thu'}
+                    </button>
+                  </form>
+                  <form className="order-create-form" onSubmit={applyCustomerCredit}>
+                    <h4>Sử dụng số dư khách hàng</h4>
+                    <p>
+                      Số dư có thể dùng: <b>{money(customerCreditBalance)}</b>
+                    </p>
+                    <label>
+                      Số tiền sử dụng (VND)
+                      <input
+                        inputMode="numeric"
+                        pattern="[0-9]+"
+                        value={creditApplicationAmount}
+                        onChange={(event) =>
+                          setCreditDraft({ orderId: selected.id, amount: event.target.value })
+                        }
+                        required
+                      />
+                    </label>
+                    <p className="section-help">
+                      Số dư được trừ khỏi khách và ghi sổ riêng; không được vượt số dư hiện có hoặc
+                      phần còn thiếu của đơn.
+                    </p>
+                    <button
+                      type="submit"
+                      className="ghost"
+                      disabled={
+                        applyingCredit ||
+                        selected.remainingVnd === '0' ||
+                        customerCreditBalance === '0' ||
+                        creditApplicationAmount === '' ||
+                        creditApplicationAmount === '0'
+                      }
+                    >
+                      {applyingCredit ? 'Đang phân bổ…' : 'Dùng số dư cho đơn này'}
+                    </button>
+                  </form>
+                </section>
+              )}
               <div className="purchase-lines">
                 {selected.lines.map((line) => (
                   <article key={line.id}>
@@ -409,6 +793,65 @@ export function OrdersWorkspace({
                 Tạo bởi {selected.createdBy.displayName} · Cập nhật{' '}
                 {new Date(selected.updatedAt).toLocaleString('vi-VN')}
               </p>
+              {selected.status === 'CONFIRMED' && !selected.shipment && canShip && (
+                <button type="button" disabled={shipping} onClick={() => void shipOrder(selected)}>
+                  {shipping ? 'Đang xuất hàng…' : 'Xuất giao đủ toàn bộ đơn'}
+                </button>
+              )}
+              {selected.shipment && (
+                <section className="payment-receipt-panel">
+                  <h3>Giao hàng · {selected.shipment.shipmentCode}</h3>
+                  <p className="section-help">
+                    Trạng thái:{' '}
+                    {selected.shipment.status === 'DELIVERED' ? 'Đã giao đủ' : 'Đang giao'} · Xuất
+                    lúc {new Date(selected.shipment.shippedAt).toLocaleString('vi-VN')}
+                  </p>
+                  {selected.shipment.status === 'IN_TRANSIT' && canDeliver && (
+                    <button
+                      type="button"
+                      disabled={delivering}
+                      onClick={() => void markDelivered(selected)}
+                    >
+                      {delivering ? 'Đang cập nhật…' : 'Xác nhận đã giao đủ đơn'}
+                    </button>
+                  )}
+                  {selected.shipment.status === 'DELIVERED' && (
+                    <p>Doanh thu hàng hóa: {money(selected.shipment.recognizedRevenueVnd)}</p>
+                  )}
+                </section>
+              )}
+              {selected.status === 'DRAFT' && (
+                <div className="header-actions">
+                  {canConfirm && selected.remainingVnd === '0' && (
+                    <button
+                      type="button"
+                      disabled={confirming}
+                      onClick={() => void confirmOrder(selected)}
+                    >
+                      {confirming ? 'Đang xác nhận…' : 'Xác nhận đơn đã thu đủ'}
+                    </button>
+                  )}
+                  {canCancel &&
+                    (selected.cashPaidVnd === '0' ? (
+                      <button
+                        className="ghost"
+                        type="button"
+                        disabled={canceling}
+                        onClick={() => void cancelDraft(selected)}
+                      >
+                        {canceling
+                          ? 'Đang hủy…'
+                          : selected.creditAppliedVnd !== '0'
+                            ? 'Hủy đơn và hoàn số dư khách'
+                            : 'Hủy đơn và nhả hàng giữ'}
+                      </button>
+                    ) : (
+                      <p className="section-help">
+                        Đơn đã nhận tiền; cần hoàn/đối trừ trước khi hủy.
+                      </p>
+                    ))}
+                </div>
+              )}
             </>
           )}
         </section>

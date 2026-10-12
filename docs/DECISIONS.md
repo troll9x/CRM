@@ -1,5 +1,19 @@
 # Nhật ký quyết định
 
+## DEC-CHANNEL-UX-01 — Người dùng kết nối Fanpage không cấu hình Meta app (2026-10-11)
+
+- **Đã chốt theo phản hồi của chủ dự án:** người quản lý Fanpage không cần biết Meta for Developers, App ID, App Secret, Graph version, callback hoặc webhook. Luồng họ dùng là mở CRM → bấm Kết nối Facebook → đăng nhập/cấp quyền trong Meta → chọn Fanpage nếu có nhiều Page → hoàn tất. Cấp lại quyền khi hết hạn/thu hồi dùng nút Kết nối lại.
+- **Phân trách nhiệm:** CRM/đơn vị triển khai cấu hình và duy trì một Meta app của dịch vụ ở backend trước khi mở nút cho người dùng. App ID/secret, scope, HTTPS callback/webhook, review và vận hành không phải bước onboarding của từng khách. Không thể bỏ qua yêu cầu app của Meta bằng cách chỉ biết URL Page hoặc dùng đăng nhập Facebook cá nhân để cào dữ liệu.
+- **Trạng thái hiện tại:** chủ dự án xác nhận chưa có Meta app; UI chỉ báo dịch vụ chưa sẵn sàng, không tuyên bố Page đã kết nối. Code OAuth local tiếp tục được tái sử dụng; kiểm thử live chờ app/permissions và browser/helper hoặc thao tác cấp quyền của chủ Page.
+
+## DEC-SYNC-01 — Nhập đa kênh inbound-only (2026-10-08)
+
+- **Đã chốt theo yêu cầu giao việc:** nền quản lý connection/webhook/job; Messenger + Page comments; Zalo OA messages và kiểm tra riêng comment API; Shopee/TikTok Shop orders; inbox/staging UI và mapping. V1 chỉ nhập dữ liệu, không ghi order/stock/payment/AR/revenue.
+- **Bất biến:** unique external keys và alert dedupe; link customer/SKU thủ công; không auto-merge; internal note never outbound; provider capability chỉ verified sau test thật.
+- **Chưa chốt / cần giữ blocker:** credential/OAuth lifecycle; retention tin/ảnh/recipient data; scope nhân viên xem; Zalo comment API; cấp quyền/review của từng app/shop và evidence test thật.
+- **Tác động:** additive schema migration + integration APIs/UI. Không commit/push/deploy trong lượt này; không chạy migration lên DB vận hành.
+- **Cập nhật code local 2026-10-08:** Zalo OA `user_send_*` inbound webhook có verifier/payload adapter theo tài liệu chính thức, vẫn cần test OA để xác nhận chữ ký/payload thực tế. Không coi unit/E2E fixture là evidence tích hợp.
+
 ## 1. Quyết định đã chốt ở mức kiến trúc
 
 | ID      | Trạng thái | Quyết định                                                                                                                                               | Lý do/hệ quả                                                                           |
@@ -23,7 +37,7 @@ Lần `npm ci` ngày 2026-10-05 trong Node 24.18.0 báo 9 high severity vulnerab
 
 ## 2. Quy ước tạm dùng
 
-Các mục sau đủ để viết tài liệu/prototype nhưng **không tự động trở thành cấu hình production**: một đơn vị kinh doanh, một kho; báo giá không giữ hàng; giá vốn bình quân gia quyền; giá sỉ theo nhóm/bậc; vận đơn nhập tay; AI chỉ gợi ý có duyệt.
+Các mục sau đủ để viết tài liệu/prototype nhưng **không tự động trở thành cấu hình production**: một đơn vị kinh doanh, một kho; giá vốn bình quân gia quyền; giá sỉ theo nhóm/bậc; vận đơn nhập tay; AI chỉ gợi ý có duyệt. Giả định cũ “báo giá không giữ hàng” đã được thay thế ngày 2026-10-07: giữ đủ hàng khi khách chấp nhận báo giá, nhả khi hủy đơn.
 
 Đợt 03 dùng đơn vị gốc và quy đổi cái/hộp/thùng, thuộc tính biến thể dạng metadata, chưa có lô/hạn dùng/serial. Ảnh chỉ lưu metadata URL HTTPS; không tuyên bố có upload/kho file.
 
@@ -37,8 +51,9 @@ Không thêm câu hỏi chặn mới vào danh sách này; câu hỏi phát sinh
 
 ### OPEN-01 — Kênh bán thực tế và tài khoản có thể thử
 
-- Cần trả lời: Facebook đang dùng Fanpage hay tài khoản cá nhân, có bao nhiêu Page? Zalo đang dùng OA hay tài khoản cá nhân? Kênh nào phải làm trước sau bản nội bộ?
-- Tạm dùng: thiết kế connector cho một Fanpage và một Zalo OA; vẫn nhập khách/đơn thủ công.
+- Cập nhật 2026-10-07: đã chọn Facebook làm kênh tích hợp đầu tiên. Chưa xác nhận đây là Messenger của Fanpage nào hay loại tài khoản cụ thể; chưa có app/quyền/tài khoản thử.
+- Còn cần trước khi gọi API: Page/account ID (không cần gửi secret trong chat), app developer/test, quyền được cấp, và quyền nhận/gửi tin cần thử.
+- Tạm dùng: chuẩn bị kiến trúc cho Facebook Page Messenger; giữ nhập khách/đơn thủ công cho tới khi có kiểm chứng.
 - Ảnh hưởng: khả năng tích hợp chính thức, định danh khách, quyền app, webhook, thời gian xét duyệt.
 - Không tự làm: không dùng cách tự động hóa tài khoản cá nhân và không tuyên bố đã tích hợp khi chưa có test API thật.
 
@@ -52,28 +67,46 @@ Không thêm câu hỏi chặn mới vào danh sách này; câu hỏi phát sinh
 
 ### OPEN-03 — Chính sách giá sỉ và giảm giá
 
-- Trạng thái: **Đã chốt một phần ngày 2026-10-05/06; cơ sở tính thuế phần trăm, cho phép kết hợp nhiều kiểu và thứ tự giảm giá còn cần xác nhận trước vận hành.**
+- Trạng thái: **Đã chốt ngày 2026-10-07.**
 - Đã xác nhận: bảng giá dùng chung; mỗi SKU có một đơn vị bán cố định do admin chọn (ví dụ gói, kg hoặc thùng 10kg); giá admin nhập theo đơn vị này. Số lượng dưới 5 dùng giá lẻ theo đơn vị bán; từ 5 trở lên bậc 5–9 dùng giá bậc 5, 10–14 dùng bậc 10, 15–19 dùng bậc 15 và tiếp tục mỗi 5. Giá còn thiếu không tự tính. Cho phép số lượng lẻ; thành tiền từng dòng làm tròn về VND nguyên, nửa đồng làm tròn lên. Báo giá hết hạn sau đủ 72 giờ từ lúc khách nhận; nhận báo giá ban đầu được ghi nhận thủ công khi PDF được chia sẻ. Gửi giai đoạn đầu bằng PDF/in/chia sẻ thủ công; gửi tự động chờ tài khoản thử. Giảm thêm hỗ trợ phần trăm hoặc VND trên dòng hoặc toàn báo giá. Báo giá có phí giao, thuế, cọc dự kiến, ghi chú thanh toán. Chuyển báo giá còn hạn giữ giá đã chốt. Khi khách đặt qua nền tảng cần thông báo Admin.
 - Trạng thái code trước khi mở rộng: lưu giá admin theo business/SKU/bậc nguyên cách 5. Phần mở rộng thêm đơn vị bán cố định, giá lẻ bậc 1 và số lượng thập phân; migration fresh DB và E2E đã xác minh local ngày 2026-10-06.
 - Cập nhật: người có quyền quản lý (`price.edit`) được tự đặt mức giảm phần trăm hoặc VND, theo dòng hoặc toàn báo giá; không có trần số tiền/tỷ lệ cấu hình sẵn.
 - Đã xác nhận ngày 2026-10-06: báo giá cho phép nhập thuế theo phần trăm hoặc số tiền VND; phạm vi là toàn báo giá.
-- Tạm dùng khi triển khai 05B: giảm theo dòng trước, giảm toàn báo giá sau; chọn một cách thuế trên mỗi báo giá; phần trăm tính trên tiền hàng sau giảm cộng phí giao, không gồm cọc. Cần chủ dự án xác nhận hoặc điều chỉnh trước khi dùng báo giá vận hành.
+- Chốt ngày 2026-10-07: giữ cách tính đang triển khai — giảm theo dòng trước, giảm toàn báo giá sau; chọn một cách thuế trên mỗi báo giá; thuế phần trăm tính trên tiền hàng sau giảm cộng phí giao, không gồm cọc.
 - Ảnh hưởng: khóa đơn vị bán và bậc Decimal, cách tính tổng báo giá, audit quyền giảm, snapshot, hạn hiệu lực và chuyển sang đơn nháp.
 
 ### OPEN-04 — Chính sách mua nợ
 
-- Cần trả lời: khách nào được nợ, hạn mức, kỳ hạn, mốc phát sinh phải thu và ai duyệt vượt hạn mức?
-- Tạm dùng: mặc định không cho nợ; chỉ chủ cửa hàng cấp riêng. Bộ mẫu giả định phải thu phát sinh lúc xác nhận đơn.
-- Ảnh hưởng: xác nhận đơn, đặt cọc, công nợ, tuổi nợ và quyền override.
+- Trạng thái: **Đã chốt ngày 2026-10-07: không bán chịu; thu đủ trước khi xác nhận đơn. Phải thu ghi nhận tại thời điểm xác nhận.**
+- Nhiều lần thu/thu một phần được phép trước xác nhận; đơn chưa thu đủ vẫn là nháp. Khi xác nhận, ghi nhận phải thu rồi đối trừ khoản thu đã phân bổ để số dư còn phải thu bằng 0.
+- Không có hạn mức nợ/override bán chịu theo lựa chọn hiện tại.
 
 ### OPEN-05 — Giữ hàng, giao một phần và giá vốn
 
-- Trạng thái: **Chưa xác nhận cho vận hành thật**. Đợt 04B chỉ kiểm chứng phần nhận hàng/giá vốn local theo giả định kỹ thuật ở mục 2.
+- Trạng thái: **Đã chốt phần giữ hàng/giao/giá vốn ngày 2026-10-07; thời hạn trả hàng thuộc Đợt 08 còn thiếu số ngày.**
 
-- Cần trả lời: chỉ giữ khi xác nhận hay giữ từ báo giá; reservation hết hạn khi nào; có cho giao nhiều đợt/backorder; dùng bình quân gia quyền hay FIFO; hàng trả đủ điều kiện nhập lại thế nào?
-- Tạm dùng: đơn xác nhận mới giữ; không tự hết hạn; cho giao nhiều đợt; giá vốn bình quân gia quyền; hàng trả qua kiểm tra chất lượng.
-- Ảnh hưởng: transaction cạnh tranh, reservation job, sổ kho, cost snapshot, trả hàng và báo cáo lãi gộp.
+- Đã chốt: giữ tồn khi khách chấp nhận báo giá; không tự hết hạn, chỉ giải phóng khi hủy đơn; không cho giao thiếu; giá vốn bình quân gia quyền; hàng trả chỉ vào tồn khả dụng sau kiểm tra, hàng lỗi vào khu chờ xử lý.
+- Hệ quả triển khai: vì giữ toàn bộ lượng và không giao thiếu, nếu tồn khả dụng không đủ thì từ chối chuyển báo giá thành đơn (không giữ một phần). Đây là hệ quả logic của lựa chọn; sẽ báo rõ lỗi thiếu tồn.
+- Còn thiếu cho Đợt 08: thời hạn nhận trả hàng, tính từ ngày giao, cần số ngày cụ thể.
+- Cập nhật 2026-10-08: triển khai cấu hình nullable, không mặc định số ngày; quản lý nhập số nguyên 1–3650 thì mới tiếp nhận. Request snapshot số ngày và hạn; cách tính kỹ thuật hiện là đủ 24 giờ × số ngày, hạn inclusive. Đây là cách diễn giải kỹ thuật chưa thay thế xác nhận “số ngày cụ thể” trước pilot.
+- Ảnh hưởng: chuyển báo giá thành đơn, transaction cạnh tranh, reservation, hủy/giải phóng, xuất kho, trả hàng và báo cáo.
 
-## 4. Cách ghi nhận câu trả lời
+## 4. Chính sách đã chốt bổ sung ngày 2026-10-07
+
+- **Thu tiền (Đợt 07):** cho phép thu nhiều lần và thu một phần; nhân viên chủ động chọn khoản nợ/đơn để phân bổ, hệ thống có thể gợi ý khoản cũ nhất. Tiền thu thừa trở thành số dư khách hàng. Không bán chịu; phải thu ghi nhận lúc xác nhận đơn sau khi thu đủ 100%, rồi bù trừ các khoản đã phân bổ trước đó.
+- **Đổi trả/COD/báo cáo (Đợt 08):** hàng hoàn chỉ nhập tồn khả dụng sau kiểm tra chất lượng; hàng lỗi vào khu chờ xử lý. COD chỉ ghi nhận khi nhân viên đối soát số tiền thực nhận. Doanh thu ghi theo lượng hàng đã giao. Thời hạn nhận trả kể từ ngày giao chưa có số ngày nên vẫn mở.
+- **Kênh đầu tiên (Đợt 09):** Facebook được chọn ưu tiên; chuẩn bị lõi kỹ thuật thuộc phạm vi dự án, nhưng chưa có Page/app/quyền/tài khoản thử để gọi API hoặc nghiệm thu connector thật.
+- Các lựa chọn này cập nhật `BUSINESS_RULES.md`, `DATA_MODEL.md`, `API_CONTRACT.md`, `ACCEPTANCE.md`, `BACKLOG.md` và `INTEGRATION_READINESS.md`. Quyết định nghiệp vụ không phải bằng chứng code đã hỗ trợ.
+
+## 5. Cách ghi nhận câu trả lời
 
 Khi được xác nhận, đổi `OPEN-*` thành ADR mới gồm ngày, người quyết định, lựa chọn, ví dụ cụ thể và tác động tới `BUSINESS_RULES`, `DATA_MODEL`, `API_CONTRACT`, `ACCEPTANCE`. Không xóa nội dung cũ; ghi quyết định thay thế để truy vết.
+
+## 6. Quyết định nghiệp vụ bổ sung
+
+### DEC-CUS-01 — Phân nhóm theo kênh nguồn (2026-10-08)
+
+- **Trạng thái:** Đã chốt bởi chủ dự án.
+- **Quyết định:** Facebook/Messenger và Zalo là nguồn khách sỉ; Shopee và TikTok Shop là nguồn khách lẻ.
+- **Cách áp dụng:** Backend tự đặt nhóm trong create/update nếu nguồn nhận diện thuộc các kênh trên; dữ liệu nhóm do client gửi không được ghi đè mapping. Nguồn khác/không rõ vẫn dùng lựa chọn thủ công.
+- **Tác động:** Không đổi schema; lưu tiếp vào `Customer.source` và dùng `Customer.groupId` hiện có. Có E2E cho mapping; không đồng nghĩa connector đã kết nối.

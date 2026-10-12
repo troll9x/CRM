@@ -1,0 +1,2 @@
+-- Intentionally no-op: the legacy timestamped migration directory was empty in this checkout.
+-- Keep the history entry explicit so Prisma Migrate can traverse later migrations consistently.

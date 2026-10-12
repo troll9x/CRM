@@ -5,6 +5,13 @@ const safeMethods = new Set(['GET', 'HEAD', 'OPTIONS']);
 
 export function csrfProtection(allowedOrigins: Set<string>) {
   return (request: RequestWithContext, response: Response, next: NextFunction): void => {
+    if (
+      request.method === 'POST' &&
+      ['/api/v1/webhooks/facebook', '/api/v1/webhooks/zalo'].includes(request.path)
+    ) {
+      next();
+      return;
+    }
     if (safeMethods.has(request.method)) {
       next();
       return;
