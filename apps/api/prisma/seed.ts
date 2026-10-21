@@ -116,8 +116,9 @@ const roles = [
 ];
 
 async function main(): Promise<void> {
-  if (process.env.NODE_ENV === 'production') {
-    throw new Error('Seed local/test bị từ chối trong NODE_ENV=production.');
+  const productionBootstrap = process.env.NODE_ENV === 'production';
+  if (productionBootstrap && process.env.BOOTSTRAP_EMPTY_PRODUCTION_DB !== 'yes') {
+    throw new Error('Seed production yêu cầu BOOTSTRAP_EMPTY_PRODUCTION_DB=yes.');
   }
   const connectionString = process.env.DATABASE_URL;
   const ownerEmail = process.env.SEED_OWNER_EMAIL;
@@ -130,12 +131,22 @@ async function main(): Promise<void> {
 
   const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString }) });
   try {
+    if (productionBootstrap) {
+      const [businessCount, staffCount] = await Promise.all([
+        prisma.business.count(),
+        prisma.staffUser.count(),
+      ]);
+      if (businessCount !== 0 || staffCount !== 0) {
+        throw new Error('Từ chối bootstrap: database production đã có business hoặc nhân viên.');
+      }
+    }
+    const businessId = productionBootstrap ? 'business_production_default' : 'business_local_default';
     const business = await prisma.business.upsert({
-      where: { id: 'business_local_default' },
+      where: { id: businessId },
       update: {},
       create: {
-        id: 'business_local_default',
-        name: 'Cửa hàng Sơn',
+        id: businessId,
+        name: productionBootstrap ? (process.env.SEED_BUSINESS_NAME ?? 'Sơn CRM') : 'Cửa hàng Sơn',
         timezone: 'Asia/Ho_Chi_Minh',
         currency: 'VND',
       },

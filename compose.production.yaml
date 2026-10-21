@@ -1,0 +1,66 @@
+name: son-crm-production
+
+services:
+  db:
+    image: postgres:17.6-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+    volumes:
+      - crm_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.production
+    image: son-crm-app:production
+    restart: unless-stopped
+    command: node apps/api/dist/src/main.js
+    env_file:
+      - path: .env.production
+        required: false
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL}
+      API_PORT: '4000'
+      WEB_ORIGIN: https://crm.nguyenhongson.vn
+      SESSION_COOKIE_SECURE: 'true'
+      INTEGRATIONS_WORKER_ENABLED: 'false'
+    ports:
+      - '127.0.0.1:4000:4000'
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - fetch('http://127.0.0.1:4000/api/v1/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))
+      interval: 20s
+      timeout: 5s
+      retries: 6
+
+  web:
+    image: son-crm-app:production
+    restart: unless-stopped
+    command: npm run start -w @crm/web -- --hostname 0.0.0.0
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: /api/v1
+      NEXT_TELEMETRY_DISABLED: '1'
+    ports:
+      - '127.0.0.1:3000:3000'
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  crm_postgres_data:

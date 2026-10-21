@@ -1,0 +1,19 @@
+FROM node:24.18.0-bookworm
+
+WORKDIR /workspace
+ENV NODE_ENV=production \
+    NEXT_TELEMETRY_DISABLED=1 \
+    NEXT_PUBLIC_API_URL=/api/v1
+
+COPY package.json package-lock.json ./
+COPY apps/api/package.json apps/api/package.json
+COPY apps/web/package.json apps/web/package.json
+COPY packages/contracts/package.json packages/contracts/package.json
+RUN npm ci --include=dev
+
+COPY apps/api apps/api
+COPY apps/web apps/web
+COPY packages/contracts packages/contracts
+RUN npm run build
+
+EXPOSE 3000 4000
