@@ -1,5 +1,22 @@
 # Backlog theo phụ thuộc
 
+## SOCIAL-INBOX-TICKET-01 — tiếp sau code local 2026-10-14
+
+- Kiểm tra browser desktop/mobile với dữ liệu scratch; xác nhận vùng cuộn, focus, chuyển mục, tạo/cập nhật ticket và ảnh không chứa khách thật.
+- Thêm phân trang/count/filter server cho hơn 100 hội thoại/bình luận/ticket và dữ liệu bài viết gốc/avatar/media hợp lệ; hiện UI ghi rõ chỉ lọc tối đa 100 mục đã tải mỗi loại.
+- Quyết định visibility/retention của tin, bình luận, ticket trước khi đưa vào Customer 360. Gửi chat/reply chỉ triển khai sau khi endpoint/quyền provider được kiểm chứng live.
+
+## Ưu tiên hiện hành 2026-10-13 — FB-UNBLOCK-BACKFILL-01
+
+- `LIVE_PARTIAL` Messenger history: 8 tin thật/2 hội thoại đã nhập, nhập lại 100 trang không tăng số tin. Chưa chứng minh UI browser hoặc độ phủ toàn Page. Job giới hạn trang và có thể mở rộng checkpoint có kiểm soát.
+- `BLOCKED_PERMISSION` comment history: Page posts đọc được, Graph `/post/comments` code 10; cần quyền `pages_read_user_content`/App Review rồi reconnect grant.
+- `WAITING_FOR_META` Messenger/comment realtime: app Sơn CRM chưa phát hành vì thiếu URL chính sách quyền riêng tư, Quick Tunnel cũ đã hết phiên. Chuẩn bị URL/chính sách thật, xét duyệt và webhook ổn định; sau đó nghiệm thu từng event mới từ Meta đến UI. Chi tiết [`tasks/FB-UNBLOCK-BACKFILL-01.md`](tasks/FB-UNBLOCK-BACKFILL-01.md).
+
+## Ưu tiên hiện hành 2026-10-12 — CRM-CONTINUE-SOL-01
+
+- `P0 FB-SYNC-FIX-01 — PARTIAL/BLOCKED LIVE`: Parser comment edit/remove đã sửa và kiểm thử local; Messenger grant/Page subscription xác minh bằng Graph thật. Webhook Meta đã Verify & Save host HTTPS mới ngày 2026-10-12; Meta app vẫn chưa phát hành và bình luận thiếu `pages_read_user_content`. Không có live inbound job. Theo dõi tại [`tasks/FB-SYNC-FIX-01.md`](tasks/FB-SYNC-FIX-01.md).
+- Sau khi hoàn tất phát hành/quyền Meta và tự tạo tin+bình luận mới, trace qua DB/API/UI/replay mới đóng P0. P1 độc lập kế tiếp: health/lifecycle connection, Zalo OA và adapters sàn theo tài liệu/quyền thật; không tự bật đồng bộ dữ liệu giả.
+
 ## CHANNEL-AUTH-01 — trải nghiệm kết nối Facebook (2026-10-11)
 
 - `DONE LOCAL — UX`: người quản lý Page chỉ cần nút Kết nối Facebook, đăng nhập/cấp quyền và chọn Page; không nhập App ID/secret hay tạo Meta app. Chi tiết cấu hình và khai báo thủ công được thu gọn dưới mục dành cho người triển khai.
@@ -144,3 +161,18 @@ Mỗi lát cắt phải có migration + API + UI + dữ liệu lưu thật + tes
 - Không còn lỗi nghiêm trọng về giá/kho/tiền/quyền trong phạm vi.
 - Diff được xem; thay đổi ngoài phạm vi được loại bỏ; có commit truy vết.
 - Người dùng chính thực hiện được thao tác chính và phản hồi được ghi vào backlog.
+
+### 2026-10-15 — SOCIAL-OPERATIONS
+
+- Meta: callback HTTPS ổn định + privacy policy/app publish/review; thử webhook tin mới từ tài khoản kiểm soát, gửi từ CRM và đối chiếu Messenger. Hiện CODE_READY, chưa LIVE_VERIFIED.
+- Meta comments: cấp pages_read_user_content/pages_manage_engagement và Page MODERATE thực tế, sau đó thử reply. Hiện PERMISSION_REQUIRED.
+- Chat → báo giá/đơn: nút mở báo giá nháp đã điền Customer liên kết và ghi chú nguồn hội thoại; còn cần FK nguồn bất biến, ticket source, thử bằng dữ liệu có SKU/giá/tồn và xác nhận chuyển đơn. Không tự chốt hoặc ghi tiền.
+- Cập nhật 2026-10-15: FK Conversation/Message/Ticket đã thêm ở Quote, Order truy qua sourceQuote; scratch E2E cho tạo báo giá/nguồn/idempotency đạt. Còn nghiệm thu UI trực quan chat → báo giá → đơn và live Messenger sau khi callback, app publish đủ điều kiện. Không đưa fixture vào DB vận hành.
+- Shopee/TikTok: app/shop OAuth + scope thật trước adapter nhận đơn/fulfillment. Zalo: OA/app grant và account test trước adapter gửi. Hiện NOT_CONNECTED.
+
+### 2026-10-16 — Multi-Page và live acceptance
+
+- Multi-Page code + staff access đã kiểm trên DB scratch; chưa áp migration mới lên DB vận hành. Cần nghiệm thu UI trên môi trường scratch tách biệt và kiểm thêm phản hồi permission khi nhân viên bị thu quyền giữa lúc đang mở hội thoại.
+- Hostname HTTPS cố định chưa được cấp. Chuẩn bị ngrok assigned dev domain hoặc Cloudflare named Tunnel với tên miền chủ dự án; kiểm riêng OAuth/webhook từ Internet rồi mới trình URL cụ thể và rollback trước khi đổi Meta.
+- Khi Meta app/role và callback cho phép, thử một tin mới + một câu trả lời CRM xuất hiện trên Messenger cho Page đầu; sau đó Page thứ hai. Giữ bằng chứng event/job/DB/UI theo Page và echo không trùng. Chưa gọi fixture live.
+- Cần chủ dự án xác nhận tên đơn vị, email yêu cầu dữ liệu, retention, Page thứ hai và tài khoản thử trước khi chốt privacy policy/review và thử live.

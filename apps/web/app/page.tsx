@@ -20,6 +20,11 @@ export default function Home() {
   const [checking, setChecking] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState('');
+  const [quoteFromChat, setQuoteFromChat] = useState<{
+    customerId: string;
+    conversationId: string;
+    accountName: string;
+  } | null>(null);
   const [view, setView] = useState<
     | 'overview'
     | 'customers'
@@ -253,7 +258,12 @@ export default function Home() {
       ) : view === 'pricing' ? (
         <PricingWorkspace staff={staff} onLogout={logout} loggingOut={submitting} />
       ) : view === 'quotes' ? (
-        <QuotesWorkspace staff={staff} onLogout={logout} loggingOut={submitting} />
+        <QuotesWorkspace
+          staff={staff}
+          onLogout={logout}
+          loggingOut={submitting}
+          fromChat={quoteFromChat}
+        />
       ) : view === 'orders' ? (
         <OrdersWorkspace staff={staff} onLogout={logout} loggingOut={submitting} />
       ) : view === 'returns' ? (
@@ -263,7 +273,15 @@ export default function Home() {
       ) : view === 'shipments' ? (
         <ShipmentsWorkspace staff={staff} onLogout={logout} loggingOut={submitting} />
       ) : view === 'integrations' ? (
-        <IntegrationsWorkspace staff={staff} onLogout={logout} loggingOut={submitting} />
+        <IntegrationsWorkspace
+          staff={staff}
+          onLogout={logout}
+          loggingOut={submitting}
+          onCreateQuote={(source) => {
+            setQuoteFromChat(source);
+            setView('quotes');
+          }}
+        />
       ) : (
         <OverviewWorkspace
           staff={staff}

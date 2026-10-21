@@ -2,6 +2,8 @@
 
 ## Phạm vi bổ sung 09 — đa kênh (2026-10-08)
 
+Lát cắt hộp thư social 2026-10-14: giao diện desktop ba vùng, điều hướng vùng trên màn hẹp và ticket nội bộ lưu DB từ chat/comment. Bộ lọc trên tối đa 100 bản ghi gần nhất mỗi loại hiện là bộ lọc dữ liệu đã tải; chưa có phân trang/count toàn bộ từ server. Gửi trả lời từ CRM chưa có API/provider permission được kiểm chứng nên không mở ô soạn.
+
 Đã giao triển khai nền nhập dữ liệu inbound cho Facebook Page (Messenger + feed comments), Zalo OA messages, Shopee orders và TikTok Shop orders, cùng inbox/đơn ngoài và mapping CRM. Phạm vi này **không** tự tạo đơn bán, xuất/giữ hàng, thu tiền, công nợ hoặc ghi doanh thu. Tình trạng triển khai và dependency tài khoản nằm trong [`INTEGRATIONS_SETUP.md`](INTEGRATIONS_SETUP.md); chưa coi provider nào là kết nối thật nếu chưa có evidence từ tài khoản được cấp.
 
 Trạng thái: 06A–06F (queue kho và migration deploy sạch), 07A/07B (gồm danh sách công nợ), 08A đổi trả/QA, 08B báo cáo gross theo hàng giao và backup/restore DB với dữ liệu order/stock/AR/return đại diện đã kiểm tra local. Đợt 09 có inbox/staging, Facebook Page webhook inbound và Zalo OA message webhook adapter local; chưa provider nào có account evidence. Còn Shopee/TikTok order pollers, Zalo comment API chưa xác minh, retention/security review, browser acceptance và cấu hình kênh. Các connector thật cần app/shop test account + scope được cấp; không có dữ liệu mẫu được dùng để báo tích hợp.

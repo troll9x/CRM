@@ -1,5 +1,24 @@
 # Kế hoạch nghiệm thu
 
+## Checkpoint multi-Page 2026-10-16
+
+- [x] OAuth mock Graph + DB scratch: chọn hai Page từ một consent, upsert riêng, lỗi subscription của Page thứ hai trả rõ Page lỗi và không ghi một phần; reconnect/ngắt một Page giữ Page còn lại. `/me/accounts` trang ngắn có `paging.next` vẫn đọc tiếp. Trên DB scratch mới, 8/8 bài thử OAuth và cả bộ 6 file/17 bài E2E đạt, không phải Meta live.
+- [x] Webhook HMAC fixture + DB scratch: hai Page nhận cùng external user ID và vẫn có hai identity/hội thoại; replay/echo không tạo trùng, Page ID lạ không tạo job. 2/2 bài thử đạt, không phải Meta delivery.
+- [x] Phân quyền nhân viên theo connection: thiếu grant không xem hộp thư, grant xem không cho gửi; quản trị viên cấp/thu hồi riêng từng tài khoản. Migration mới chỉ chạy trên DB scratch, chưa áp DB vận hành.
+- [ ] Nghiệm thu trực quan UI nhiều Page trên web scratch; dev server đang chạy cùng thư mục nên không thể mở bản web scratch song song mà không ảnh hưởng môi trường đang dùng.
+- [ ] Một Page và sau đó hai Page live: hostname HTTPS công khai, app/role cho phép event, tin mới vào đúng Page, reply CRM hiện trên Messenger, không trùng echo; quyền bình luận cần grant thật riêng.
+
+## SOCIAL-INBOX-TICKET-01 (2026-10-14)
+
+- [x] Migration và E2E trên PostgreSQL scratch: ticket từ chat/comment đã lưu, business scope 404, request key replay không nhân bản, key khác payload 409, version conflict 409, chỉ đóng sau RESOLVED, event audit và mark-read.
+- [x] Hộp thư code có ba vùng desktop, điều hướng một vùng trên màn hẹp, lọc dữ liệu đã tải theo loại/kênh/tài khoản/unread/chưa xử lý/ưu tiên/người phụ trách/nhãn/trạng thái; Page/OA/shop hiển thị riêng. Luồng chat phân biệt inbound/outbound; comment hiện nguồn/post/parent khi có dữ liệu. Ô gửi không mở khi chưa có API gửi được kiểm chứng.
+- [ ] Kiểm tra tương tác và ảnh desktop/mobile trên browser local; Computer Use Chrome lượt này đọc được Meta tab nhưng không click/chụp được do geometry/capture timeout. Build/test code không thay kiểm tra trực quan.
+- [ ] Phân trang và tổng count toàn bộ từ backend, avatar/media URL chuẩn, nội dung post gốc từ provider, reply thật theo permission, ticket trong Customer 360 chỉ sau khi chốt visibility/retention.
+
+## Facebook FB-UNBLOCK-BACKFILL-01 (2026-10-13)
+
+Bốn tuyến nghiệm thu độc lập: Messenger mới, comment/reply mới, Messenger cũ, comment/reply cũ. Chỉ gắn `LIVE_VERIFIED` khi một đối tượng thật đi từ Meta → webhook/job hoặc backfill → DB → API → UI và nhập lại không trùng; fixture chỉ `LOCAL_TESTED`. Messenger history hiện `LIVE_PARTIAL`: 8 tin cũ/2 hội thoại đã xác minh Graph → DB → API → UI Chrome (5 + 3 tin có nhãn lịch sử), nhập lại 8 duplicate/0 mới; chưa chứng minh Meta trả hết Inbox. Comment history `BLOCKED_PERMISSION` Graph code 10; hai tuyến realtime `WAITING_FOR_META` vì app chưa phát hành/URL webhook tạm hết phiên. Xem [`tasks/FB-UNBLOCK-BACKFILL-01.md`](tasks/FB-UNBLOCK-BACKFILL-01.md).
+
 ## AC-SYNC — nhập đa kênh inbound-only
 
 ### CHANNEL-AUTH-01 Facebook (local contract)
@@ -283,3 +302,14 @@ Mỗi test ghi: Given dữ liệu/role/version; When request hoặc thao tác; T
 
 - **Tự phục vụ:** có IDOR/OTP/rate limit, giá/tồn theo quyền và late-payment reconciliation.
 - **Sàn:** mapping failure, duplicate external order, inventory lag và recovery đã chạy với shop thử.
+
+### Social outbound 2026-10-15
+
+- Local: guest/ngoài business bị từ chối; quyền Page/tác vụ, PSID, người phụ trách và cửa sổ phản hồi được kiểm ở server. Graph chấp nhận phải lưu provider ID; timeout/rate-limit là UNKNOWN; key phát lại và webhook echo không tạo gửi/tin trùng.
+- Live Messenger chỉ đạt khi tài khoản thử gửi tin mới → webhook vào CRM → POST từ CRM trả provider ID → tin xuất hiện trên Messenger của tài khoản thử. Chưa đạt ngày 2026-10-15.
+- Live comment chỉ đạt khi comment thử vào CRM và reply hiện trên Page. Quyền Graph hiện thiếu, chưa đạt. Zalo/Shopee/TikTok chưa có tài khoản kết nối/thử thật, chưa đạt.
+
+### Nguồn chat → báo giá/đơn (scratch DB, 2026-10-15)
+
+- Tạo Customer/SKU/giá admin/tồn trên DB `crm_social_quote_scratch_20261015`; source Conversation/Message/Ticket thuộc business và Customer liên kết được lưu bằng FK trong Quote. Lặp key trả cùng quote; tin sai hội thoại trả 422; vai trò thiếu quyền tạo báo giá trả 403; PATCH đổi nguồn trả 400. Phát hành revision rồi chuyển đơn nháp; GET order trả `sourceQuote` chứa đủ ba ID nguồn.
+- Bộ quote E2E 3/3 và webhook E2E 1/1 chạy trên DB scratch; migration 32/32. API/web typecheck, API lint, gateway smoke (allowlist/GET/POST chữ ký/health) đạt. Chưa có nghiệm thu UI trình duyệt cho đường dẫn này hoặc gửi Messenger live.

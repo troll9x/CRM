@@ -209,6 +209,42 @@ enum ConversationStatus {
   RESOLVED
 }
 
+enum SocialTicketKind {
+  PRODUCT
+  QUOTE
+  ORDER
+  DELIVERY
+  COMPLAINT
+  OTHER
+}
+
+enum SocialTicketPriority {
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum SocialTicketStatus {
+  OPEN
+  IN_PROGRESS
+  WAITING
+  RESOLVED
+  CLOSED
+}
+
+enum SocialOutboundKind {
+  MESSENGER
+  COMMENT_REPLY
+}
+
+enum SocialOutboundStatus {
+  PENDING
+  SENDING
+  SENT_TO_PROVIDER
+  FAILED
+  UNKNOWN
+}
+
 model Business {
   id                           String                        @id @default(cuid())
   name                         String
@@ -254,11 +290,15 @@ model Business {
   returnRequests               ReturnRequest[]
   returnCommands               ReturnCommand[]
   integrationConnections       IntegrationConnection[]
+  integrationStaffAccesses      IntegrationStaffAccess[]
   integrationAuthAttempts      IntegrationAuthAttempt[]
   integrationJobs              IntegrationJob[]
   externalIdentities           ExternalCustomerIdentity[]
   conversations                Conversation[]
   socialComments               SocialComment[]
+  socialTickets                SocialTicket[]
+  socialTicketEvents           SocialTicketEvent[]
+  socialOutbounds              SocialOutbound[]
   externalOrders               ExternalOrder[]
   externalProductMappings      ExternalProductMapping[]
   internalConversationNotes    InternalConversationNote[]
@@ -280,6 +320,7 @@ model StaffUser {
   updatedAt                 DateTime                      @updatedAt @map("updated_at")
   business                  Business                      @relation(fields: [businessId], references: [id], onDelete: Restrict)
   roles                     StaffUserRole[]
+  integrationStaffAccesses  IntegrationStaffAccess[]
   sessions                  Session[]
   audits                    AuditLog[]                    @relation("AuditActor")
   assignedCustomers         Customer[]                    @relation("CustomerAssignee")
@@ -310,6 +351,10 @@ model StaffUser {
   customerMerges            CustomerMergeCommand[]        @relation("CustomerMergeActor")
   decidedCustomerDuplicates CustomerDuplicateSuggestion[]
   integrationAuthAttempts   IntegrationAuthAttempt[]
+  assignedSocialTickets     SocialTicket[]                @relation("SocialTicketAssignee")
+  createdSocialTickets      SocialTicket[]                @relation("SocialTicketCreator")
+  socialTicketEvents        SocialTicketEvent[]
+  socialOutbounds           SocialOutbound[]
 
   @@index([businessId, status])
   @@map("staff_users")
@@ -983,40 +1028,49 @@ model PriceTierCommand {
 }
 
 model Quote {
-  id                 String             @id @default(cuid())
-  businessId         String             @map("business_id")
-  customerId         String             @map("customer_id")
-  createdById        String             @map("created_by_id")
-  quoteNumber        String             @map("quote_number")
-  status             QuoteStatus        @default(DRAFT)
-  version            Int                @default(1)
-  lineSubtotalVnd    Decimal            @map("line_subtotal_vnd") @db.Decimal(20, 0)
-  lineDiscountVnd    Decimal            @map("line_discount_vnd") @db.Decimal(20, 0)
-  orderDiscountMode  QuoteDiscountMode? @map("order_discount_mode")
-  orderDiscountValue Decimal?           @map("order_discount_value") @db.Decimal(20, 6)
-  orderDiscountVnd   Decimal            @map("order_discount_vnd") @db.Decimal(20, 0)
-  shippingFeeVnd     Decimal            @default(0) @map("shipping_fee_vnd") @db.Decimal(20, 0)
-  taxMode            QuoteTaxMode?      @map("tax_mode")
-  taxValue           Decimal?           @map("tax_value") @db.Decimal(20, 6)
-  taxVnd             Decimal            @default(0) @map("tax_vnd") @db.Decimal(20, 0)
-  depositVnd         Decimal            @default(0) @map("deposit_vnd") @db.Decimal(20, 0)
-  grandTotalVnd      Decimal            @map("grand_total_vnd") @db.Decimal(20, 0)
-  paymentNote        String?            @map("payment_note")
-  internalNote       String?            @map("internal_note")
-  receivedAt         DateTime?          @map("received_at")
-  expiresAt          DateTime?          @map("expires_at")
-  createdAt          DateTime           @default(now()) @map("created_at")
-  updatedAt          DateTime           @updatedAt @map("updated_at")
-  business           Business           @relation(fields: [businessId], references: [id], onDelete: Restrict)
-  customer           Customer           @relation(fields: [customerId], references: [id], onDelete: Restrict)
-  createdBy          StaffUser          @relation("QuoteCreator", fields: [createdById], references: [id], onDelete: Restrict)
-  lines              QuoteLine[]
-  revisions          QuoteRevision[]
-  salesOrder         SalesOrder?
+  id                   String               @id @default(cuid())
+  businessId           String               @map("business_id")
+  customerId           String               @map("customer_id")
+  sourceConversationId String?              @map("source_conversation_id")
+  sourceMessageId      String?              @map("source_message_id")
+  sourceTicketId       String?              @map("source_ticket_id")
+  createdById          String               @map("created_by_id")
+  quoteNumber          String               @map("quote_number")
+  status               QuoteStatus          @default(DRAFT)
+  version              Int                  @default(1)
+  lineSubtotalVnd      Decimal              @map("line_subtotal_vnd") @db.Decimal(20, 0)
+  lineDiscountVnd      Decimal              @map("line_discount_vnd") @db.Decimal(20, 0)
+  orderDiscountMode    QuoteDiscountMode?   @map("order_discount_mode")
+  orderDiscountValue   Decimal?             @map("order_discount_value") @db.Decimal(20, 6)
+  orderDiscountVnd     Decimal              @map("order_discount_vnd") @db.Decimal(20, 0)
+  shippingFeeVnd       Decimal              @default(0) @map("shipping_fee_vnd") @db.Decimal(20, 0)
+  taxMode              QuoteTaxMode?        @map("tax_mode")
+  taxValue             Decimal?             @map("tax_value") @db.Decimal(20, 6)
+  taxVnd               Decimal              @default(0) @map("tax_vnd") @db.Decimal(20, 0)
+  depositVnd           Decimal              @default(0) @map("deposit_vnd") @db.Decimal(20, 0)
+  grandTotalVnd        Decimal              @map("grand_total_vnd") @db.Decimal(20, 0)
+  paymentNote          String?              @map("payment_note")
+  internalNote         String?              @map("internal_note")
+  receivedAt           DateTime?            @map("received_at")
+  expiresAt            DateTime?            @map("expires_at")
+  createdAt            DateTime             @default(now()) @map("created_at")
+  updatedAt            DateTime             @updatedAt @map("updated_at")
+  business             Business             @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  customer             Customer             @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  sourceConversation   Conversation?        @relation("QuoteSourceConversation", fields: [sourceConversationId], references: [id], onDelete: Restrict)
+  sourceMessage        ConversationMessage? @relation("QuoteSourceMessage", fields: [sourceMessageId], references: [id], onDelete: Restrict)
+  sourceTicket         SocialTicket?        @relation("QuoteSourceTicket", fields: [sourceTicketId], references: [id], onDelete: Restrict)
+  createdBy            StaffUser            @relation("QuoteCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  lines                QuoteLine[]
+  revisions            QuoteRevision[]
+  salesOrder           SalesOrder?
 
   @@unique([businessId, quoteNumber])
   @@index([businessId, status, updatedAt])
   @@index([businessId, customerId, createdAt])
+  @@index([sourceConversationId])
+  @@index([sourceMessageId])
+  @@index([sourceTicketId])
   @@map("quotes")
 }
 
@@ -1212,10 +1266,12 @@ model IntegrationConnection {
   updatedAt            DateTime                    @updatedAt @map("updated_at")
   business             Business                    @relation(fields: [businessId], references: [id], onDelete: Restrict)
   jobs                 IntegrationJob[]
+  staffAccesses        IntegrationStaffAccess[]
   identities           ExternalCustomerIdentity[]
   conversations        Conversation[]
   messages             ConversationMessage[]
   comments             SocialComment[]
+  outbounds            SocialOutbound[]
   externalOrders       ExternalOrder[]
   productMappings      ExternalProductMapping[]
 
@@ -1224,24 +1280,42 @@ model IntegrationConnection {
   @@map("integration_connections")
 }
 
+model IntegrationStaffAccess {
+  id           String                @id @default(cuid())
+  businessId   String                @map("business_id")
+  connectionId String                @map("connection_id")
+  staffId      String                @map("staff_id")
+  canRead      Boolean               @default(true) @map("can_read")
+  canSend      Boolean               @default(false) @map("can_send")
+  createdAt    DateTime              @default(now()) @map("created_at")
+  updatedAt    DateTime              @updatedAt @map("updated_at")
+  business     Business              @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  connection   IntegrationConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  staff        StaffUser             @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@unique([connectionId, staffId])
+  @@index([businessId, staffId, canRead])
+  @@map("integration_staff_accesses")
+}
+
 model IntegrationAuthAttempt {
-  id                   String                       @id @default(cuid())
-  businessId           String                       @map("business_id")
-  actorId              String                       @map("actor_id")
-  provider             IntegrationProvider
-  stateHash            String                       @unique @map("state_hash")
-  redirectUri          String                       @map("redirect_uri")
-  reconnectConnectionId String?                     @map("reconnect_connection_id")
-  status               IntegrationAuthAttemptStatus @default(PENDING)
-  expiresAt            DateTime                     @map("expires_at")
-  claimedAt            DateTime?                    @map("claimed_at")
-  credentialCiphertext String?                      @map("credential_ciphertext")
-  availableAccounts    Json?                        @map("available_accounts")
-  errorCode            String?                      @map("error_code")
-  createdAt            DateTime                     @default(now()) @map("created_at")
-  updatedAt            DateTime                     @updatedAt @map("updated_at")
-  business             Business                     @relation(fields: [businessId], references: [id], onDelete: Restrict)
-  actor                StaffUser                    @relation(fields: [actorId], references: [id], onDelete: Restrict)
+  id                    String                       @id @default(cuid())
+  businessId            String                       @map("business_id")
+  actorId               String                       @map("actor_id")
+  provider              IntegrationProvider
+  stateHash             String                       @unique @map("state_hash")
+  redirectUri           String                       @map("redirect_uri")
+  reconnectConnectionId String?                      @map("reconnect_connection_id")
+  status                IntegrationAuthAttemptStatus @default(PENDING)
+  expiresAt             DateTime                     @map("expires_at")
+  claimedAt             DateTime?                    @map("claimed_at")
+  credentialCiphertext  String?                      @map("credential_ciphertext")
+  availableAccounts     Json?                        @map("available_accounts")
+  errorCode             String?                      @map("error_code")
+  createdAt             DateTime                     @default(now()) @map("created_at")
+  updatedAt             DateTime                     @updatedAt @map("updated_at")
+  business              Business                     @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  actor                 StaffUser                    @relation(fields: [actorId], references: [id], onDelete: Restrict)
 
   @@index([businessId, actorId, status, expiresAt])
   @@map("integration_auth_attempts")
@@ -1366,6 +1440,9 @@ model Conversation {
   assignedStaff   StaffUser?                 @relation("ConversationAssignee", fields: [assignedStaffId], references: [id], onDelete: SetNull)
   messages        ConversationMessage[]
   notes           InternalConversationNote[]
+  tickets         SocialTicket[]
+  outbounds       SocialOutbound[]
+  sourceQuotes    Quote[]                    @relation("QuoteSourceConversation")
 
   @@unique([connectionId, externalId])
   @@index([businessId, status, lastMessageAt])
@@ -1383,12 +1460,15 @@ model ConversationMessage {
   body              String?
   mediaMetadata     Json?                        @map("media_metadata")
   providerAt        DateTime                     @map("provider_at")
+  importJobId       String?                      @map("import_job_id")
   createdAt         DateTime                     @default(now()) @map("created_at")
   connection        IntegrationConnection        @relation(fields: [connectionId], references: [id], onDelete: Restrict)
   conversation      Conversation                 @relation(fields: [conversationId], references: [id], onDelete: Restrict)
+  sourceQuotes      Quote[]                      @relation("QuoteSourceMessage")
 
   @@unique([connectionId, externalMessageId])
   @@index([conversationId, providerAt])
+  @@index([importJobId])
   @@map("conversation_messages")
 }
 
@@ -1420,15 +1500,98 @@ model SocialComment {
   sourceUrl         String?               @map("source_url")
   status            String                @default("ACTIVE")
   providerAt        DateTime              @map("provider_at")
+  importJobId       String?               @map("import_job_id")
   createdAt         DateTime              @default(now()) @map("created_at")
   updatedAt         DateTime              @updatedAt @map("updated_at")
   business          Business              @relation(fields: [businessId], references: [id], onDelete: Restrict)
   connection        IntegrationConnection @relation(fields: [connectionId], references: [id], onDelete: Restrict)
+  tickets           SocialTicket[]
+  outbounds         SocialOutbound[]
 
   @@unique([connectionId, externalCommentId])
   @@index([businessId, providerAt])
   @@index([connectionId, externalPostId, providerAt])
+  @@index([importJobId])
   @@map("social_comments")
+}
+
+model SocialOutbound {
+  id               String                @id @default(cuid())
+  businessId       String                @map("business_id")
+  connectionId     String                @map("connection_id")
+  conversationId   String?               @map("conversation_id")
+  commentId        String?               @map("comment_id")
+  actorId          String                @map("actor_id")
+  requestKey       String                @map("request_key")
+  kind             SocialOutboundKind
+  status           SocialOutboundStatus  @default(PENDING)
+  body             String
+  providerObjectId String?               @map("provider_object_id")
+  errorCode        String?               @map("error_code")
+  attemptedAt      DateTime?             @map("attempted_at")
+  acceptedAt       DateTime?             @map("accepted_at")
+  createdAt        DateTime              @default(now()) @map("created_at")
+  updatedAt        DateTime              @updatedAt @map("updated_at")
+  business         Business              @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  connection       IntegrationConnection @relation(fields: [connectionId], references: [id], onDelete: Restrict)
+  conversation     Conversation?         @relation(fields: [conversationId], references: [id], onDelete: Restrict)
+  comment          SocialComment?        @relation(fields: [commentId], references: [id], onDelete: Restrict)
+  actor            StaffUser             @relation(fields: [actorId], references: [id], onDelete: Restrict)
+
+  @@unique([businessId, requestKey])
+  @@unique([connectionId, providerObjectId])
+  @@index([conversationId, createdAt])
+  @@index([commentId, createdAt])
+  @@map("social_outbounds")
+}
+
+model SocialTicket {
+  id              String               @id @default(cuid())
+  businessId      String               @map("business_id")
+  conversationId  String?              @map("conversation_id")
+  commentId       String?              @map("comment_id")
+  requestKey      String               @map("request_key")
+  kind            SocialTicketKind
+  priority        SocialTicketPriority @default(NORMAL)
+  status          SocialTicketStatus   @default(OPEN)
+  summary         String
+  labels          String[]             @default([])
+  sourceUrl       String?              @map("source_url")
+  assignedStaffId String?              @map("assigned_staff_id")
+  createdById     String               @map("created_by_id")
+  version         Int                  @default(1)
+  createdAt       DateTime             @default(now()) @map("created_at")
+  updatedAt       DateTime             @updatedAt @map("updated_at")
+  business        Business             @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  conversation    Conversation?        @relation(fields: [conversationId], references: [id], onDelete: Restrict)
+  comment         SocialComment?       @relation(fields: [commentId], references: [id], onDelete: Restrict)
+  assignedStaff   StaffUser?           @relation("SocialTicketAssignee", fields: [assignedStaffId], references: [id], onDelete: SetNull)
+  createdBy       StaffUser            @relation("SocialTicketCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  events          SocialTicketEvent[]
+  sourceQuotes    Quote[]              @relation("QuoteSourceTicket")
+
+  @@unique([businessId, requestKey])
+  @@index([businessId, status, updatedAt])
+  @@index([businessId, assignedStaffId, status])
+  @@index([conversationId])
+  @@index([commentId])
+  @@map("social_tickets")
+}
+
+model SocialTicketEvent {
+  id         String       @id @default(cuid())
+  businessId String       @map("business_id")
+  ticketId   String       @map("ticket_id")
+  actorId    String       @map("actor_id")
+  action     String
+  changes    Json
+  createdAt  DateTime     @default(now()) @map("created_at")
+  business   Business     @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  ticket     SocialTicket @relation(fields: [ticketId], references: [id], onDelete: Restrict)
+  actor      StaffUser    @relation(fields: [actorId], references: [id], onDelete: Restrict)
+
+  @@index([ticketId, createdAt])
+  @@map("social_ticket_events")
 }
 
 model ExternalOrder {

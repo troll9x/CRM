@@ -47,7 +47,15 @@ const orderSelect = {
   },
   customer: { select: { id: true, customerCode: true, displayName: true } },
   createdBy: { select: { id: true, displayName: true } },
-  sourceQuote: { select: { id: true, quoteNumber: true } },
+  sourceQuote: {
+    select: {
+      id: true,
+      quoteNumber: true,
+      sourceConversationId: true,
+      sourceMessageId: true,
+      sourceTicketId: true,
+    },
+  },
   lines: {
     orderBy: { lineNumber: 'asc' as const },
     select: {

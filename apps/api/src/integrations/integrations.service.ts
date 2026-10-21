@@ -7,11 +7,13 @@ import {
 import { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import type { RequestStaff } from '../common/request-context';
+import { IntegrationPageAccessService } from './integration-page-access.service';
 import type {
   AddNoteDto,
   CreateConnectionDto,
   LinkCustomerDto,
   ListIntegrationQueryDto,
+  ListConversationMessagesDto,
   ProductMappingDto,
   UnlinkIdentityDto,
   VersionedLinkCustomerDto,
@@ -20,11 +22,16 @@ import type {
 
 @Injectable()
 export class IntegrationsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly pageAccess: IntegrationPageAccessService,
+  ) {}
 
-  async connections(businessId: string) {
+  async connections(actor: RequestStaff) {
+    const businessId = actor.businessId;
+    const allowedIds = await this.pageAccess.allowedIds(actor);
     const connections = await this.prisma.integrationConnection.findMany({
-      where: { businessId },
+      where: { businessId, ...(allowedIds ? { id: { in: allowedIds } } : {}) },
       orderBy: [{ provider: 'asc' }, { createdAt: 'asc' }],
       select: {
         id: true,
@@ -40,9 +47,16 @@ export class IntegrationsService {
         createdAt: true,
       },
     });
+    const webhookJobs = await this.prisma.integrationJob.findMany({
+      where: { businessId, kind: { in: ['MESSAGE', 'COMMENT'] }, status: 'SUCCEEDED' },
+      select: { connectionId: true },
+      distinct: ['connectionId'],
+    });
+    const observedConnectionIds = new Set(webhookJobs.map((job) => job.connectionId));
     return connections.map(({ externalAccountId, ...connection }) => ({
       ...connection,
       externalAccountIdMasked: this.maskExternalId(externalAccountId),
+      webhookEventObserved: observedConnectionIds.has(connection.id),
     }));
   }
 
@@ -94,9 +108,21 @@ export class IntegrationsService {
     });
   }
 
-  async inbox(businessId: string, query: ListIntegrationQueryDto) {
+  async inbox(actor: RequestStaff, query: ListIntegrationQueryDto) {
+    const businessId = actor.businessId;
+    const allowedIds = await this.pageAccess.allowedIds(actor);
     const rows = await this.prisma.conversation.findMany({
-      where: { businessId, ...(query.connectionId ? { connectionId: query.connectionId } : {}) },
+      where: {
+        businessId,
+        ...(allowedIds ? { connectionId: { in: allowedIds } } : {}),
+        ...(query.connectionId
+          ? {
+              connectionId: allowedIds
+                ? { in: allowedIds.filter((id) => id === query.connectionId) }
+                : query.connectionId,
+            }
+          : {}),
+      },
       take: Math.min(query.limit ?? 50, 100),
       orderBy: [{ lastMessageAt: 'desc' }, { createdAt: 'desc' }],
       include: {
@@ -127,9 +153,59 @@ export class IntegrationsService {
     }));
   }
 
-  async comments(businessId: string, query: ListIntegrationQueryDto) {
+  async conversationMessages(
+    businessId: string,
+    conversationId: string,
+    query: ListConversationMessagesDto,
+  ) {
+    const conversation = await this.prisma.conversation.findFirst({
+      where: { id: conversationId, businessId },
+      select: { id: true },
+    });
+    if (!conversation) throw new NotFoundException('Không tìm thấy hội thoại.');
+    if (query.cursor) {
+      const previous = await this.prisma.conversationMessage.findFirst({
+        where: { id: query.cursor, conversationId },
+        select: { id: true },
+      });
+      if (!previous) throw new BadRequestException('Cursor không thuộc hội thoại này.');
+    }
+    const limit = Math.min(query.limit ?? 50, 100);
+    const rows = await this.prisma.conversationMessage.findMany({
+      where: { conversationId },
+      orderBy: [{ providerAt: 'desc' }, { id: 'desc' }],
+      take: limit + 1,
+      ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {}),
+      select: {
+        id: true,
+        direction: true,
+        contentType: true,
+        body: true,
+        mediaMetadata: true,
+        providerAt: true,
+        importJobId: true,
+      },
+    });
+    const hasMore = rows.length > limit;
+    const items = rows.slice(0, limit);
+    return { items, nextCursor: hasMore ? items.at(-1)?.id : null };
+  }
+
+  async comments(actor: RequestStaff, query: ListIntegrationQueryDto) {
+    const businessId = actor.businessId;
+    const allowedIds = await this.pageAccess.allowedIds(actor);
     const rows = await this.prisma.socialComment.findMany({
-      where: { businessId, ...(query.connectionId ? { connectionId: query.connectionId } : {}) },
+      where: {
+        businessId,
+        ...(allowedIds ? { connectionId: { in: allowedIds } } : {}),
+        ...(query.connectionId
+          ? {
+              connectionId: allowedIds
+                ? { in: allowedIds.filter((id) => id === query.connectionId) }
+                : query.connectionId,
+            }
+          : {}),
+      },
       take: Math.min(query.limit ?? 50, 100),
       orderBy: { providerAt: 'desc' },
       include: { connection: { select: { provider: true, displayName: true } } },
@@ -172,6 +248,21 @@ export class IntegrationsService {
       },
       select: { id: true, status: true, assignedStaffId: true, unreadAt: true },
     });
+  }
+
+  async markConversationRead(businessId: string, id: string) {
+    const result = await this.prisma.conversation.updateMany({
+      where: { id, businessId, unreadAt: { not: null } },
+      data: { unreadAt: null },
+    });
+    if (result.count === 0) {
+      const exists = await this.prisma.conversation.findFirst({
+        where: { id, businessId },
+        select: { id: true },
+      });
+      if (!exists) throw new NotFoundException('Không tìm thấy hội thoại.');
+    }
+    return { id, unreadAt: null };
   }
 
   async addNote(businessId: string, id: string, actor: RequestStaff, dto: AddNoteDto) {
@@ -406,9 +497,21 @@ export class IntegrationsService {
     });
   }
 
-  async orders(businessId: string, query: ListIntegrationQueryDto) {
+  async orders(actor: RequestStaff, query: ListIntegrationQueryDto) {
+    const businessId = actor.businessId;
+    const allowedIds = await this.pageAccess.allowedIds(actor);
     return this.prisma.externalOrder.findMany({
-      where: { businessId, ...(query.connectionId ? { connectionId: query.connectionId } : {}) },
+      where: {
+        businessId,
+        ...(allowedIds ? { connectionId: { in: allowedIds } } : {}),
+        ...(query.connectionId
+          ? {
+              connectionId: allowedIds
+                ? { in: allowedIds.filter((id) => id === query.connectionId) }
+                : query.connectionId,
+            }
+          : {}),
+      },
       take: Math.min(query.limit ?? 50, 100),
       orderBy: [{ providerCreatedAt: 'desc' }, { createdAt: 'desc' }],
       include: {

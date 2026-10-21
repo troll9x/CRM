@@ -24,6 +24,7 @@ describe('Facebook connection entry point', () => {
     expect(markup).toContain('Bạn không cần tạo ứng dụng Meta');
     expect(markup).toContain('Kết nối Facebook chưa sẵn sàng');
     expect(markup).toContain('<details');
+    expect(markup).toContain('Làm mới dữ liệu');
     expect(markup).toContain('Thông tin kỹ thuật dành cho người triển khai');
     expect(markup).toContain('Khai báo tài khoản để chuẩn bị tích hợp (không cấp quyền)');
     expect(markup).not.toContain('name="appId"');
@@ -48,8 +49,9 @@ describe('Facebook connection readiness copy', () => {
         },
         lastSyncAt: null,
         lastErrorCode: null,
+        webhookEventObserved: false,
       }),
-    ).toContain('webhook của ứng dụng Meta chưa xác minh/lưu');
+    ).toContain('chưa xác nhận được sự kiện Facebook thực tế');
   });
 
   it('does not show a Facebook webhook warning after an event sync is recorded', () => {
@@ -63,7 +65,24 @@ describe('Facebook connection readiness copy', () => {
         capabilities: { webhookSubscription: 'VERIFIED' },
         lastSyncAt: '2026-10-11T00:00:00.000Z',
         lastErrorCode: null,
+        webhookEventObserved: true,
       }),
     ).toBeNull();
+  });
+
+  it('does not count a history import timestamp as a realtime webhook event', () => {
+    expect(
+      facebookConnectionHint({
+        id: 'connection-1',
+        provider: 'FACEBOOK',
+        externalAccountIdMasked: '123…789',
+        displayName: 'Page test',
+        status: 'CONNECTED',
+        capabilities: { webhookSubscription: 'VERIFIED' },
+        lastSyncAt: '2026-10-13T00:00:00.000Z',
+        lastErrorCode: null,
+        webhookEventObserved: false,
+      }),
+    ).toContain('chưa ghi nhận sự kiện');
   });
 });

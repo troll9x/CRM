@@ -8,6 +8,7 @@ if (target.protocol !== 'http:' || !['127.0.0.1', 'localhost'].includes(target.h
   throw new Error('Gateway target must be the local CRM API.');
 
 const routes = new Map([
+  ['/_gateway/health', new Set(['GET'])],
   ['/api/v1/integrations/oauth/facebook/callback', new Set(['GET'])],
   ['/api/v1/webhooks/facebook', new Set(['GET', 'POST'])],
   ['/api/v1/integrations/oauth/zalo/callback', new Set(['GET'])],
@@ -31,7 +32,7 @@ http
       {
         hostname: target.hostname,
         port: target.port,
-        path: request.url,
+        path: path === '/_gateway/health' ? '/api/v1/health/ready' : request.url,
         method: request.method,
         headers,
       },
@@ -49,6 +50,7 @@ http
       if (!response.headersSent) response.writeHead(502);
       response.end();
     });
+    upstream.setTimeout(15000, () => upstream.destroy(new Error('Upstream timeout')));
     request.pipe(upstream);
   })
   .listen(listenPort, '127.0.0.1', () => {

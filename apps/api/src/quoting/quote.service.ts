@@ -22,6 +22,10 @@ const quoteSelect = {
   businessId: true,
   quoteNumber: true,
   customerId: true,
+  sourceConversationId: true,
+  sourceMessageId: true,
+  sourceTicketId: true,
+  sourceConversation: { select: { connection: { select: { provider: true, displayName: true } } } },
   status: true,
   version: true,
   lineSubtotalVnd: true,
@@ -128,6 +132,10 @@ function present(row: QuoteRecord) {
     id: row.id,
     quoteNumber: row.quoteNumber,
     customerId: row.customerId,
+    sourceConversationId: row.sourceConversationId,
+    sourceMessageId: row.sourceMessageId,
+    sourceTicketId: row.sourceTicketId,
+    sourceAccount: row.sourceConversation?.connection ?? null,
     customer: row.customer,
     status: effectiveStatus,
     version: row.version,
@@ -166,6 +174,82 @@ function present(row: QuoteRecord) {
 @Injectable()
 export class QuoteService {
   constructor(private readonly prisma: PrismaService) {}
+
+  private async validateSocialSource(
+    tx: PrismaTypes.TransactionClient,
+    dto: CreateQuoteDto,
+    actor: RequestStaff,
+  ) {
+    if (!dto.sourceConversationId) {
+      if (dto.sourceMessageId || dto.sourceTicketId)
+        throw new ProblemException(
+          422,
+          'QUOTE_SOURCE_CONVERSATION_REQUIRED',
+          'Chọn hội thoại nguồn.',
+        );
+      return;
+    }
+    if (!actor.permissions.includes('integrations.read'))
+      throw new ProblemException(403, 'PERMISSION_DENIED', 'Không có quyền xem hội thoại nguồn.');
+    const conversation = await tx.conversation.findFirst({
+      where: { id: dto.sourceConversationId, businessId: actor.businessId },
+      select: { connectionId: true, identity: { select: { customerId: true } } },
+    });
+    if (!conversation)
+      throw new ProblemException(
+        404,
+        'QUOTE_SOURCE_NOT_FOUND',
+        'Không tìm thấy hội thoại trong doanh nghiệp.',
+      );
+    if (!actor.permissions.includes('connectors.manage')) {
+      const access = await tx.integrationStaffAccess.findUnique({
+        where: {
+          connectionId_staffId: { connectionId: conversation.connectionId, staffId: actor.id },
+        },
+        select: { canRead: true },
+      });
+      if (!access?.canRead)
+        throw new ProblemException(
+          403,
+          'PAGE_ACCESS_DENIED',
+          'Không có quyền xem Page của hội thoại nguồn.',
+        );
+    }
+    if (conversation.identity?.customerId !== dto.customerId)
+      throw new ProblemException(
+        422,
+        'QUOTE_SOURCE_CUSTOMER_MISMATCH',
+        'Khách hàng báo giá không khớp hội thoại đã liên kết.',
+      );
+    if (dto.sourceMessageId) {
+      const message = await tx.conversationMessage.findFirst({
+        where: { id: dto.sourceMessageId, conversationId: dto.sourceConversationId },
+        select: { id: true },
+      });
+      if (!message)
+        throw new ProblemException(
+          422,
+          'QUOTE_SOURCE_MESSAGE_MISMATCH',
+          'Tin nguồn không thuộc hội thoại.',
+        );
+    }
+    if (dto.sourceTicketId) {
+      const ticket = await tx.socialTicket.findFirst({
+        where: {
+          id: dto.sourceTicketId,
+          businessId: actor.businessId,
+          conversationId: dto.sourceConversationId,
+        },
+        select: { id: true },
+      });
+      if (!ticket)
+        throw new ProblemException(
+          422,
+          'QUOTE_SOURCE_TICKET_MISMATCH',
+          'Phiếu nguồn không thuộc hội thoại.',
+        );
+    }
+  }
 
   private key(raw?: string, operation = 'command') {
     const key = raw?.trim();
@@ -500,6 +584,7 @@ export class QuoteService {
                 );
               return repeated.response;
             }
+            await this.validateSocialSource(tx, dto, actor);
             const calculated = await this.calculate(tx, actor.businessId, dto, actor);
             const number = `BG-${new Date().toISOString().slice(0, 10).replaceAll('-', '')}-${randomBytes(3).toString('hex').toUpperCase()}`;
             const { lines, ...totals } = calculated;
@@ -508,6 +593,9 @@ export class QuoteService {
                 businessId: actor.businessId,
                 createdById: actor.id,
                 quoteNumber: number,
+                sourceConversationId: dto.sourceConversationId,
+                sourceMessageId: dto.sourceMessageId,
+                sourceTicketId: dto.sourceTicketId,
                 ...totals,
                 lines: { create: lines },
               },
@@ -526,7 +614,13 @@ export class QuoteService {
                 entityType: 'Quote',
                 entityId: created.id,
                 requestId,
-                metadata: { quoteNumber: number, idempotencyKey: keyRaw },
+                metadata: {
+                  quoteNumber: number,
+                  idempotencyKey: keyRaw,
+                  sourceConversationId: dto.sourceConversationId,
+                  sourceMessageId: dto.sourceMessageId,
+                  sourceTicketId: dto.sourceTicketId,
+                },
               },
             });
             await this.saveCommand(tx, actor.businessId, key, requestHash, response);
@@ -597,6 +691,16 @@ export class QuoteService {
               409,
               'QUOTE_VERSION_CONFLICT',
               'Báo giá đã đổi; tải lại trước khi sửa.',
+            );
+          if (
+            current.sourceConversationId &&
+            dto.customerId &&
+            dto.customerId !== current.customerId
+          )
+            throw new ProblemException(
+              422,
+              'QUOTE_SOURCE_CUSTOMER_MISMATCH',
+              'Không thể đổi khách hàng của báo giá đã liên kết hội thoại.',
             );
           if (
             (dto.taxMode !== undefined || dto.taxValue !== undefined) &&

@@ -11,6 +11,7 @@ export type FacebookNormalizedEvent =
         conversationId: string;
         externalUserId: string;
         messageId: string;
+        direction: 'INBOUND' | 'OUTBOUND_ECHO';
         body?: string;
         contentType: string;
         mediaMetadata?: Prisma.InputJsonValue;
@@ -55,16 +56,11 @@ export function parseFacebookWebhook(
       const senderId = stringValue(sender?.id);
       const recipientId = stringValue(recipient?.id);
       const messageId = stringValue(message?.mid);
-      if (
-        !message ||
-        !senderId ||
-        !recipientId ||
-        !messageId ||
-        recipientId !== pageId ||
-        senderId === pageId ||
-        message.is_echo === true
-      )
+      const echo = message?.is_echo === true && senderId === pageId && recipientId !== pageId;
+      const inbound = recipientId === pageId && senderId !== pageId && message?.is_echo !== true;
+      if (!message || !senderId || !recipientId || !messageId || (!echo && !inbound))
         continue;
+      const externalUserId = echo ? recipientId : senderId;
       const timestamp = toDate(event?.timestamp);
       const attachments = array(message.attachments).slice(0, 10);
       events.push({
@@ -74,9 +70,10 @@ export function parseFacebookWebhook(
         providerAt: timestamp,
         payload: {
           type: 'message',
-          conversationId: senderId,
-          externalUserId: senderId,
+          conversationId: externalUserId,
+          externalUserId,
           messageId,
+          direction: echo ? 'OUTBOUND_ECHO' : 'INBOUND',
           ...(typeof message.text === 'string' ? { body: message.text.slice(0, 20_000) } : {}),
           contentType: attachments.length ? 'attachment' : 'text',
           ...(attachments.length ? { mediaMetadata: jsonValue(attachments) } : {}),
@@ -98,12 +95,17 @@ export function parseFacebookWebhook(
       const commentId = stringValue(value.comment_id) ?? stringValue(value.id);
       const postId = stringValue(value.post_id);
       if (!commentId || !postId) continue;
-      if (value.created_time === undefined || value.created_time === null) continue;
-      const timestamp = toDate(value.created_time);
+      // Meta may omit created_time on edit/remove notifications. The entry time
+      // is the delivery's provider timestamp, not the time this CRM received it.
+      const eventTime =
+        verb === 'add' ? (value.created_time ?? entry.time) : (entry.time ?? value.created_time);
+      if (eventTime === undefined || eventTime === null) continue;
+      const timestamp = toDate(eventTime);
       const author = record(value.from);
       events.push({
         kind: 'COMMENT',
-        key: `fb-comment:${commentId}:${verb}`,
+        // Multiple edits of the same comment must not collapse into one job.
+        key: `fb-comment:${commentId}:${verb}${verb === 'add' ? '' : `:${timestamp.getTime()}`}`,
         objectId: commentId,
         providerAt: timestamp,
         payload: {

@@ -105,6 +105,12 @@ describe('multi-channel import foundation', () => {
       })
       .expect(201);
     const facebookConnectionId = facebookConnection.body.data.id as string;
+    const beforeWebhook = await owner.get('/api/v1/integrations/connections').expect(200);
+    expect(beforeWebhook.body.data).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: facebookConnectionId, webhookEventObserved: false }),
+      ]),
+    );
     const challenge = await request(app.getHttpServer())
       .get('/api/v1/webhooks/facebook')
       .query({
@@ -168,6 +174,109 @@ describe('multi-channel import foundation', () => {
         },
       }),
     ).toBe(1);
+    await app.get(IntegrationWorkerService).runOnce();
+    expect(
+      await prisma.conversationMessage.count({
+        where: { connectionId: facebookConnectionId, externalMessageId: 'fixture-fb-message-01' },
+      }),
+    ).toBe(1);
+
+    const commentPayload = {
+      object: 'page',
+      entry: [
+        {
+          id: 'E2E-INTEGRATION-FACEBOOK-01',
+          time: 1_760_000_000,
+          changes: [
+            {
+              field: 'feed',
+              value: {
+                item: 'comment',
+                verb: 'add',
+                comment_id: 'fixture-comment-01',
+                post_id: 'fixture-post-01',
+                created_time: 1_760_000_000,
+                message: 'Fixture only',
+              },
+            },
+          ],
+        },
+        {
+          id: 'E2E-INTEGRATION-FACEBOOK-01',
+          time: 1_760_000_100,
+          changes: [
+            {
+              field: 'feed',
+              value: {
+                item: 'comment',
+                verb: 'remove',
+                comment_id: 'fixture-comment-01',
+                post_id: 'fixture-post-01',
+              },
+            },
+          ],
+        },
+      ],
+    };
+    const rawCommentPayload = JSON.stringify(commentPayload);
+    const commentSignature = `sha256=${createHmac('sha256', 'fixture-only-webhook-secret').update(rawCommentPayload).digest('hex')}`;
+    for (let repeat = 0; repeat < 2; repeat++)
+      await request(app.getHttpServer())
+        .post('/api/v1/webhooks/facebook')
+        .set('x-hub-signature-256', commentSignature)
+        .send(rawCommentPayload)
+        .set('content-type', 'application/json')
+        .expect(200);
+    expect(
+      await prisma.integrationJob.count({
+        where: { connectionId: facebookConnectionId, kind: 'COMMENT' },
+      }),
+    ).toBe(2);
+    await app.get(IntegrationWorkerService).runOnce();
+    await app.get(IntegrationWorkerService).runOnce();
+    expect(
+      await prisma.socialComment.count({ where: { connectionId: facebookConnectionId } }),
+    ).toBe(1);
+    expect(
+      (await prisma.socialComment.findFirst({ where: { connectionId: facebookConnectionId } }))
+        ?.status,
+    ).toBe('DELETED');
+    const inbox = await owner.get('/api/v1/integrations/inbox').expect(200);
+    const connectionStatus = await owner.get('/api/v1/integrations/connections').expect(200);
+    expect(connectionStatus.body.data).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: facebookConnectionId, webhookEventObserved: true }),
+      ]),
+    );
+    expect(inbox.body.data).toEqual(
+      expect.arrayContaining([expect.objectContaining({ connectionId: facebookConnectionId })]),
+    );
+    const conversationId = (inbox.body.data as Array<{ id: string; connectionId: string }>).find(
+      (item) => item.connectionId === facebookConnectionId,
+    )?.id;
+    expect(conversationId).toBeTruthy();
+    const thread = await owner
+      .get(`/api/v1/integrations/conversations/${conversationId}/messages?limit=1`)
+      .expect(200);
+    expect(thread.body.data.items).toEqual([
+      expect.objectContaining({ body: 'Fixture only', importJobId: null }),
+    ]);
+    await owner
+      .get(`/api/v1/integrations/conversations/${conversationId}/messages?cursor=not-a-message`)
+      .expect(400);
+    await owner.get('/api/v1/integrations/conversations/not-found/messages').expect(404);
+    const comments = await owner.get('/api/v1/integrations/comments').expect(200);
+    expect(comments.body.data).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ connectionId: facebookConnectionId, status: 'DELETED' }),
+      ]),
+    );
+    await prisma.conversationMessage.deleteMany({ where: { connectionId: facebookConnectionId } });
+    await prisma.conversation.deleteMany({ where: { connectionId: facebookConnectionId } });
+    await prisma.externalCustomerIdentity.deleteMany({
+      where: { connectionId: facebookConnectionId },
+    });
+    await prisma.socialComment.deleteMany({ where: { connectionId: facebookConnectionId } });
     await prisma.integrationJob.deleteMany({ where: { connectionId: facebookConnectionId } });
     await prisma.integrationConnection.delete({ where: { id: facebookConnectionId } });
 

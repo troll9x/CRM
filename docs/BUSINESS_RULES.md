@@ -2,6 +2,13 @@
 
 ## Đồng bộ đa kênh — quy tắc được giao 2026-10-08
 
+### Ticket nguồn social — triển khai local 2026-10-14
+
+- **BR-SOCIAL-TICKET-01:** Ticket nội bộ tham chiếu đúng một hội thoại hoặc một bình luận đã lưu trong cùng business. Nguồn comment giữ permalink tại lúc tạo; nguồn chat không tự suy ra permalink. Không lấy ID tác giả comment để gộp với PSID Messenger hay tạo Customer.
+- **BR-SOCIAL-TICKET-02:** Người có `integrations.inbox.manage` được tạo/cập nhật; người có `integrations.read` được xem. Loại yêu cầu, ưu tiên, nhãn, trạng thái và người xử lý độc lập với kênh/loại tương tác. Người xử lý phải là nhân viên ACTIVE cùng business.
+- **BR-SOCIAL-TICKET-03:** Tạo ticket dùng request key duy nhất theo business; gửi lại cùng payload trả ticket cũ, dùng key với payload khác báo conflict. Cập nhật yêu cầu version hiện tại, ghi event audit atomically. Chỉ đóng ticket đã `RESOLVED`; ticket `CLOSED` phải mở lại trước khi xử lý tiếp.
+- **BR-SOCIAL-TICKET-04:** Ticket không gửi tin/bình luận, không tạo đơn, thay kho hoặc ghi nhận tiền. Liên kết Customer/đơn chỉ hiển thị khi có quan hệ đã xác nhận trong DB.
+
 - Dữ liệu ngoài là bản ghi staging riêng. Import/replay tuyệt đối không tạo `SalesOrder`, không đổi stock/reservation, receipt/payment, receivable hay revenue.
 - External IDs được lưu dưới dạng chuỗi và unique theo connection. Job/webhook/message/comment/order replay phải idempotent; một external order chỉ tạo một AdminAlert cho mỗi người nhận.
 - Không tự hợp nhất khách. Người có quyền liên kết thủ công external identity, comment author hoặc external order với CRM customer. Việc link không tự đổi group/source của customer đã có.
@@ -109,3 +116,8 @@ Trạng thái: 06A–06D, 07A/07B, đổi trả 08A và báo cáo gross giao hà
 - Một external key hoặc idempotency key chỉ có một kết quả nghiệp vụ thành công.
 - Snapshot chứng từ đã chốt không đổi khi master data đổi.
 - Báo cáo tổng hợp phải truy ngược được dòng chứng từ/sổ tạo số liệu.
+
+### Social → báo giá/đơn (2026-10-15)
+
+- Báo giá tạo từ chat chỉ nhận hội thoại đã liên kết Customer của cùng business; nhân viên phải có cả `quotes.write` và `integrations.read`. ID tin/phiếu kèm theo phải thuộc hội thoại. Backend lưu FK và audit trong transaction tạo báo giá; không dùng ghi chú làm bằng chứng nguồn.
+- Nguồn social và Customer của báo giá đã liên kết không đổi khi sửa draft. Đơn chuyển từ báo giá truy về nguồn qua `sourceQuoteId`; đơn nhập tay không được gán nguồn chat giả. SKU/giá/tồn vẫn theo kiểm tra backend hiện hành, không tự phát hành/chốt/thu tiền từ tin nhắn.

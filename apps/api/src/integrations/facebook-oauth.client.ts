@@ -10,6 +10,7 @@ export type FacebookPageGrant = {
 export type FacebookGrant = {
   userToken: string;
   expiresAt: string | null;
+  permissions: string[];
   pages: FacebookPageGrant[];
 };
 
@@ -132,6 +133,8 @@ export class FacebookOAuthClient {
 
     const pages: FacebookPageGrant[] = [];
     let cursor: string | undefined;
+    const seenCursors = new Set<string>();
+    const seenPageIds = new Set<string>();
     for (let page = 0; page < 20; page++) {
       const accountsUrl = this.graphUrl('me/accounts');
       accountsUrl.searchParams.set('fields', 'id,name,access_token,tasks');
@@ -147,10 +150,14 @@ export class FacebookOAuthClient {
         const item = entry as Record<string, unknown>;
         if (
           typeof item['id'] === 'string' &&
+          /^\d+$/.test(item['id']) &&
           typeof item['name'] === 'string' &&
           typeof item['access_token'] === 'string' &&
           Array.isArray(item['tasks'])
         ) {
+          if (seenPageIds.has(item['id']))
+            throw new BadGatewayException('Facebook trả Page trùng trong danh sách.');
+          seenPageIds.add(item['id']);
           pages.push({
             id: item['id'],
             name: item['name'],
@@ -159,14 +166,19 @@ export class FacebookOAuthClient {
           });
         }
       }
-      const paging = listing['paging'] as { cursors?: { after?: unknown } } | undefined;
-      cursor = typeof paging?.cursors?.after === 'string' ? paging.cursors.after : undefined;
-      if (!cursor || !Array.isArray(listing['data']) || listing['data'].length < 100) break;
+      const paging = listing['paging'] as
+        { next?: unknown; cursors?: { after?: unknown } } | undefined;
+      if (typeof paging?.next !== 'string' || !paging.next) break;
+      cursor = typeof paging.cursors?.after === 'string' ? paging.cursors.after : undefined;
+      if (!cursor || seenCursors.has(cursor))
+        throw new BadGatewayException('Phân trang Page Facebook không hợp lệ.');
+      seenCursors.add(cursor);
       if (page === 19) throw new BadGatewayException('Danh sách Page quá dài để xác minh.');
     }
     const expiresIn = extended['expires_in'];
     return {
       userToken,
+      permissions: [...granted].sort(),
       expiresAt:
         typeof expiresIn === 'number' && expiresIn > 0
           ? new Date(Date.now() + expiresIn * 1000).toISOString()

@@ -1,5 +1,16 @@
 # Ma trận đối chiếu chức năng tham chiếu AMIS
 
+## Bổ sung trạng thái social ngày 2026-10-16
+
+Các dòng Đợt A ngày 08/10 bên dưới là snapshot lịch sử, không dùng để khẳng định trạng thái connector hiện tại. Prompt gốc `CRM-home/prompt-crm-tham-chieu-amis.md` yêu cầu lịch sử khách có nguồn thật và quyền xem phù hợp, connector mặc định `IMPORT_ONLY`, gửi/reply theo quyền nhà cung cấp, cùng chính sách backup/retention; prompt không quy định tự xóa chat theo số ngày hay lưu vĩnh viễn.
+
+- Facebook nhiều Page: code chọn nhiều Page trong một lần consent, lưu token/quyền/trạng thái và cấp quyền nhân viên riêng theo Page; E2E mock trên DB scratch đã chạy. Page đầu có lịch sử Graph nhập được, nhưng tin mới qua webhook và câu trả lời xuất hiện trên Messenger **chưa nghiệm thu live**; Page thứ hai chưa có grant/tin thử.
+- Chat → hồ sơ khách/ticket/báo giá: đã có code và test local theo nguồn Page; không tự gộp khách trùng tên, không tự tạo doanh thu/đơn bán/kho. Chưa có dữ liệu vận hành đủ để nghiệm thu end-to-end với Meta.
+- Comment: code đọc/trả lời có cổng quyền, nhưng grant `pages_read_user_content` và `pages_manage_engagement` chưa có nên trả lời thật còn khóa. Zalo OA/shop chưa xác minh quyền API theo từng tài khoản nên gửi/đơn còn khóa.
+- Privacy/retention: CRM chưa có tác vụ tự xóa theo tuổi và chưa có quy trình xuất/xóa social được kiểm thử. Chủ dự án cần quyết định chính sách dựa trên mục đích chăm sóc khách, dữ liệu trong DB/backup và nghĩa vụ xử lý yêu cầu hợp lệ; bản nháp không được công bố như chính sách đã vận hành.
+
+Trạng thái chi tiết và bằng chứng mới nhất: [INTEGRATION_READINESS.md](INTEGRATION_READINESS.md), [SOCIAL-PRIVACY-POLICY-DRAFT-2026-10-15.md](tasks/SOCIAL-PRIVACY-POLICY-DRAFT-2026-10-15.md).
+
 Cập nhật: 2026-10-08. Đây là audit của checkout hiện tại và phân kỳ cho sản phẩm CRM riêng của cửa hàng; không phải chứng nhận tương đương AMIS. “Đã code local” không đồng nghĩa đã nghiệm thu trực quan, chạy vận hành hay tích hợp nhà cung cấp thật.
 
 Nguồn tham chiếu chính thức: [AMIS CRM](https://amis.misa.vn/phan-mem-crm-amis/), [quản lý data](https://amis.misa.vn/quan-ly-data/), [quản lý sale](https://amis.misa.vn/quan-ly-sale), [bảng tính năng theo gói](https://amis.misa.vn/bang-gia-phan-mem-misa-amis-crm), [hướng dẫn báo giá](https://helpcrm.misa.vn/kb/bao-gia/), [phê duyệt đơn dưới giá sàn](https://helpcrm.misa.vn/kb/phe-duyet-don-hang-co-don-gia-ban-thap-hon-don-gia-san/). Nguồn và gói có thể thay đổi; xác minh lại trước khi dùng để mua hoặc cam kết tích hợp. Các nhu cầu đặc thù cửa hàng được tách riêng, không suy diễn thành chức năng AMIS.

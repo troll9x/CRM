@@ -1,4 +1,4 @@
-import { PartialType } from '@nestjs/swagger';
+import { OmitType, PartialType } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   ArrayMaxSize,
@@ -44,6 +44,21 @@ export class CreateQuoteDto {
   @Matches(idPattern)
   customerId: string;
 
+  @IsOptional()
+  @IsString()
+  @Matches(idPattern)
+  sourceConversationId?: string;
+
+  @IsOptional()
+  @IsString()
+  @Matches(idPattern)
+  sourceMessageId?: string;
+
+  @IsOptional()
+  @IsString()
+  @Matches(idPattern)
+  sourceTicketId?: string;
+
   @IsArray()
   @ArrayMinSize(1)
   @ArrayMaxSize(100)
@@ -88,7 +103,9 @@ export class CreateQuoteDto {
   internalNote?: string;
 }
 
-export class UpdateQuoteDto extends PartialType(CreateQuoteDto) {
+export class UpdateQuoteDto extends PartialType(
+  OmitType(CreateQuoteDto, ['sourceConversationId', 'sourceMessageId', 'sourceTicketId'] as const),
+) {
   @Type(() => Number)
   @IsInt()
   @Min(1)

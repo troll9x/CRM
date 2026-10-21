@@ -10,6 +10,7 @@ import { ConfigService } from '@nestjs/config';
 import { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import type { RequestStaff } from '../common/request-context';
+import { ProblemException } from '../common/problem.exception';
 import { CredentialCrypto } from './credential-crypto';
 import { FacebookOAuthClient, type FacebookGrant } from './facebook-oauth.client';
 
@@ -146,8 +147,12 @@ export class FacebookAuthService {
     };
   }
 
-  async finalize(actor: RequestStaff, id: string, pageId: string) {
-    if (!/^\d+$/.test(pageId)) throw new BadRequestException('Page không hợp lệ.');
+  async finalize(actor: RequestStaff, id: string, selection: string | string[] | undefined) {
+    const pageIds = typeof selection === 'string' ? [selection] : selection;
+    if (!pageIds?.length || pageIds.length > 50 || pageIds.some((id) => !/^\d+$/.test(id)))
+      throw new BadRequestException('Danh sách Page không hợp lệ.');
+    if (new Set(pageIds).size !== pageIds.length)
+      throw new BadRequestException('Danh sách Page có mục trùng.');
     const attempt = await this.prisma.integrationAuthAttempt.findFirst({
       where: { id, businessId: actor.businessId, actorId: actor.id, provider: 'FACEBOOK' },
     });
@@ -160,8 +165,11 @@ export class FacebookAuthService {
       throw new ConflictException('Lần cấp quyền chưa sẵn sàng hoặc đã hết hạn.');
     const available = Array.isArray(attempt.availableAccounts) ? attempt.availableAccounts : [];
     if (
-      !available.some(
-        (page) => page && typeof page === 'object' && 'id' in page && page.id === pageId,
+      pageIds.some(
+        (pageId) =>
+          !available.some(
+            (page) => page && typeof page === 'object' && 'id' in page && page.id === pageId,
+          ),
       )
     )
       throw new ForbiddenException('Page này không nằm trong danh sách được cấp quyền.');
@@ -169,17 +177,22 @@ export class FacebookAuthService {
       attempt.credentialCiphertext,
       `facebook-attempt:${id}:${actor.businessId}`,
     );
-    const page = grant.pages.find((item) => item.id === pageId);
-    if (!page) throw new ForbiddenException('Page chưa được cấp token.');
-    if (!page.tasks.some((task) => /MESSAG|FULL_CONTROL/.test(task)))
+    // Stable lock order prevents concurrent multi-Page grants from deadlocking.
+    const pages = [...pageIds]
+      .sort()
+      .map((pageId) => grant.pages.find((item) => item.id === pageId));
+    if (pages.some((page) => !page)) throw new ForbiddenException('Page chưa được cấp token.');
+    if (pages.some((page) => !page!.tasks.some((task) => /MESSAG|FULL_CONTROL/.test(task))))
       throw new ForbiddenException('Người cấp quyền chưa có tác vụ nhắn tin trên Page.');
     if (attempt.reconnectConnectionId) {
+      if (pageIds.length !== 1)
+        throw new BadRequestException('Kết nối lại chỉ áp dụng cho một Page.');
       const existing = await this.prisma.integrationConnection.findFirst({
         where: {
           id: attempt.reconnectConnectionId,
           businessId: actor.businessId,
           provider: 'FACEBOOK',
-          externalAccountId: pageId,
+          externalAccountId: pageIds[0],
         },
         select: { id: true },
       });
@@ -191,85 +204,116 @@ export class FacebookAuthService {
     });
     if (claimed.count !== 1) throw new ConflictException('Page đang được hoàn tất ở yêu cầu khác.');
     try {
-      await this.facebook.subscribe(page);
-      const connection = await this.prisma.$transaction(
-        async (tx) => {
-          // One Page must not be routed to two businesses by the public webhook.
-          await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`FACEBOOK:${pageId}`}))`;
-          const conflicting = await tx.integrationConnection.findFirst({
-            where: {
-              provider: 'FACEBOOK',
-              externalAccountId: pageId,
-              businessId: { not: actor.businessId },
-              status: { in: ['CONNECTED', 'REAUTH_REQUIRED'] },
-            },
-            select: { id: true },
-          });
-          if (conflicting)
-            throw new ConflictException('Page đã được gắn với đơn vị khác trong CRM.');
-          const existing = await tx.integrationConnection.findUnique({
-            where: {
-              businessId_provider_externalAccountId: {
-                businessId: actor.businessId,
-                provider: 'FACEBOOK',
-                externalAccountId: pageId,
-              },
-            },
-            select: { id: true, capabilities: true },
-          });
-          const oldCapabilities =
-            existing?.capabilities &&
-            typeof existing.capabilities === 'object' &&
-            !Array.isArray(existing.capabilities)
-              ? (existing.capabilities as Record<string, unknown>)
-              : {};
-          const capabilities = {
-            ...oldCapabilities,
-            authorization: 'VERIFIED',
-            // The Page's subscribed_apps readback verifies only the Page-level
-            // subscription. It does not prove app-dashboard webhook setup or delivery.
-            pageSubscription: 'VERIFIED',
-            webhookSubscription: 'APP_CONFIGURATION_PENDING',
-            messages: 'PAGE_SUBSCRIBED',
-            comments: 'PAGE_SUBSCRIBED',
-          };
-          const ciphertext = this.crypto().encrypt(
-            { pageToken: page.accessToken, userToken: grant.userToken },
-            `facebook-connection:${actor.businessId}:${pageId}`,
+      // Subscribe every selected Page before committing credentials. A failed
+      // subscription leaves the attempt retryable and no partial CRM connection.
+      for (const page of pages) {
+        try {
+          await this.facebook.subscribe(page!);
+        } catch {
+          throw new ProblemException(
+            502,
+            'PAGE_SUBSCRIPTION_FAILED',
+            `Meta chưa xác nhận subscription cho Page ${page!.name}. Không Page nào trong lần chọn này được lưu mới.`,
+            [{ field: 'pageId', reason: page!.id }],
+            true,
           );
-          const saved = await tx.integrationConnection.upsert({
-            where: {
-              businessId_provider_externalAccountId: {
+        }
+      }
+      const connections = await this.prisma.$transaction(
+        async (tx) => {
+          const savedConnections = [];
+          for (const page of pages) {
+            const pageId = page!.id;
+            // One Page must not be routed to two businesses by the public webhook.
+            await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`FACEBOOK:${pageId}`}))`;
+            const conflicting = await tx.integrationConnection.findFirst({
+              where: {
+                provider: 'FACEBOOK',
+                externalAccountId: pageId,
+                businessId: { not: actor.businessId },
+                status: { in: ['CONNECTED', 'REAUTH_REQUIRED'] },
+              },
+              select: { id: true },
+            });
+            if (conflicting)
+              throw new ConflictException('Page đã được gắn với đơn vị khác trong CRM.');
+            const existing = await tx.integrationConnection.findUnique({
+              where: {
+                businessId_provider_externalAccountId: {
+                  businessId: actor.businessId,
+                  provider: 'FACEBOOK',
+                  externalAccountId: pageId,
+                },
+              },
+              select: { id: true, capabilities: true },
+            });
+            const oldCapabilities =
+              existing?.capabilities &&
+              typeof existing.capabilities === 'object' &&
+              !Array.isArray(existing.capabilities)
+                ? (existing.capabilities as Record<string, unknown>)
+                : {};
+            const capabilities = {
+              ...oldCapabilities,
+              authorization: 'VERIFIED',
+              grantedPermissions: grant.permissions ?? [],
+              pageTasks: page!.tasks,
+              // The Page's subscribed_apps readback verifies only the Page-level
+              // subscription. It does not prove app-dashboard webhook setup or delivery.
+              pageSubscription: 'VERIFIED',
+              webhookSubscription: 'APP_CONFIGURATION_PENDING',
+              messages: 'PAGE_SUBSCRIBED',
+              comments: 'PAGE_SUBSCRIBED',
+            };
+            const ciphertext = this.crypto().encrypt(
+              { pageToken: page!.accessToken, userToken: grant.userToken },
+              `facebook-connection:${actor.businessId}:${pageId}`,
+            );
+            const saved = await tx.integrationConnection.upsert({
+              where: {
+                businessId_provider_externalAccountId: {
+                  businessId: actor.businessId,
+                  provider: 'FACEBOOK',
+                  externalAccountId: pageId,
+                },
+              },
+              create: {
                 businessId: actor.businessId,
                 provider: 'FACEBOOK',
                 externalAccountId: pageId,
+                displayName: page!.name,
+                status: 'CONNECTED',
+                capabilities,
+                credentialCiphertext: ciphertext,
+                credentialKeyVersion: 1,
+                tokenExpiresAt: grant.expiresAt ? new Date(grant.expiresAt) : null,
+                connectedAt: new Date(),
               },
-            },
-            create: {
-              businessId: actor.businessId,
-              provider: 'FACEBOOK',
-              externalAccountId: pageId,
-              displayName: page.name,
-              status: 'CONNECTED',
-              capabilities,
-              credentialCiphertext: ciphertext,
-              credentialKeyVersion: 1,
-              tokenExpiresAt: grant.expiresAt ? new Date(grant.expiresAt) : null,
-              connectedAt: new Date(),
-            },
-            update: {
-              displayName: page.name,
-              status: 'CONNECTED',
-              capabilities,
-              credentialCiphertext: ciphertext,
-              credentialKeyVersion: 1,
-              tokenExpiresAt: grant.expiresAt ? new Date(grant.expiresAt) : null,
-              connectedAt: new Date(),
-              lastErrorAt: null,
-              lastErrorCode: null,
-            },
-            select: { id: true, status: true, displayName: true },
-          });
+              update: {
+                displayName: page!.name,
+                status: 'CONNECTED',
+                capabilities,
+                credentialCiphertext: ciphertext,
+                credentialKeyVersion: 1,
+                tokenExpiresAt: grant.expiresAt ? new Date(grant.expiresAt) : null,
+                connectedAt: new Date(),
+                lastErrorAt: null,
+                lastErrorCode: null,
+              },
+              select: { id: true, status: true, displayName: true, externalAccountId: true },
+            });
+            savedConnections.push(saved);
+            await tx.auditLog.create({
+              data: {
+                businessId: actor.businessId,
+                actorId: actor.id,
+                action: 'integration.facebook.authorized',
+                entityType: 'IntegrationConnection',
+                entityId: saved.id,
+                metadata: { attemptId: id, reconnected: Boolean(existing) },
+              },
+            });
+          }
           await tx.integrationAuthAttempt.update({
             where: { id },
             data: {
@@ -278,21 +322,22 @@ export class FacebookAuthService {
               availableAccounts: Prisma.DbNull,
             },
           });
-          await tx.auditLog.create({
-            data: {
-              businessId: actor.businessId,
-              actorId: actor.id,
-              action: 'integration.facebook.authorized',
-              entityType: 'IntegrationConnection',
-              entityId: saved.id,
-              metadata: { attemptId: id, reconnected: Boolean(existing) },
-            },
-          });
-          return saved;
+          return savedConnections;
         },
         { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
       );
-      return connection;
+      const publicConnections = connections.map(({ externalAccountId, ...connection }) => ({
+        ...connection,
+        pageIdMasked:
+          externalAccountId.length <= 4
+            ? '****'
+            : `${'*'.repeat(Math.min(8, externalAccountId.length - 4))}${externalAccountId.slice(-4)}`,
+        pageSubscription: 'VERIFIED',
+        webhookSubscription: 'APP_CONFIGURATION_PENDING',
+      }));
+      return typeof selection === 'string'
+        ? publicConnections[0]
+        : { connections: publicConnections };
     } catch (error) {
       await this.prisma.integrationAuthAttempt.updateMany({
         where: { id, status: 'FINALIZING' },

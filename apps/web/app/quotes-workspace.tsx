@@ -16,6 +16,10 @@ type Quote = {
   id: string;
   quoteNumber: string;
   customerId: string;
+  sourceConversationId: string | null;
+  sourceMessageId: string | null;
+  sourceTicketId: string | null;
+  sourceAccount: { provider: string; displayName: string } | null;
   customer: Customer;
   status: 'DRAFT' | 'SENT' | 'ACCEPTED' | 'EXPIRED' | 'REJECTED';
   salesOrder: {
@@ -92,10 +96,12 @@ export function QuotesWorkspace({
   staff,
   onLogout,
   loggingOut,
+  fromChat,
 }: {
   staff: Staff;
   onLogout: () => void;
   loggingOut: boolean;
+  fromChat?: { customerId: string; conversationId: string; accountName: string } | null;
 }) {
   const canManagePrice = staff.permissions.includes('price.edit');
   const canWrite = staff.permissions.includes('quotes.write');
@@ -115,6 +121,7 @@ export function QuotesWorkspace({
   const [taxValue, setTaxValue] = useState('');
   const [depositVnd, setDepositVnd] = useState('0');
   const [paymentNote, setPaymentNote] = useState('');
+  const [internalNote, setInternalNote] = useState('');
   const [receivedAt, setReceivedAt] = useState(localDateTimeNow());
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -160,7 +167,7 @@ export function QuotesWorkspace({
         setCustomers(customerResult.items);
         setProducts(productResult.items);
         setQuotes(quoteResult.items);
-        setCustomerId(customerResult.items[0]?.id ?? '');
+        setCustomerId(fromChat?.customerId ?? customerResult.items[0]?.id ?? '');
       })
       .catch((caught) => {
         if (active)
@@ -172,12 +179,12 @@ export function QuotesWorkspace({
     return () => {
       active = false;
     };
-  }, []);
+  }, [fromChat]);
 
   function startNew() {
     setSelected(null);
     setRevision(null);
-    setCustomerId(customers[0]?.id ?? '');
+    setCustomerId(fromChat?.customerId ?? customers[0]?.id ?? '');
     setLines([emptyLine()]);
     setOrderDiscountMode('');
     setOrderDiscountValue('');
@@ -186,6 +193,7 @@ export function QuotesWorkspace({
     setTaxValue('');
     setDepositVnd('0');
     setPaymentNote('');
+    setInternalNote('');
     setError('');
     setMessage('');
   }
@@ -216,6 +224,7 @@ export function QuotesWorkspace({
       setTaxValue(quote.taxValue ?? '');
       setDepositVnd(quote.depositVnd);
       setPaymentNote(quote.paymentNote ?? '');
+      setInternalNote(quote.internalNote ?? '');
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Không tải được báo giá.');
     }
@@ -230,6 +239,7 @@ export function QuotesWorkspace({
   function requestBody() {
     return {
       customerId,
+      ...(!selected && fromChat ? { sourceConversationId: fromChat.conversationId } : {}),
       lines: lines.map((line) => ({
         variantId: line.variantId,
         quantity: line.quantity,
@@ -246,6 +256,7 @@ export function QuotesWorkspace({
       ...(taxMode ? { taxMode, taxValue } : selected ? { taxMode: null, taxValue: null } : {}),
       depositVnd,
       paymentNote,
+      internalNote,
     };
   }
 
@@ -414,12 +425,25 @@ export function QuotesWorkspace({
                 </div>
                 {selected && <span className="status-pill">{selected.status}</span>}
               </div>
+              {(selected?.sourceConversationId || (!selected && fromChat)) && (
+                <p className="muted">
+                  Hội thoại nguồn: {selected?.sourceConversationId ?? fromChat?.conversationId}
+                  {' · Kênh/Page: '}
+                  {selected?.sourceAccount?.displayName ?? fromChat?.accountName ?? 'chưa xác định'}
+                  {selected?.sourceMessageId ? ` · Tin ${selected.sourceMessageId}` : ''}
+                  {selected?.sourceTicketId ? ` · Phiếu ${selected.sourceTicketId}` : ''}
+                </p>
+              )}
               <label>
                 Khách hàng
                 <select
                   value={customerId}
                   onChange={(event) => setCustomerId(event.target.value)}
-                  disabled={!!selected && selected.status !== 'DRAFT'}
+                  disabled={
+                    (!!selected &&
+                      (selected.status !== 'DRAFT' || !!selected.sourceConversationId)) ||
+                    (!selected && !!fromChat)
+                  }
                 >
                   {customers.map((customer) => (
                     <option key={customer.id} value={customer.id}>
@@ -610,6 +634,15 @@ export function QuotesWorkspace({
                   <textarea
                     value={paymentNote}
                     onChange={(event) => setPaymentNote(event.target.value)}
+                    disabled={!!selected && selected.status !== 'DRAFT'}
+                    rows={2}
+                  />
+                </label>
+                <label>
+                  Ghi chú nội bộ và nguồn hội thoại
+                  <textarea
+                    value={internalNote}
+                    onChange={(event) => setInternalNote(event.target.value)}
                     disabled={!!selected && selected.status !== 'DRAFT'}
                     rows={2}
                   />

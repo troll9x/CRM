@@ -189,6 +189,149 @@ describe('quotes API', () => {
     await app.close();
   });
 
+  it('keeps a scoped social source through quote creation and rejects mismatched sources', async () => {
+    const connection = await prisma.integrationConnection.create({
+      data: {
+        businessId: 'business_local_default',
+        provider: 'FACEBOOK',
+        externalAccountId: `quote-fixture-${suffix}`,
+        displayName: 'Quote source fixture',
+      },
+    });
+    const identity = await prisma.externalCustomerIdentity.create({
+      data: {
+        businessId: 'business_local_default',
+        connectionId: connection.id,
+        externalUserId: `quote-customer-${suffix}`,
+        customerId,
+      },
+    });
+    const conversation = await prisma.conversation.create({
+      data: {
+        businessId: 'business_local_default',
+        connectionId: connection.id,
+        identityId: identity.id,
+        externalId: `quote-chat-${suffix}`,
+      },
+    });
+    const message = await prisma.conversationMessage.create({
+      data: {
+        connectionId: connection.id,
+        conversationId: conversation.id,
+        externalMessageId: `quote-message-${suffix}`,
+        providerAt: new Date(),
+        body: 'Fixture question',
+      },
+    });
+    const ticket = await prisma.socialTicket.create({
+      data: {
+        businessId: 'business_local_default',
+        conversationId: conversation.id,
+        requestKey: `quote-ticket-${suffix}`,
+        kind: 'OTHER',
+        summary: 'Fixture ticket',
+        createdById: (
+          await prisma.staffUser.findFirstOrThrow({
+            where: { emailNormalized: ownerEmail.toLowerCase() },
+            select: { id: true },
+          })
+        ).id,
+      },
+    });
+    let sourceOrderId = '';
+    try {
+      const input = {
+        customerId,
+        lines: [{ variantId, quantity: '1' }],
+        sourceConversationId: conversation.id,
+        sourceMessageId: message.id,
+        sourceTicketId: ticket.id,
+      };
+      const key = `quote-e2e-${suffix}-social`;
+      await sales
+        .post('/api/v1/quotes')
+        .set('Idempotency-Key', `quote-e2e-${suffix}-social-page-denied`)
+        .send(input)
+        .expect(403);
+      const created = await owner.post('/api/v1/quotes').set('Idempotency-Key', key).send(input);
+      expect(created.status, JSON.stringify(created.body)).toBe(201);
+      expect(created.body.data).toMatchObject({
+        sourceConversationId: conversation.id,
+        sourceMessageId: message.id,
+        sourceTicketId: ticket.id,
+        sourceAccount: { provider: 'FACEBOOK', displayName: 'Quote source fixture' },
+      });
+      const quoteId = created.body.data.id as string;
+      const repeated = await owner.post('/api/v1/quotes').set('Idempotency-Key', key).send(input);
+      expect(repeated.body.data.id).toBe(quoteId);
+      await warehouse
+        .post('/api/v1/quotes')
+        .set('Idempotency-Key', `quote-e2e-${suffix}-social-denied`)
+        .send(input)
+        .expect(403);
+      await owner
+        .post('/api/v1/quotes')
+        .set('Idempotency-Key', `quote-e2e-${suffix}-social-mismatch`)
+        .send({ ...input, sourceMessageId: randomUUID() })
+        .expect(422);
+      await owner
+        .patch(`/api/v1/quotes/${quoteId}`)
+        .set('Idempotency-Key', `quote-e2e-${suffix}-social-update`)
+        .send({ sourceConversationId: randomUUID(), expectedVersion: 1 })
+        .expect(400);
+      await owner
+        .patch(`/api/v1/quotes/${quoteId}`)
+        .set('Idempotency-Key', `quote-e2e-${suffix}-social-customer`)
+        .send({ customerId: randomUUID(), expectedVersion: 1 })
+        .expect(422);
+      const sent = await owner
+        .post(`/api/v1/quotes/${quoteId}/send`)
+        .set('Idempotency-Key', `quote-e2e-${suffix}-social-send`)
+        .send({ expectedVersion: 1, receivedAt: new Date().toISOString() })
+        .expect(201);
+      expect(sent.body.data.status).toBe('SENT');
+      const current = await owner.get(`/api/v1/quotes/${quoteId}`).expect(200);
+      const converted = await owner
+        .post(`/api/v1/quotes/${quoteId}/convert`)
+        .set('Idempotency-Key', `quote-e2e-${suffix}-social-convert`)
+        .send({ expectedVersion: current.body.data.version });
+      expect(converted.status, JSON.stringify(converted.body)).toBe(201);
+      sourceOrderId = converted.body.data.order.id as string;
+      const order = await owner.get(`/api/v1/orders/${sourceOrderId}`).expect(200);
+      expect(order.body.data.sourceQuote).toMatchObject({
+        id: quoteId,
+        sourceConversationId: conversation.id,
+        sourceMessageId: message.id,
+        sourceTicketId: ticket.id,
+      });
+    } finally {
+      if (sourceOrderId) {
+        await owner
+          .post(`/api/v1/orders/${sourceOrderId}/cancel`)
+          .set('Idempotency-Key', `quote-e2e-${suffix}-social-cancel`)
+          .send({ expectedVersion: 1 })
+          .expect(201);
+        await prisma.stockReservationEvent.deleteMany({ where: { orderId: sourceOrderId } });
+        await prisma.adminAlert.deleteMany({ where: { orderId: sourceOrderId } });
+        await prisma.salesOrderLine.deleteMany({ where: { orderId: sourceOrderId } });
+        await prisma.salesOrder.delete({ where: { id: sourceOrderId } });
+      }
+      await prisma.quoteCommand.deleteMany({ where: { idempotencyKey: { contains: suffix } } });
+      await prisma.quoteRevision.deleteMany({
+        where: { quote: { sourceConversationId: conversation.id } },
+      });
+      await prisma.quoteLine.deleteMany({
+        where: { quote: { sourceConversationId: conversation.id } },
+      });
+      await prisma.quote.deleteMany({ where: { sourceConversationId: conversation.id } });
+      await prisma.socialTicket.delete({ where: { id: ticket.id } });
+      await prisma.conversationMessage.delete({ where: { id: message.id } });
+      await prisma.conversation.delete({ where: { id: conversation.id } });
+      await prisma.externalCustomerIdentity.delete({ where: { id: identity.id } });
+      await prisma.integrationConnection.delete({ where: { id: connection.id } });
+    }
+  });
+
   it('creates manual draft orders with server-resolved prices and idempotent replay', async () => {
     const input = { customerId, lines: [{ variantId, quantity: '0.00005' }] };
     const key = `order-e2e-${suffix}-manual`;

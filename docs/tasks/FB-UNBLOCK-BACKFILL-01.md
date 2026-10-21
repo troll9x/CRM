@@ -1,0 +1,38 @@
+# FB-UNBLOCK-BACKFILL-01 — Facebook realtime và nhập lịch sử
+
+Checkpoint 2026-10-13, checkout `C:\Users\Admin\Downloads\CRM`, branch `integration/merge-crm`, HEAD trước sửa `1925a9f`. Phạm vi: app **Sơn CRM** (`1682297180226928`), Page **sikeoLC**; không tạo app khác, không seed DB vận hành, không gửi tin hoặc thay đổi đơn/kho/tiền.
+
+## Bằng chứng runtime, tách bốn tuyến
+
+| Tuyến | Trạng thái | Bằng chứng và điểm chặn |
+| --- | --- | --- |
+| Messenger mới | `WAITING_FOR_META` | App Meta trên Chrome 13/10 vẫn “Đã hủy đăng”; màn hình Đăng disabled vì thiếu URL chính sách quyền riêng tư. Webhook URL Quick Tunnel lưu 12/10 hiện đã hết phiên. DB 0 webhook job; không có POST khách thật. Grant/Page subscription trước đó đã xác minh, nhưng không thay cho delivery. |
+| Bình luận/replies mới | `WAITING_FOR_META` + `BLOCKED_PERMISSION` | Cùng chặn app/HTTPS. `pages_read_user_content` không hiện trong bảng quyền use case Messenger; preflight Graph comment hiện trả code **10**. |
+| Messenger cũ | `LIVE_PARTIAL`, 8 tin `UI_VERIFIED` | Job backfill thực sự gọi Graph: preflight `/Page/conversations` và `/conversation/messages` `ACCESSIBLE_SAMPLE`; 100 trang đầu đọc 720 object và lưu 8 tin cũ/2 hội thoại từ 08–11/10, đều có `import_job_id`, `unreadAt=0`. Chrome desktop đã mở chi tiết 2 hội thoại: 5 + 3 tin, cả 8 có nhãn lịch sử; nội dung khách không chép vào tài liệu. Giới hạn 100 trang chặn quét vô hạn; checkpoint giữ lại. Khởi động lại worker giữa job vẫn tăng progress. Chạy lại cùng job thêm 100 trang/385 object: chèn 0 tin, DB vẫn 8. Lần thứ ba: 54 trang, `duplicates=8`, `inserted=0`, DB vẫn 8; đã **tạm dừng job** qua API để không quét thừa, checkpoint giữ nguyên. Không khẳng định toàn bộ Inbox Meta đã được trả. |
+| Bình luận/replies cũ | `BLOCKED_PERMISSION` | Live job đọc 25 post Page, 0 comment; gọi `/post/comments` bị chặn. API preflight độc lập trả `BLOCKED_PERMISSION`, `providerCode=10`, edge `posts/comments`; không ghi comment và không gọi là Page rỗng. |
+
+Trước backfill, DB vận hành `son_crm_ui_account` có 1 Page `CONNECTED`, 0 job, 0 hội thoại, 0 tin, 0 comment. Sau batch hiện có 2 hội thoại, 8 tin, 0 comment; không tạo unread. Số đọc/chèn cuối cùng cần xem lại bằng API/SQL vì job có thể được tiếp tục. Kết quả mock/unit/E2E không được tính là `LIVE_VERIFIED`.
+
+## Code và vận hành
+
+- `IntegrationJob(kind=BACKFILL)` giữ dataset, khoảng UTC `[since, until)`, stack cursor phân trang, progress và giới hạn trang. API quản lý theo `businessId`/`connectors.manage`: `POST/GET /integrations/facebook/backfills`, `GET /preflight`, `POST /:id/pause`, `/:id/resume` (giữ checkpoint), `/:id/restart` (quét lại), `/:id/extend`; retry của job cũ vẫn dùng `/integrations/jobs/:id/retry` cho lỗi thông thường.
+- Worker duyệt Page conversations → từng trang messages, Page posts → từng trang comments/replies. Chỉ gọi host/version/path Graph allowlist; không theo `paging.next`, không lưu token/URL có token. Mỗi batch có lease và checkpoint. `BLOCKED_PERMISSION`, `REAUTH_REQUIRED`, giới hạn trang là trạng thái dừng rõ; rate-limit/transient backoff.
+- Unique theo `(connectionId, externalMessageId)` và `(connectionId, externalCommentId)`; backfill chỉ `createMany(skipDuplicates)`, không ghi đè edit/delete/comment tombstone, unread, assignment, note, identity link. Conversation dùng PSID để trùng khóa với webhook. Message/comment có `importJobId` nullable từ migration `20261012010000_facebook_backfill_provenance`.
+- UI Nhật ký đồng bộ có form ngày Việt Nam, dataset, giới hạn trang, preflight, progress, tạm dừng/tiếp checkpoint, nhập lại và mở rộng checkpoint. Hộp thư có chi tiết hội thoại phân trang để thấy mọi tin đã tải (không chỉ tin cuối), nhãn nguồn lịch sử/webhook; bình luận lịch sử cũng có nhãn nguồn. “Làm mới dữ liệu” chỉ đọc lại CRM, không gọi Meta. `lastSyncAt` không còn được gắn nhãn sai là đã xử lý webhook vì backfill cũng cập nhật mốc này.
+- Backup DB trước migration: `%TEMP%\son-crm-ui-account-before-fb-backfill-20261013.dump`, SHA-256 `8BF78F2D0849197DCDEAA0A07D950AB962AB94985A32A112E49E9C9078284152`; script phục hồi thử vào container scratch và so sánh số dòng core. **File dump chưa mã hóa**, cần chuyển vào kho lưu trữ bảo mật/retention của chủ dự án; không đưa vào Git. Migration tăng dần 29/29 đã áp dụng vào DB vận hành; SQL cũng chạy được trên DB scratch riêng.
+
+## Gói Meta App Review cần hoàn tất
+
+Bản mô tả use case, lời giải thích từng quyền và kịch bản reviewer/video đã soạn sẵn tại [`FB-META-REVIEW-DRAFT.md`](FB-META-REVIEW-DRAFT.md); **chưa nộp Meta**.
+
+1. App Sơn CRM → **Đăng**: URL chính sách quyền riêng tư thực đang thiếu, nút Đăng disabled. Chủ dự án phải chốt nội dung/phạm vi lưu tin nhắn, bình luận, ảnh, người được xem, thời gian lưu, cách yêu cầu xóa/xuất; cung cấp URL HTTPS ổn định do mình kiểm soát. Không dùng Quick Tunnel làm URL chính sách hay điền placeholder.
+2. Use case Messenger → Quyền và tính năng: `pages_show_list`, `pages_manage_metadata`, `pages_messaging`, `pages_read_engagement` hiện “Sẵn sàng thử nghiệm”, **chưa phải Advanced Access/approval**. Menu `pages_messaging` có “Thêm vào yêu cầu Xét duyệt ứng dụng”; chưa bấm/nộp. Cần chứng minh login → chọn Page → thấy inbox, không có hành động gửi tin từ CRM.
+3. Quyền `pages_read_user_content` cho comment người dùng không thấy trong bảng quyền use case Messenger. Xác định use case/đường yêu cầu chính xác trong dashboard; thêm quyền và chuẩn bị review, sau khi được cấp thì reconnect Page để token mới có grant. Graph code 10 hiện là bằng chứng chặn, không dùng PPCA để né quyền cho Page chưa được cấp.
+4. Reviewer script: mở CRM staging HTTPS ổn định bằng account thử có quyền tối thiểu; nhấn Kết nối Facebook → tự đăng nhập/cấp quyền → chọn Page thử → xem màn hình Tin nhắn/Bình luận; dùng tab Nhật ký → preflight → nhập khoảng ngày hẹp → xem tiến độ và đối chiếu source timestamp; nhập lại chứng minh không trùng. Cung cấp video không lộ token/khách thật, Page/tester asset và privacy/deletion URL thật nếu Meta yêu cầu. Hiện chưa có các đầu vào này, **chưa nộp review/chưa phát hành**.
+5. Sau review: webhook HTTPS ổn định phải trỏ **`/api/v1/webhooks/facebook`**, khác OAuth callback **`/api/v1/integrations/oauth/facebook/callback`**; `messages`/`feed` ở app và Page subscription kiểm tra riêng. Quick Tunnel cũ đã chết; cần URL mới/staging trước khi nhận realtime. Verify token từng lộ trong chat, phải xoay với `.env` + Meta cùng lúc, không gửi vào chat.
+
+## Kiểm thử và bước tiếp
+
+- API unit 11 files/48 tests, web unit 3/8, API/web lint/typecheck/build, Prisma validate, `git diff --check` đã chạy. E2E `test/integrations.e2e-spec.ts` 1/1 trên DB scratch, bao gồm API chi tiết hội thoại và `webhookEventObserved` trước/sau webhook fixture; 29 migration SQL và seed scratch riêng. Một lượt E2E dùng nhầm database user đã lỗi login 500; chạy lại với database user đúng 1/1 pass, không tác động DB vận hành. Lần gọi wrapper `npm run test:e2e -- --run ...` vô tình chạy toàn suite: 13 suite/44 test qua, 2 OAuth suite tự chặn do tên scratch không chứa `channel_auth_scratch`; không ghi nhận toàn suite pass.
+- Chủ dự án đã đăng nhập Chrome desktop; UI mới đã hiển thị đủ 8 tin thật (5 + 3) trong chi tiết hai hội thoại, mỗi tin có nhãn lịch sử. Nhật ký UI cũng hiển thị 8 duplicate ở lượt nhập lại và nút tiếp checkpoint; bình luận vẫn `BLOCKED_PERMISSION`. Nghiệm thu realtime bằng một tin/bình luận mới do chủ dự án tạo khi app/HTTPS/grant đã sẵn. Không gửi hoặc đăng nội dung thay chủ dự án. Dùng `GET /integrations/facebook/backfills/preflight` và job status để kiểm quyền; không đọc/in nội dung khách trong log.
+- Chưa có commit/push. Không dùng 8 tin lịch sử làm bằng chứng webhook tin mới. Không thể gọi bình luận lịch sử `LIVE_VERIFIED` khi Graph code 10.

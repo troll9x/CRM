@@ -1,5 +1,15 @@
 # Tích hợp đa kênh — trạng thái và cấu hình
 
+## Cập nhật 2026-10-13 — nhập lịch sử Facebook
+
+Xem [`tasks/FB-UNBLOCK-BACKFILL-01.md`](tasks/FB-UNBLOCK-BACKFILL-01.md) và checkpoint mới nhất [`HANDOFF.md`](HANDOFF.md). UI Nhật ký đồng bộ đã có form nhập lịch sử Messenger/bình luận, preflight quyền, giới hạn trang, pause/restart/extend và progress; có migration additive/provenance. Live Messenger history lưu 8 tin cũ/2 hội thoại; comment history bị Graph code 10, app vẫn chưa phát hành nên realtime chưa được nghiệm thu. Host Quick Tunnel ghi trong các đoạn cũ bên dưới đã hết phiên; **không dùng lại URL đó cho Meta**. API/worker/web/DB Docker đang chạy nhưng gateway 4100 và tunnel không chạy tại lần kiểm tra đầu ngày 13/10.
+
+## Facebook runtime 2026-10-12
+
+Trace và mức nghiệm thu chi tiết: [`tasks/FB-SYNC-FIX-01.md`](tasks/FB-SYNC-FIX-01.md). App/connection/Page grant đã có; không yêu cầu tạo lại app hay nhập lại App Secret. Meta Page webhook đã Verify & Save URL thử local `https://held-moss-program-mats.trycloudflare.com/api/v1/webhooks/facebook` ngày 2026-10-12, kiểm lại sau reload. URL OAuth callback riêng là `https://held-moss-program-mats.trycloudflare.com/api/v1/integrations/oauth/facebook/callback`; `.env` và Meta OAuth redirect cũ phải đổi cùng lúc trước reconnect. Quick Tunnel đổi hostname khi dừng, không phù hợp vận hành bền vững. API/worker Docker đọc root `.env` qua Compose; sau thay đổi dùng `docker compose up -d --force-recreate api integration-worker` (không đụng DB). Đừng đưa mã/token vào chat/log.
+
+Meta app chưa phát hành, nên event khách thật chưa được Meta phân phối. Messenger grant và Page subscription đã xác nhận live bằng Graph read-only; bình luận còn thiếu `pages_read_user_content` (Graph comments 400/code 10). Cần URL chính sách quyền riêng tư thật và các điều kiện xét duyệt Meta trước khi Đăng; không dùng placeholder. Tùy chọn mTLS Page webhook đang bật, chưa xác minh với Quick Tunnel. Không tuyên bố `LIVE_VERIFIED` từ GET handshake hoặc dashboard test.
+
 ## Trạng thái Facebook — cập nhật 2026-10-11
 
 - App `Sơn CRM` (`1682297180226928`), use case Messenger. Meta permissions table hiện cho thấy `pages_show_list`, `pages_messaging`, `pages_manage_metadata`, `pages_read_engagement` “Sẵn sàng thử nghiệm”; đó chỉ là app readiness, chưa chứng minh OAuth grant hoặc quyền trên Page. `pages_read_user_content` không xuất hiện trong bảng quyền của use case hiện tại; docs Meta trả 429 nên đường cấp quyền/review riêng chưa được xác minh.
@@ -8,7 +18,7 @@
 - Đính chính 2026-10-11: `FACEBOOK_APP_SECRET` đã có trong root `.env`; API/worker ban đầu chưa nạp lại cấu hình. Đã recreate riêng hai service và xác nhận runtime có secret (không in giá trị). Webhook HTTPS handshake đã kiểm chứng đúng token → 200/challenge chính xác, sai token → 401. OAuth đã mở từ CRM; Meta đang ở màn hình xác nhận kết nối tài khoản với Sơn CRM. Cần hoàn tất consent/callback, chọn Page, lưu connection và Page subscription; chưa `LIVE_VERIFIED`.
 - Cập nhật sau OAuth: DB `son_crm_ui_account` có một Facebook connection `CONNECTED`, authorization `VERIFIED`, Page subscription `VERIFIED`; tuy nhiên `webhookSubscription=APP_CONFIGURATION_PENDING`. Hiện chưa có integration jobs/conversations/messages/comments. Tunnel handshake đã thử lại đúng token → 200/challenge match, sai token → 401. Chưa `LIVE_VERIFIED`; xem checkpoint mới nhất trong [`HANDOFF.md`](HANDOFF.md).
 
-Cập nhật: 2026-10-11. Tài liệu này tách phần code local, tài liệu API đã đối chiếu và tích hợp đã chạy bằng tài khoản thật. Hiện chưa có channel nào được xác nhận chạy với tài khoản thật. Meta app dùng chung `Sơn CRM` đã tạo với App ID `1682297180226928`, use case Messenger; Graph API hiện mới nhất `v26.0`. Không ghi App Secret tại đây. OAuth checkpoint hiện hành: [`tasks/CHANNEL-AUTH-01.md`](tasks/CHANNEL-AUTH-01.md).
+Cập nhật trạng thái 2026-10-15: xem [`tasks/SOCIAL-OPERATIONS-2026-10-15.md`](tasks/SOCIAL-OPERATIONS-2026-10-15.md) để biết capability theo Page/shop/OA và bằng chứng mới nhất. Các bảng dưới đây là kế hoạch/ảnh chụp cũ, không dùng để kết luận trạng thái live hiện nay. Một Facebook Page đã OAuth thật và Graph grant gửi Messenger được kiểm; chưa có tuyến gửi/nhận end-to-end `LIVE_VERIFIED`. Meta app dùng chung `Sơn CRM` có App ID `1682297180226928`. Không ghi App Secret tại đây.
 
 ## Phạm vi bản đầu
 
@@ -73,7 +83,7 @@ Worker local chạy riêng: `docker compose up -d integration-worker`; worker d�
 
 `IntegrationJob.payload` chỉ chứa normalized fields tối thiểu; không lưu access token. Job có lease, số lần thử, thời điểm chạy lại, mã lỗi an toàn và trạng thái dead-letter. Nội dung tin/bình luận, thông tin người nhận đơn và media metadata vẫn có thể là dữ liệu cá nhân: cần quyết định retention, phân quyền, export/delete và backup trước khi dùng dữ liệu khách thật.
 
-Luồng UI dùng dữ liệu đã lưu API: tab Kết nối, Tin nhắn, Bình luận, Đơn sàn, Nhật ký đồng bộ và Liên kết SKU. Nếu danh sách rỗng nghĩa là chưa có sự kiện được xác thực/nhập, không có dữ liệu minh họa.
+Luồng UI dùng dữ liệu đã lưu API: tab Kết nối, Hộp thư (Chat/Bình luận/Ticket), Đơn sàn, Nhật ký đồng bộ và Liên kết SKU. Hộp thư chỉ lọc tối đa 100 mục gần nhất mỗi loại đang tải; ticket là tác nghiệp nội bộ, không gửi reply. Nếu danh sách rỗng nghĩa là chưa có sự kiện được xác thực/nhập, không có dữ liệu minh họa.
 
 ## Preflight kết nối
 

@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -10,6 +10,7 @@ import { IntegrationWorkerService } from '../src/integrations/integration-worker
 const ownerEmail = process.env.SEED_OWNER_EMAIL ?? 'owner@crm.local';
 const ownerPassword = process.env.SEED_OWNER_PASSWORD ?? 'Local-test-password-123!';
 const pageId = '987654321001';
+const secondPageId = '987654321002';
 const config: Record<string, string> = {
   FACEBOOK_APP_ID: '123456789',
   FACEBOOK_APP_SECRET: 'fixture-app-secret',
@@ -25,7 +26,8 @@ const previous = Object.fromEntries(Object.keys(config).map((key) => [key, proce
 describe('Facebook OAuth local contract (mock provider, scratch database only)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
-  let providerMode: 'normal' | 'missingScope' | 'subscriptionFail' = 'normal';
+  let providerMode:
+    'normal' | 'missingScope' | 'subscriptionFail' | 'secondSubscriptionFail' | 'paged' = 'normal';
   const graph = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(
       input instanceof URL ? input.href : typeof input === 'string' ? input : input.url,
@@ -47,19 +49,58 @@ describe('Facebook OAuth local contract (mock provider, scratch database only)',
             })),
           }
         : url.pathname.endsWith('/me/accounts')
-          ? {
-              data: [
-                {
-                  id: pageId,
-                  name: 'Fixture Page',
-                  access_token: 'fixture-page-token',
-                  tasks: ['PROFILE_PLUS_MESSAGING'],
-                },
-              ],
-            }
+          ? providerMode === 'paged'
+            ? url.searchParams.get('after') === 'next-page'
+              ? {
+                  data: [
+                    {
+                      id: secondPageId,
+                      name: 'Second Fixture Page',
+                      access_token: 'fixture-second-page-token',
+                      tasks: ['PROFILE_PLUS_MESSAGING'],
+                    },
+                  ],
+                }
+              : {
+                  data: [
+                    {
+                      id: pageId,
+                      name: 'Fixture Page',
+                      access_token: 'fixture-page-token',
+                      tasks: ['PROFILE_PLUS_MESSAGING'],
+                    },
+                  ],
+                  paging: {
+                    next: 'https://graph.facebook.com/next',
+                    cursors: { after: 'next-page' },
+                  },
+                }
+            : {
+                data: [
+                  {
+                    id: pageId,
+                    name: 'Fixture Page',
+                    access_token: 'fixture-page-token',
+                    tasks: ['PROFILE_PLUS_MESSAGING'],
+                  },
+                  {
+                    id: secondPageId,
+                    name: 'Second Fixture Page',
+                    access_token: 'fixture-second-page-token',
+                    tasks: ['PROFILE_PLUS_MESSAGING'],
+                  },
+                ],
+              }
           : url.pathname.endsWith('/subscribed_apps')
             ? init?.method === 'POST'
-              ? { success: providerMode !== 'subscriptionFail' }
+              ? {
+                  success:
+                    providerMode !== 'subscriptionFail' &&
+                    !(
+                      providerMode === 'secondSubscriptionFail' &&
+                      url.pathname.includes(secondPageId)
+                    ),
+                }
               : { data: [{ id: config.FACEBOOK_APP_ID }] }
             : { error: 'unsupported fixture path' };
     return Promise.resolve(
@@ -159,6 +200,7 @@ describe('Facebook OAuth local contract (mock provider, scratch database only)',
       .expect(200);
     expect(choice.body.data.accounts).toEqual([
       { id: pageId, name: 'Fixture Page', tasks: ['PROFILE_PLUS_MESSAGING'] },
+      { id: secondPageId, name: 'Second Fixture Page', tasks: ['PROFILE_PLUS_MESSAGING'] },
     ]);
     expect(JSON.stringify(choice.body)).not.toContain('fixture-page-token');
     const currentStaff = await prisma.staffUser.findFirstOrThrow({
@@ -288,5 +330,270 @@ describe('Facebook OAuth local contract (mock provider, scratch database only)',
       expect(row.credentialCiphertext).toBeNull();
     }
     providerMode = 'normal';
+  });
+
+  it('selects two Pages in one grant and disconnects only the selected Page', async () => {
+    const agent = await owner();
+    const start = await agent
+      .post('/api/v1/integrations/oauth/facebook/start')
+      .send({})
+      .expect(201);
+    const state = new URL(start.body.data.authorizationUrl as string).searchParams.get('state')!;
+    await request(app.getHttpServer())
+      .get('/api/v1/integrations/oauth/facebook/callback')
+      .query({ state, code: 'fixture-multi-page' })
+      .expect(303);
+    const path = `/api/v1/integrations/oauth/facebook/attempts/${start.body.data.attemptId}/finalize`;
+    await agent
+      .post(path)
+      .send({ pageIds: [pageId, pageId] })
+      .expect(400);
+    const result = await agent
+      .post(path)
+      .send({ pageIds: [pageId, secondPageId] })
+      .expect(201);
+    expect(result.body.data.connections).toHaveLength(2);
+    const [first, second] = result.body.data.connections as [{ id: string }, { id: string }];
+    expect(first.id).not.toBe(second.id);
+    const rows = await prisma.integrationConnection.findMany({
+      where: { id: { in: [first.id, second.id] } },
+      orderBy: { externalAccountId: 'asc' },
+    });
+    expect(rows.map((row) => row.externalAccountId)).toEqual([pageId, secondPageId]);
+    expect(rows.every((row) => row.status === 'CONNECTED' && !!row.credentialCiphertext)).toBe(
+      true,
+    );
+    expect(JSON.stringify(result.body)).not.toContain('fixture-page-token');
+    await agent
+      .post(`/api/v1/integrations/oauth/facebook/connections/${first.id}/disconnect`)
+      .send({})
+      .expect(201);
+    expect(
+      (await prisma.integrationConnection.findUniqueOrThrow({ where: { id: second.id } })).status,
+    ).toBe('CONNECTED');
+  });
+
+  it('loads another Page when the first Graph page has fewer than 100 items', async () => {
+    providerMode = 'paged';
+    try {
+      const agent = await owner();
+      const start = await agent
+        .post('/api/v1/integrations/oauth/facebook/start')
+        .send({})
+        .expect(201);
+      const state = new URL(start.body.data.authorizationUrl as string).searchParams.get('state')!;
+      await request(app.getHttpServer())
+        .get('/api/v1/integrations/oauth/facebook/callback')
+        .query({ state, code: 'fixture-paged' })
+        .expect(303);
+      const attempt = await agent
+        .get(`/api/v1/integrations/oauth/facebook/attempts/${start.body.data.attemptId}`)
+        .expect(200);
+      const accounts = attempt.body.data.accounts as Array<{ id: string }>;
+      expect(accounts.map((page) => page.id)).toEqual([pageId, secondPageId]);
+    } finally {
+      providerMode = 'normal';
+    }
+  });
+
+  it('reports the failing Page and leaves both CRM connections unchanged', async () => {
+    const agent = await owner();
+    const businessId = 'business_local_default';
+    const before = await prisma.integrationConnection.findMany({
+      where: {
+        businessId,
+        provider: 'FACEBOOK',
+        externalAccountId: { in: [pageId, secondPageId] },
+      },
+      orderBy: { externalAccountId: 'asc' },
+    });
+    const start = await agent
+      .post('/api/v1/integrations/oauth/facebook/start')
+      .send({})
+      .expect(201);
+    const state = new URL(start.body.data.authorizationUrl as string).searchParams.get('state')!;
+    await request(app.getHttpServer())
+      .get('/api/v1/integrations/oauth/facebook/callback')
+      .query({ state, code: 'fixture-fail-second' })
+      .expect(303);
+    providerMode = 'secondSubscriptionFail';
+    try {
+      const result = await agent
+        .post(`/api/v1/integrations/oauth/facebook/attempts/${start.body.data.attemptId}/finalize`)
+        .send({ pageIds: [pageId, secondPageId] })
+        .expect(502);
+      expect(result.body.error.code).toBe('PAGE_SUBSCRIPTION_FAILED');
+      expect(result.body.error.message).toContain('Second Fixture Page');
+      const after = await prisma.integrationConnection.findMany({
+        where: {
+          businessId,
+          provider: 'FACEBOOK',
+          externalAccountId: { in: [pageId, secondPageId] },
+        },
+        orderBy: { externalAccountId: 'asc' },
+      });
+      expect(
+        after.map((row) => ({
+          id: row.id,
+          status: row.status,
+          credentialCiphertext: row.credentialCiphertext,
+        })),
+      ).toEqual(
+        before.map((row) => ({
+          id: row.id,
+          status: row.status,
+          credentialCiphertext: row.credentialCiphertext,
+        })),
+      );
+      const attempt = await prisma.integrationAuthAttempt.findUniqueOrThrow({
+        where: { id: start.body.data.attemptId as string },
+      });
+      expect(attempt.status).toBe('READY');
+    } finally {
+      providerMode = 'normal';
+    }
+  });
+
+  it('limits staff inbox and send access to assigned Page', async () => {
+    const ownerAgent = await owner();
+    const businessId = 'business_local_default';
+    const first = await prisma.integrationConnection.findUniqueOrThrow({
+      where: {
+        businessId_provider_externalAccountId: {
+          businessId,
+          provider: 'FACEBOOK',
+          externalAccountId: pageId,
+        },
+      },
+    });
+    const second = await prisma.integrationConnection.findUniqueOrThrow({
+      where: {
+        businessId_provider_externalAccountId: {
+          businessId,
+          provider: 'FACEBOOK',
+          externalAccountId: secondPageId,
+        },
+      },
+    });
+    const email = `page-staff-${Date.now()}@crm.local`;
+    const password = 'Fixture-staff-password-123!';
+    const created = await ownerAgent
+      .post('/api/v1/staff')
+      .send({ email, password, displayName: 'Page Staff Fixture', roleCodes: ['sales'] })
+      .expect(201);
+    const staffId = created.body.data.id as string;
+    const staffAgent = request.agent(app.getHttpServer());
+    await staffAgent.post('/api/v1/auth/sessions').send({ email, password }).expect(201);
+    const firstChat = await prisma.conversation.create({
+      data: {
+        businessId,
+        connectionId: first.id,
+        externalId: `fixture-first-${Date.now()}`,
+        subject: 'Same customer name',
+      },
+    });
+    const secondChat = await prisma.conversation.create({
+      data: {
+        businessId,
+        connectionId: second.id,
+        externalId: `fixture-second-${Date.now()}`,
+        subject: 'Same customer name',
+      },
+    });
+    try {
+      const before = await staffAgent.get('/api/v1/integrations/inbox').expect(200);
+      expect(before.body.data).toEqual([]);
+      await staffAgent
+        .get(`/api/v1/integrations/conversations/${secondChat.id}/messages`)
+        .expect(403);
+      await ownerAgent
+        .put(`/api/v1/integrations/connections/${second.id}/staff-access/${staffId}`)
+        .send({ canRead: true, canSend: false })
+        .expect(200);
+      const inbox = await staffAgent.get('/api/v1/integrations/inbox').expect(200);
+      const visibleChats = inbox.body.data as Array<{ id: string }>;
+      expect(visibleChats.map((row) => row.id)).toEqual([secondChat.id]);
+      await staffAgent
+        .get(`/api/v1/integrations/conversations/${firstChat.id}/messages`)
+        .expect(403);
+      await staffAgent
+        .get(`/api/v1/integrations/conversations/${secondChat.id}/messages`)
+        .expect(200);
+      await staffAgent
+        .post(`/api/v1/integrations/conversations/${secondChat.id}/send`)
+        .send({ body: 'Fixture', requestKey: randomUUID() })
+        .expect(403);
+      await ownerAgent
+        .put(`/api/v1/integrations/connections/${second.id}/staff-access/${staffId}`)
+        .send({ canRead: true, canSend: true })
+        .expect(200);
+      const capability = await staffAgent
+        .get(`/api/v1/integrations/conversations/${secondChat.id}/send-capability`)
+        .expect(200);
+      expect(capability.body.data.canSend).toBe(false); // Provider/window gate still applies.
+      await ownerAgent
+        .put(`/api/v1/integrations/connections/${second.id}/staff-access/${staffId}`)
+        .send({ canRead: false, canSend: false })
+        .expect(200);
+      expect((await staffAgent.get('/api/v1/integrations/inbox').expect(200)).body.data).toEqual(
+        [],
+      );
+    } finally {
+      await prisma.conversation.deleteMany({
+        where: { id: { in: [firstChat.id, secondChat.id] } },
+      });
+      await prisma.integrationStaffAccess.deleteMany({ where: { staffId } });
+      await prisma.session.deleteMany({ where: { staffUserId: staffId } });
+      await prisma.staffUserRole.deleteMany({ where: { staffUserId: staffId } });
+      await prisma.auditLog.deleteMany({ where: { actorId: staffId } });
+      await prisma.staffUser.delete({ where: { id: staffId } });
+    }
+  });
+
+  it('refuses to attach one Page to a second business', async () => {
+    const foreignBusiness = await prisma.business.create({
+      data: {
+        id: `fixture-other-business-${Date.now()}`,
+        name: 'Other business fixture',
+        timezone: 'Asia/Ho_Chi_Minh',
+        currency: 'VND',
+      },
+    });
+    const foreignConnection = await prisma.integrationConnection.create({
+      data: {
+        businessId: foreignBusiness.id,
+        provider: 'FACEBOOK',
+        externalAccountId: secondPageId,
+        displayName: 'Foreign Page fixture',
+        status: 'CONNECTED',
+        capabilities: { authorization: 'VERIFIED' },
+      },
+    });
+    try {
+      const agent = await owner();
+      const start = await agent
+        .post('/api/v1/integrations/oauth/facebook/start')
+        .send({})
+        .expect(201);
+      const state = new URL(start.body.data.authorizationUrl as string).searchParams.get('state')!;
+      await request(app.getHttpServer())
+        .get('/api/v1/integrations/oauth/facebook/callback')
+        .query({ state, code: 'fixture-cross-business' })
+        .expect(303);
+      await agent
+        .post(`/api/v1/integrations/oauth/facebook/attempts/${start.body.data.attemptId}/finalize`)
+        .send({ pageId: secondPageId })
+        .expect(409);
+      expect(
+        (
+          await prisma.integrationConnection.findUniqueOrThrow({
+            where: { id: foreignConnection.id },
+          })
+        ).businessId,
+      ).toBe(foreignBusiness.id);
+    } finally {
+      await prisma.integrationConnection.delete({ where: { id: foreignConnection.id } });
+      await prisma.business.delete({ where: { id: foreignBusiness.id } });
+    }
   });
 });

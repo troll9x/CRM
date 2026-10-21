@@ -1,10 +1,16 @@
 # Mô hình dữ liệu đích ở mức khung
 
+## Bổ sung Facebook backfill 2026-10-13
+
+`IntegrationJob(kind=BACKFILL)` tái sử dụng queue/lease hiện hành. `payload` là checkpoint có dataset, khoảng UTC `[since,until)`, `rootAfter`, stack task/cursor và tiến độ/page budget; tuyệt đối không chứa Page token, `paging.next` hoặc raw Graph body. Unique `(connectionId,idempotencyKey)` khóa double-click cùng phạm vi. `ConversationMessage.importJobId` và `SocialComment.importJobId` nullable (migration `20261012010000_facebook_backfill_provenance`) đánh dấu nguồn lịch sử; webhook mới để null. Unique `(connectionId,externalMessageId)`/`(connectionId,externalCommentId)` chống trùng giữa backfill, webhook và reconnect. Backfill chỉ insert-missing, không đổi unread/note/assignment/trạng thái comment cũ; conversation `lastMessageAt` chỉ tăng.
+
 ## Bổ sung schema đồng bộ đa kênh (migration 20261008230000)
 
 `IntegrationConnection.capabilities.authorization=VERIFIED` là điều kiện binding đã được xác minh qua luồng cấp quyền; external account ID thủ công không đủ. `CONNECTED` không được suy ra chỉ từ việc nhận signed webhook. Migration `20261009120000_channel_auth_attempts` dùng chung cho Facebook và Zalo OA: `IntegrationAuthAttempt` lưu state SHA-256, actor/business/provider, redirect URI, expiry, trạng thái claim một lần, account list không chứa token và grant mã hóa tạm thời. Facebook finalize thay credential ciphertext sau Page subscription readback; Zalo lưu PKCE verifier mã hóa khi pending, đổi code/xác minh OA metadata rồi lưu access/refresh token mã hóa và expiry. Cả hai reconnect giữ nguyên connection/history; Zalo worker xoay token trong DB lock. Xem [`tasks/CHANNEL-AUTH-01.md`](tasks/CHANNEL-AUTH-01.md).
 
 `IntegrationConnection` ghi provider/account/capabilities/status; `IntegrationJob` là durable inbox + DB worker queue (external event key, attempts, lease, retry time, safe error code). `ExternalCustomerIdentity`, `Conversation`, `ConversationMessage`, `InternalConversationNote` và `SocialComment` tách đúng định danh/tin nhắn/bình luận/note. `ExternalOrder`/`ExternalOrderLine` là vùng staging chỉ đọc; `ExternalProductMapping` ánh xạ external product/model sang `ProductVariant` và hệ số quy đổi. `AdminAlert` hỗ trợ external order, nullable `orderId`, và `dedupeKey` unique.
+
+`SocialTicket` là hồ sơ xử lý nội bộ gắn đúng một `Conversation` hoặc `SocialComment`, cùng business được service kiểm tra và SQL CHECK bảo vệ. Có `kind`, `priority`, `status`, `labels`, `assignedStaffId`, `sourceUrl` snapshot cho comment, `requestKey` unique theo business và `version` để chống ghi đè. `SocialTicketEvent` lưu actor, thời điểm UTC và nội dung đổi trong cùng transaction; không tạo Customer hoặc đơn từ ticket. Migration additive `20261014010000_social_tickets`.
 
 Không có quan hệ tự ghi stock, payment, receivable, revenue hoặc SalesOrder từ ExternalOrder. Link customer/SKU là thao tác riêng có kiểm tra `businessId`; không tự merge customer. Facebook/Zalo credential dùng AES-256-GCM với khóa cấu hình backend bền vững và context theo business/account/attempt; không lưu token thô hoặc trả token ra API/UI. Disconnect local xóa ciphertext, không xóa history.
 
@@ -146,3 +152,14 @@ Sai lệch tạo cảnh báo và quy trình sửa có chứng từ; không “fi
 - 08B tổng hợp `Shipment.recognizedRevenueVnd` theo tháng địa phương và `ShipmentLine.baseQuantity` theo SKU; truy vấn chỉ lấy shipment `DELIVERED` và `businessId` phiên hiện tại. Gross trước trả là nhãn rõ ràng; không suy ra doanh thu net từ return requests.
 - Đợt 07B–09: phân bổ số dư khách hàng/hoàn tiền/chi phí; returns/QA/reporting; Facebook connector vẫn chưa triển khai. COD đối soát cũng chờ giải quyết xung đột BR-COD-01 và BR-AR-02.
 - Chỉ thêm integration/AI/customer-web entities khi bắt đầu đúng đợt tương ứng.
+
+### 2026-10-15 — outbound social
+
+SocialOutbound lưu ý định gửi theo businessId, connectionId, đúng một trong conversationId/commentId, actorId, requestKey, kind, body, trạng thái, providerObjectId, thời điểm thử/chấp nhận và mã lỗi. Unique (businessId, requestKey) và (connectionId, providerObjectId) khi có ID chặn phát lại/trùng nguồn. UNKNOWN là kết quả không xác định, cần đối soát bằng provider ID/echo trước mọi quyết định gửi lại. Bản tin OUTBOUND_ECHO cùng provider mid chỉ có một dòng; bình luận reply giữ externalParentId gốc và không gán PSID Messenger cho tác giả.
+
+### Nguồn báo giá từ hội thoại (2026-10-15)
+
+`Quote.sourceConversationId`, `sourceMessageId`, `sourceTicketId` là FK nullable, `ON DELETE RESTRICT`, có index. Báo giá cũ giữ cả ba giá trị null. Khi tạo, service kiểm business, Customer đã liên kết với identity, và tin/phiếu thuộc đúng hội thoại trong một transaction; nguồn không được đổi khi sửa draft. `SalesOrder.sourceQuoteId` hiện có là chuỗi nguồn bền vững từ đơn → báo giá → hội thoại/tin/phiếu. Không sao chép nội dung tin khách vào đơn.
+# Bổ sung 2026-10-16 — quyền nhân viên theo tài khoản kênh
+
+`IntegrationStaffAccess` gắn một `StaffUser` với một `IntegrationConnection` trong cùng business, unique `(connectionId, staffId)`. `canRead` quyết định xem connection, hộp thư, bình luận, ticket và đơn ngoài của tài khoản đó; `canSend` chỉ có ý nghĩa khi `canRead=true` và vai trò có quyền gửi. Thu hồi xóa grant, không xóa dữ liệu nguồn. Quản trị viên có `connectors.manage` quản lý toàn bộ connection của business. Migration additive `20261016010000_integration_staff_access` chỉ được áp trên DB scratch ở checkpoint này.

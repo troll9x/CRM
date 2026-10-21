@@ -1,0 +1,25 @@
+# FB-SYNC-FIX-01 — trace Facebook inbound (2026-10-12)
+
+**Checkpoint mới 2026-10-13:** xem [`FB-UNBLOCK-BACKFILL-01.md`](FB-UNBLOCK-BACKFILL-01.md). Messenger history đã nhập 8 tin thật; comment history Graph code 10; realtime vẫn chưa có event thật. Các số 0 và host Quick Tunnel bên dưới là mốc 12/10, không phải runtime hiện tại.
+
+Trạng thái: `IMPLEMENTED` parser/ingress/worker/UI, `LOCAL_TESTED` parser/E2E/HTTPS handshake, Meta dashboard đã kiểm tra trực quan; `UI_TESTED=false` với inbox CRM (trình duyệt mới chỉ tới trang đăng nhập), **chưa `LIVE_VERIFIED`** Messenger/bình luận, chưa deploy. Không có tin/bình luận giả được nhập vào DB vận hành.
+
+## Bằng chứng theo chặng
+
+| Chặng | Messenger | Bình luận Page |
+| --- | --- | --- |
+| Meta app | App Sơn CRM đang **chưa phát hành**; dashboard Webhooks → Page ghi rõ chỉ gửi webhook thử nghiệm từ dashboard, không phân phối sự kiện sản xuất kể cả từ vai trò app. `messages` và `feed` đang đăng ký ở dashboard. | Cùng chặn phát hành. |
+| Grant/connection | Graph `/me/permissions` trả 200, `pages_show_list`, `pages_messaging`, `pages_manage_metadata`, `pages_read_engagement` đều granted; `/Page/subscribed_apps` trả 200 và có app hiện tại. DB có 1 Facebook connection `CONNECTED`, `authorization=VERIFIED`, `pageSubscription=VERIFIED`, credential ciphertext có. Graph `/Page/conversations?fields=id&limit=1` trả 200, 1 conversation (không đọc/in nội dung). | `pages_read_user_content` **không granted**; Graph `/post/comments?fields=id&limit=1` trả 400, OAuthException code 10. Đây là chặn quyền đọc bình luận độc lập với Messenger. |
+| HTTPS callback | URL webhook Meta ban đầu trỏ Quick Tunnel cũ đã chết. Đã khởi chạy gateway allowlist và Quick Tunnel mới `https://held-moss-program-mats.trycloudflare.com`. GET `/api/v1/webhooks/facebook` qua host mới: token đúng → 200/body bằng challenge; token sai → 401. POST chữ ký sai → 401 và không tạo job. **2026-10-12: đã Verify & Save URL mới trong Meta qua Chrome extension local; sau reload, đối tượng Page vẫn hiển thị URL mới và mã che.** | Cùng endpoint/chặn. OAuth callback là route khác `/api/v1/integrations/oauth/facebook/callback`; `.env` vẫn trỏ callback OAuth tới host cũ, cần đổi đồng bộ nếu reconnect. |
+| API → queue → worker → DB → UI | API/worker cùng đọc các biến Facebook cần thiết, worker enabled; API readiness và web 200. DB vận hành `son_crm_ui_account`: `integration_jobs=0`, `conversations=0`, `conversation_messages=0` (kiểm lại sau build); chưa có POST live đến API để trace job/worker sâu hơn. UI inbox vì vậy không có dữ liệu thật; đã thêm nút “Làm mới dữ liệu” để người dùng nạp lại khi có webhook. | `social_comments=0`. Parser cũ bỏ qua feed comment edit/remove nếu thiếu `created_time` và gộp nhiều lần edit cùng comment; đã sửa fallback `entry.time`, khóa edit/remove kèm thời điểm. Unit test mới chứng minh hai edit và một remove riêng, không phải test event Meta thật. |
+
+Nguyên nhân **đã chứng minh ở thời điểm kiểm tra ban đầu**: Meta app chưa phát hành và webhook Meta trỏ tunnel đã chết; URL webhook đã sửa/lưu nhưng app vẫn chưa phát hành. Với bình luận còn có thiếu grant/Graph code 10. Chưa có bằng chứng POST live; không quy lỗi worker hoặc UI. Tùy chọn mTLS ở Meta Page webhook đang bật; chưa xác minh tương thích với Quick Tunnel, không tự tắt bảo vệ.
+
+## Việc còn lại để nghiệm thu
+
+1. Webhook URL mới đã lưu và kiểm lại sau reload. Quick Tunnel chỉ là tạm thời: giữ gateway/tunnel chạy trong lúc thử; trước vận hành cần endpoint HTTPS ổn định. Mã xác minh đã từng xuất hiện trong hội thoại nên cần xoay sau khi thử, đồng bộ `.env`/Meta và recreate riêng API/worker.
+2. Meta mục **Đăng** hiện disabled, đòi URL chính sách quyền riêng tư thật và xét điều kiện use case. Không tạo URL/chính sách giả; hoàn thành yêu cầu Meta và phát hành sau khi chủ dự án xác nhận nội dung/chính sách dữ liệu. Trước đó chỉ thử dashboard webhook, không gọi là sự kiện khách thật.
+3. Xác minh con đường cấp `pages_read_user_content` phù hợp app/use case rồi reconnect Page để nhận grant; kiểm lại Graph comments. Messenger có grant nhưng vẫn cần app phát hành, webhook host sống và một tin mới do người dùng tự gửi.
+4. Khi Meta cho phép, người dùng tự tạo một tin Messenger và một bình luận mới; đối chiếu thời điểm/ID đã che từ Meta delivery → API response → một job `SUCCEEDED` → DB → API inbox/comments → UI, replay không nhân bản. Test restart/reconnect, worker retry. Không tự đăng bài/nhắn khách.
+
+Kiểm thử 2026-10-12: API unit 10 files/40 tests, web unit 3/7, API/web typecheck, lint, production build PASS. E2E tích hợp 1/1 PASS trên DB scratch `channel_auth_scratch_fb_sync_20261012` riêng: 28 migrations, seed fixture, signed Messenger/comment POST → durable jobs → worker → DB → API inbox/comments; comment add/remove và replay không tạo trùng. Scratch DB đã xóa sau test, DB vận hành không migrate/seed/reset. HTTP webhook qua tunnel mới đạt 200/challenge chính xác và 401 sai token. E2E dùng payload fixture, **không phải** event Meta thật; chưa có live POST nên `LIVE_VERIFIED=false`.

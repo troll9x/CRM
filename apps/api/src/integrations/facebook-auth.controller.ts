@@ -43,7 +43,7 @@ export class FacebookAuthController {
     @Param('id') id: string,
     @Body() dto: FacebookFinalizeDto,
   ) {
-    return this.auth.finalize(actor, id, dto.pageId);
+    return this.auth.finalize(actor, id, dto.pageIds ?? dto.pageId);
   }
 
   @Post('connections/:id/disconnect')

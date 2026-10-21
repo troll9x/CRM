@@ -37,7 +37,13 @@ type Order = {
   updatedAt: string;
   customer: { id: string; customerCode: string; displayName: string };
   createdBy: { id: string; displayName: string };
-  sourceQuote: { id: string; quoteNumber: string } | null;
+  sourceQuote: {
+    id: string;
+    quoteNumber: string;
+    sourceConversationId: string | null;
+    sourceMessageId: string | null;
+    sourceTicketId: string | null;
+  } | null;
   shipment: {
     id: string;
     shipmentCode: string;
@@ -617,6 +623,13 @@ export function OrdersWorkspace({
                       ? `Báo giá ${selected.sourceQuote.quoteNumber} · phiên bản ${selected.sourceRevision}`
                       : 'Tạo thủ công'}
                   </p>
+                  {selected.sourceQuote?.sourceConversationId && (
+                    <p className="muted">
+                      Hội thoại nguồn: {selected.sourceQuote.sourceConversationId}
+                      {selected.sourceQuote.sourceMessageId ? ` · Tin ${selected.sourceQuote.sourceMessageId}` : ''}
+                      {selected.sourceQuote.sourceTicketId ? ` · Phiếu ${selected.sourceQuote.sourceTicketId}` : ''}
+                    </p>
+                  )}
                 </div>
                 <span className={`status-pill${selected.status === 'CANCELED' ? ' canceled' : ''}`}>
                   {selected.status === 'CANCELED'

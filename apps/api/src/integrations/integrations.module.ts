@@ -10,6 +10,12 @@ import { FacebookAuthController } from './facebook-auth.controller';
 import { ZaloOAuthClient } from './zalo-oauth.client';
 import { ZaloAuthService } from './zalo-auth.service';
 import { ZaloAuthController } from './zalo-auth.controller';
+import { FacebookBackfillService } from './facebook-backfill.service';
+import { SocialTicketsService } from './social-tickets.service';
+import { FacebookSendClient } from './facebook-send.client';
+import { SocialOutboundService } from './social-outbound.service';
+import { IntegrationPageAccessService } from './integration-page-access.service';
+import { IntegrationPageAccessGuard } from './integration-page-access.guard';
 
 @Module({
   controllers: [
@@ -22,11 +28,17 @@ import { ZaloAuthController } from './zalo-auth.controller';
   providers: [
     IntegrationsService,
     IntegrationWorkerService,
+    FacebookBackfillService,
+    SocialTicketsService,
+    FacebookSendClient,
+    SocialOutboundService,
+    IntegrationPageAccessService,
+    IntegrationPageAccessGuard,
     FacebookOAuthClient,
     FacebookAuthService,
     ZaloOAuthClient,
     ZaloAuthService,
   ],
-  exports: [IntegrationsService],
+  exports: [IntegrationsService, IntegrationPageAccessService],
 })
 export class IntegrationsModule {}

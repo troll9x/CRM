@@ -3,12 +3,14 @@ import { ConfigService } from '@nestjs/config';
 import { Prisma, type IntegrationJob } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { ZaloAuthService } from './zalo-auth.service';
+import { FacebookBackfillService } from './facebook-backfill.service';
 
 type MessageEvent = {
   type: 'message';
   conversationId: string;
   externalUserId: string;
   messageId: string;
+  direction?: 'INBOUND' | 'OUTBOUND_ECHO';
   body?: string;
   contentType: string;
   mediaMetadata?: unknown;
@@ -61,6 +63,7 @@ export class IntegrationWorkerService implements OnModuleInit, OnModuleDestroy {
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
     private readonly zaloAuth: ZaloAuthService,
+    private readonly facebookBackfill: FacebookBackfillService,
   ) {}
 
   onModuleInit(): void {
@@ -145,12 +148,17 @@ export class IntegrationWorkerService implements OnModuleInit, OnModuleDestroy {
       const job = await this.prisma.integrationJob.findUnique({ where: { id: candidate.id } });
       if (!job) return false;
       activeJob = job;
-      await this.process(job);
+      const completed =
+        job.kind === 'BACKFILL'
+          ? await this.facebookBackfill.processBatch(job, this.workerId)
+          : (await this.process(job), true);
       await this.prisma.integrationJob.updateMany({
         where: { id: job.id, status: 'PROCESSING', leaseOwner: this.workerId },
         data: {
-          status: 'SUCCEEDED',
-          completedAt: new Date(),
+          status: completed ? 'SUCCEEDED' : 'PENDING',
+          ...(completed
+            ? { completedAt: new Date() }
+            : { availableAt: new Date(Date.now() + 250), attempts: 0 }),
           leaseOwner: null,
           leaseExpiresAt: null,
           lastErrorCode: null,
@@ -166,17 +174,23 @@ export class IntegrationWorkerService implements OnModuleInit, OnModuleDestroy {
         `Integration job failed: ${error instanceof Error ? error.name : 'unknown'}`,
       );
       if (activeJob) {
+        const code =
+          error instanceof Error && /^[A-Z0-9_]{1,80}$/.test(error.message)
+            ? error.message
+            : 'PROCESSING_FAILED';
+        const blocked = [
+          'BLOCKED_PERMISSION',
+          'REAUTH_REQUIRED',
+          'BACKFILL_PAGE_LIMIT_REACHED',
+        ].includes(code);
         const terminal = activeJob.attempts >= activeJob.maxAttempts;
         const delayMs = Math.min(60 * 60_000, 1000 * 2 ** Math.min(activeJob.attempts, 12));
         await this.prisma.integrationJob.updateMany({
           where: { id: activeJob.id, status: 'PROCESSING', leaseOwner: this.workerId },
           data: {
-            status: terminal ? 'DEAD' : 'RETRY',
+            status: blocked ? 'BLOCKED' : terminal ? 'DEAD' : 'RETRY',
             availableAt: new Date(Date.now() + delayMs),
-            lastErrorCode:
-              error instanceof Error && /^[A-Z0-9_]{1,80}$/.test(error.message)
-                ? error.message
-                : 'PROCESSING_FAILED',
+            lastErrorCode: code,
             leaseOwner: null,
             leaseExpiresAt: null,
             ...(terminal ? { completedAt: new Date() } : {}),
@@ -186,6 +200,11 @@ export class IntegrationWorkerService implements OnModuleInit, OnModuleDestroy {
           where: { id: activeJob.connectionId },
           data: { lastErrorCode: 'SYNC_JOB_FAILED', lastErrorAt: new Date() },
         });
+        if (code === 'REAUTH_REQUIRED')
+          await this.prisma.integrationConnection.updateMany({
+            where: { id: activeJob.connectionId, provider: 'FACEBOOK' },
+            data: { status: 'REAUTH_REQUIRED', lastErrorCode: code, lastErrorAt: new Date() },
+          });
       }
       return true;
     } finally {
@@ -206,6 +225,7 @@ export class IntegrationWorkerService implements OnModuleInit, OnModuleDestroy {
 
   private async persistMessage(job: IntegrationJob, event: MessageEvent): Promise<void> {
     const at = validDate(event.timestamp);
+    const direction = event.direction ?? 'INBOUND';
     await this.prisma.$transaction(
       async (tx) => {
         const identity = await tx.externalCustomerIdentity.upsert({
@@ -235,35 +255,56 @@ export class IntegrationWorkerService implements OnModuleInit, OnModuleDestroy {
             connectionId: job.connectionId,
             identityId: identity.id,
             externalId: event.conversationId,
-            unreadAt: at,
+            unreadAt: direction === 'INBOUND' ? at : null,
             lastMessageAt: at,
-          },
-          update: { identityId: identity.id, unreadAt: at, lastMessageAt: at },
-        });
-        await tx.conversationMessage.upsert({
-          where: {
-            connectionId_externalMessageId: {
-              connectionId: job.connectionId,
-              externalMessageId: event.messageId,
-            },
-          },
-          create: {
-            connectionId: job.connectionId,
-            conversationId: conversation.id,
-            externalMessageId: event.messageId,
-            body: event.body,
-            contentType: event.contentType,
-            mediaMetadata: event.mediaMetadata as Prisma.InputJsonValue | undefined,
-            providerAt: at,
           },
           update: {},
         });
+        const inserted = await tx.conversationMessage.createMany({
+          data: [
+            {
+              connectionId: job.connectionId,
+              conversationId: conversation.id,
+              externalMessageId: event.messageId,
+              direction,
+              body: event.body,
+              contentType: event.contentType,
+              mediaMetadata: event.mediaMetadata as Prisma.InputJsonValue | undefined,
+              providerAt: at,
+            },
+          ],
+          skipDuplicates: true,
+        });
+        if (inserted.count)
+          await tx.conversation.updateMany({
+            where: {
+              id: conversation.id,
+              OR: [{ lastMessageAt: null }, { lastMessageAt: { lte: at } }],
+            },
+            data: {
+              identityId: identity.id,
+              ...(direction === 'INBOUND' ? { unreadAt: at } : {}),
+              lastMessageAt: at,
+            },
+          });
+        if (direction === 'OUTBOUND_ECHO') {
+          await tx.socialOutbound.updateMany({
+            where: {
+              connectionId: job.connectionId,
+              conversationId: conversation.id,
+              providerObjectId: event.messageId,
+              status: { in: ['SENDING', 'UNKNOWN'] },
+            },
+            data: { status: 'SENT_TO_PROVIDER', acceptedAt: at, errorCode: null },
+          });
+        }
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
     );
   }
 
   private async persistComment(job: IntegrationJob, event: CommentEvent): Promise<void> {
+    const providerAt = validDate(event.timestamp);
     await this.prisma.socialComment.upsert({
       where: {
         connectionId_externalCommentId: {
@@ -282,9 +323,18 @@ export class IntegrationWorkerService implements OnModuleInit, OnModuleDestroy {
         body: event.body,
         sourceUrl: event.sourceUrl,
         status: event.status ?? 'ACTIVE',
-        providerAt: validDate(event.timestamp),
+        providerAt,
       },
-      update: { body: event.body, status: event.status ?? 'ACTIVE' },
+      update: {},
+    });
+    // A late backfill or replay must never undo a newer edit/delete event.
+    await this.prisma.socialComment.updateMany({
+      where: {
+        connectionId: job.connectionId,
+        externalCommentId: event.commentId,
+        OR: [{ providerAt: { lt: providerAt } }, { providerAt, status: { not: 'DELETED' } }],
+      },
+      data: { body: event.body, status: event.status ?? 'ACTIVE', providerAt },
     });
   }
 
