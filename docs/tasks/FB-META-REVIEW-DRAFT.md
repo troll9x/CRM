@@ -1,6 +1,6 @@
 # Sơn CRM — hồ sơ Meta App Review (bản nháp, chưa nộp)
 
-Cập nhật 2026-10-16. Bản này mô tả chức năng đang có trong code và phân biệt bằng chứng API thật với kiểm thử fixture. Chưa gửi hồ sơ khi thiếu privacy policy được chủ dự án duyệt, HTTPS ổn định, quyền cần thiết và video thao tác thật.
+Cập nhật hạ tầng 2026-10-21 (nội dung quyền theo checkpoint 2026-10-16). CRM pilot đã chạy HTTPS tại `crm.nguyenhongson.vn`; GET webhook challenge đúng/sai và OAuth callback state sai đã được kiểm qua hostname, POST sai chữ ký bị từ chối. Chưa kiểm POST HMAC hợp lệ vì App Secret chưa cấp trên VPS, chưa kiểm OAuth consent/token exchange, webhook Meta thật hoặc tin Messenger hai chiều. Dashboard Meta vẫn giữ callback cũ; không nộp hồ sơ khi thiếu privacy policy được chủ dự án duyệt, quyền cần thiết và video thao tác thật.
 
 ## Chức năng và quyền cần xin
 
@@ -40,7 +40,7 @@ Trạng thái “Sẵn sàng thử nghiệm” ở dashboard không đồng ngh�
 ## Điều kiện còn thiếu
 
 - Privacy policy công khai được chủ dự án duyệt: tên đơn vị vận hành, email liên hệ công khai để nhận yêu cầu dữ liệu, chính sách lưu theo mục đích cho tin/bình luận/backup và nhóm nhân viên được xem. Prompt AMIS không quy định số ngày tự xóa; không công bố một thời hạn hoặc khả năng xóa/xuất tự động khi chưa được chốt và kiểm thử. Không tự điền thông tin pháp lý.
-- Hostname HTTPS cố định đã kiểm từ Internet. Chủ dự án chọn giữ cấu hình Meta hiện tại đến khi có URL chính xác, kết quả thử và phương án quay lui.
+- Hostname HTTPS `crm.nguyenhongson.vn` đã kiểm từ Internet. Webhook dự kiến `https://crm.nguyenhongson.vn/api/v1/webhooks/facebook`; OAuth riêng `https://crm.nguyenhongson.vn/api/v1/integrations/oauth/facebook/callback`. Còn cần App Secret trên VPS, POST HMAC hợp lệ, OAuth consent/token exchange và phương án quay lui từng callback trước khi trình thay đổi dashboard. Chủ dự án chọn giữ cấu hình Meta hiện tại.
 - App publication/Advanced Access theo dashboard thực tế, grant comment, hai Page do chủ dự án quản lý, tài khoản thử và video live. Chưa nộp App Review.
 
 Nguồn chính thức: [Meta permissions](https://developers.facebook.com/docs/permissions/reference/), [Messenger Platform API](https://www.postman.com/meta/messenger-platform-api/documentation/iyp204x/messenger-platform-api).

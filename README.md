@@ -2,7 +2,9 @@
 
 CRM nội bộ theo mô hình **web → API → PostgreSQL**, viết bằng tiếng Việt. Ứng dụng hướng tới quản lý khách hàng, sản phẩm, mua hàng, tồn kho, báo giá, đơn bán, giao hàng, thu tiền và công nợ trong cùng một hệ thống.
 
-> **GitHub:** [troll9x/CRM](https://github.com/troll9x/CRM), nhánh phát hành `main`. Checkout phát triển có thể chứa thay đổi local chưa đẩy; kiểm tra `git status -sb` và so sánh với `origin/main` trước khi tiếp tục trên máy khác. Không dùng `git reset/clean` để xử lý chênh lệch này.
+> **GitHub:** [troll9x/CRM](https://github.com/troll9x/CRM). Pilot VPS hiện chạy nhánh `integration/merge-crm` (commit `6c30574`); `main` chưa được gộp. Kiểm tra branch/HEAD/status trước khi làm trên máy khác. Không dùng `git reset/clean` để xử lý chênh lệch.
+
+**Pilot HTTPS:** [crm.nguyenhongson.vn](https://crm.nguyenhongson.vn) đã phục vụ trang đăng nhập, API và PostgreSQL mới trên VPS. Xem [runbook triển khai](docs/PRODUCTION_DEPLOYMENT.md) và [checkpoint tích hợp](docs/INTEGRATION_READINESS.md). Hạ tầng chạy được không đồng nghĩa Messenger/Zalo/shop đã live hoặc CRM đã đủ điều kiện dùng toàn bộ dữ liệu vận hành.
 
 ## Tính năng hiện có trong checkout local
 
@@ -22,7 +24,7 @@ Các tính năng trên không đồng nghĩa mọi màn hình đã được nghi
 - **Zalo OA:** có code OAuth/webhook và kiểm thử local/mock; chưa xác minh với OA thật. API đọc bình luận chưa được xác nhận.
 - **Shopee/TikTok Shop:** có nền lưu hàng đợi/đơn ngoài; chưa có đồng bộ đơn qua API thật.
 
-Bản đầu chỉ nhập dữ liệu về CRM; không gửi tin ra ngoài, không tự chuyển đơn sàn thành đơn bán, không tự trừ kho hoặc ghi nhận thanh toán. Payload test/mock không phải dữ liệu khách thật. Hướng dẫn và blocker mới nhất ở [INTEGRATIONS_SETUP](docs/INTEGRATIONS_SETUP.md) và [INTEGRATION_READINESS](docs/INTEGRATION_READINESS.md).
+Code có luồng gửi Messenger và trả lời bình luận với chặn quyền theo từng Page, nhưng chưa có tin outbound live từ VPS tới tài khoản thử. Zalo/shop chưa được bật gửi hoặc xử lý đơn qua API thật. Payload test/mock không phải dữ liệu khách thật. Hướng dẫn và blocker mới nhất ở [INTEGRATIONS_SETUP](docs/INTEGRATIONS_SETUP.md) và [INTEGRATION_READINESS](docs/INTEGRATION_READINESS.md).
 
 ## Chạy local
 
@@ -68,7 +70,7 @@ E2E cần PostgreSQL thử nghiệm riêng, đã migrate/seed và đáp ứng gu
 - Facebook chưa nhận được sự kiện Messenger production; app phải được phát hành và có quyền Meta phù hợp. Không tuyên bố đồng bộ thật dựa trên trạng thái OAuth hoặc webhook handshake đơn lẻ.
 - COD còn vướng quy tắc thu đủ trước xác nhận; hoàn tiền mặt, chi phí và báo cáo thuần sau đổi trả chưa hoàn thiện.
 - Chính sách số ngày nhận trả và một số quyết định vận hành cần được quản lý xác nhận/cấu hình trước pilot.
-- Nhiều màn hình đã có API thật nhưng còn chờ nghiệm thu giao diện bằng trình duyệt. Chưa deploy production.
+- Nhiều màn hình đã có API thật nhưng còn chờ nghiệm thu giao diện bằng trình duyệt. Pilot VPS đã chạy; chưa xác nhận mức sẵn sàng production cho dữ liệu khách thật.
 - Không dùng dữ liệu prototype trong `prototype/` làm bằng chứng hoạt động; prototype là dữ liệu mẫu.
 
 ## Tài liệu dự án
