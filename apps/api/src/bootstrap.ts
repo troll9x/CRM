@@ -5,6 +5,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import type { INestApplication } from '@nestjs/common';
+import type { Application } from 'express';
 import { AppModule } from './app.module';
 import { ApiEnvelopeInterceptor } from './common/api-envelope.interceptor';
 import { ApiExceptionFilter } from './common/api-exception.filter';
@@ -13,6 +14,8 @@ import { requestIdMiddleware } from './common/request-id.middleware';
 
 export async function createApplication(): Promise<INestApplication> {
   const app = await NestFactory.create(AppModule, { cors: false, rawBody: true });
+  const expressApp = app.getHttpAdapter().getInstance() as Application;
+  expressApp.set('trust proxy', 'loopback');
   const config = app.get(ConfigService);
   const allowedOrigins = new Set(
     (config.get<string>('WEB_ORIGIN') ?? 'http://localhost:3000')

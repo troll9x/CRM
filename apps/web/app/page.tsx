@@ -120,7 +120,7 @@ export default function Home() {
                 name="email"
                 type="email"
                 autoComplete="username"
-                placeholder="owner@crm.local"
+                placeholder="Email nhân viên"
                 required
               />
             </label>
