@@ -2,6 +2,8 @@
 
 Checkpoint 2026-10-21: VPS đã chạy commit `6c30574` với HTTPS, API/web/DB healthy; GET `/api/v1/health/ready` từ Internet 200. Đăng nhập → `/me` → đăng xuất đạt; cookie Secure/HttpOnly/SameSite=Lax. Chứng chỉ hết hạn 2027-01-19, `certbot renew --cert-name crm.nguyenhongson.vn --dry-run` đạt, hook reload Nginx ở `/etc/letsencrypt/renewal-hooks/deploy/son-crm-nginx-reload.sh`. Backup đầu tiên `/var/backups/son-crm/initial-20261021.dump` (quyền 0600) đã phục hồi thử vào DB scratch, sau đó dọn scratch. Mật khẩu owner ban đầu chỉ ở `/root/son-crm-initial-password` (0600); không chép vào Git/chat. Backup ngoài VPS, lịch backup, giám sát và nghiệp vụ live vẫn chờ hoàn thiện.
 
+Checkpoint 2026-10-22: VPS checkout `7d241db`; Meta App ID/Secret đã đặt trong `.env.production` ngoài Git. HTTPS webhook GET challenge và POST HMAC đúng/sai đạt; OAuth start qua tài khoản owner đạt. Meta dashboard chưa đổi URL; chưa có Page grant/event/tin live. `INTEGRATIONS_WORKER_ENABLED` vẫn mặc định `false`. Bản sao `.env.production` trước khi thêm Meta ở `/root/son-crm-env-before-meta-20261022` (0600).
+
 Checkout phát hành: `integration/merge-crm`. Chỉ dùng `compose.production.yaml`; `compose.yaml` chạy development, công khai cổng PostgreSQL và không phù hợp cho VPS. Không chạy `compose.override.yaml` cùng cấu hình production.
 
 ## Trước khi khởi động

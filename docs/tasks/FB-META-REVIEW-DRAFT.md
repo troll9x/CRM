@@ -2,6 +2,8 @@
 
 Cập nhật hạ tầng 2026-10-21 (nội dung quyền theo checkpoint 2026-10-16). CRM pilot đã chạy HTTPS tại `crm.nguyenhongson.vn`; GET webhook challenge đúng/sai và OAuth callback state sai đã được kiểm qua hostname, POST sai chữ ký bị từ chối. Chưa kiểm POST HMAC hợp lệ vì App Secret chưa cấp trên VPS, chưa kiểm OAuth consent/token exchange, webhook Meta thật hoặc tin Messenger hai chiều. Dashboard Meta vẫn giữ callback cũ; không nộp hồ sơ khi thiếu privacy policy được chủ dự án duyệt, quyền cần thiết và video thao tác thật.
 
+Cập nhật 2026-10-22: App ID/Secret đã cấu hình riêng trên VPS; webhook HTTPS qua GET challenge và POST HMAC đúng/sai từ Internet. Owner CRM khởi tạo OAuth với redirect URI production và bốn scope Messenger/Page. Meta vẫn trỏ webhook vào Quick Tunnel cũ; OAuth allowlist trên dashboard chưa xác minh. Chưa có consent, Page grant production, webhook Page thật hoặc tin hai chiều hiện trên Messenger. Mô tả ngày 2026-10-21 phía trên là lịch sử tại thời điểm đó.
+
 ## Chức năng và quyền cần xin
 
 Chủ Page đăng nhập Facebook, xem danh sách Page do Meta trả về và chọn Page cần kết nối. CRM lưu kết nối, token mã hóa, quyền và trạng thái riêng từng Page. Nhân viên xem tin nhắn, bình luận và nhập lịch sử trong phạm vi Graph cho phép; gửi trả lời Messenger hoặc bình luận thủ công. CRM chỉ đánh dấu đã gửi khi Meta chấp nhận và trả ID. Code chặn gửi nếu token, task, quyền, nguồn hoặc điều kiện thời gian không hợp lệ. Không đăng bài mới, xóa bình luận hay gửi marketing tự động bằng các quyền này.
@@ -40,7 +42,7 @@ Trạng thái “Sẵn sàng thử nghiệm” ở dashboard không đồng ngh�
 ## Điều kiện còn thiếu
 
 - Privacy policy công khai được chủ dự án duyệt: tên đơn vị vận hành, email liên hệ công khai để nhận yêu cầu dữ liệu, chính sách lưu theo mục đích cho tin/bình luận/backup và nhóm nhân viên được xem. Prompt AMIS không quy định số ngày tự xóa; không công bố một thời hạn hoặc khả năng xóa/xuất tự động khi chưa được chốt và kiểm thử. Không tự điền thông tin pháp lý.
-- Hostname HTTPS `crm.nguyenhongson.vn` đã kiểm từ Internet. Webhook dự kiến `https://crm.nguyenhongson.vn/api/v1/webhooks/facebook`; OAuth riêng `https://crm.nguyenhongson.vn/api/v1/integrations/oauth/facebook/callback`. Còn cần App Secret trên VPS, POST HMAC hợp lệ, OAuth consent/token exchange và phương án quay lui từng callback trước khi trình thay đổi dashboard. Chủ dự án chọn giữ cấu hình Meta hiện tại.
+- Hostname HTTPS `crm.nguyenhongson.vn` đã kiểm từ Internet. Webhook dự kiến `https://crm.nguyenhongson.vn/api/v1/webhooks/facebook`; OAuth riêng `https://crm.nguyenhongson.vn/api/v1/integrations/oauth/facebook/callback`. App Secret và POST HMAC hợp lệ đã kiểm ngày 2026-10-22; còn cần OAuth consent/token exchange và phương án quay lui từng callback trước khi thay đổi dashboard. Chủ dự án chọn giữ cấu hình Meta hiện tại cho đến bước này.
 - App publication/Advanced Access theo dashboard thực tế, grant comment, hai Page do chủ dự án quản lý, tài khoản thử và video live. Chưa nộp App Review.
 
 Nguồn chính thức: [Meta permissions](https://developers.facebook.com/docs/permissions/reference/), [Messenger Platform API](https://www.postman.com/meta/messenger-platform-api/documentation/iyp204x/messenger-platform-api).

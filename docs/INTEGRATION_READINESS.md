@@ -1,4 +1,12 @@
-# Sẵn sàng tích hợp và bằng chứng quyền — checkpoint 2026-10-21
+# Sẵn sàng tích hợp và bằng chứng quyền — checkpoint 2026-10-22
+
+## Kết quả mới nhất 2026-10-22
+
+VPS đã nhận Meta App ID/Secret hợp lệ trong `.env.production` (0600, ngoài Git), dùng OAuth callback `https://crm.nguyenhongson.vn/api/v1/integrations/oauth/facebook/callback`. Verify token webhook và khóa mã hóa token được giữ nguyên. Từ Internet, GET webhook với token đúng trả challenge, token sai trả 401; POST rỗng ký HMAC bằng App Secret thật trả 200, chữ ký sai trả 401. OAuth callback với state sai trả 400. Tài khoản owner CRM có preflight Facebook đầy đủ và khởi tạo OAuth được với redirect URI production cùng bốn scope (`pages_show_list`, `pages_messaging`, `pages_manage_metadata`, `pages_read_engagement`). Đây là kiểm tra cấu hình, chưa phải Page grant live.
+
+Graph cho thấy app subscription `page` vẫn trỏ tới `https://held-moss-program-mats.trycloudflare.com/api/v1/webhooks/facebook`. Dashboard Meta chưa đổi; OAuth redirect allowlist trên dashboard chưa xác minh. Chưa có Page token production, event Page mới hoặc tin trả lời hiện trên Messenger; worker integration vẫn tắt. Messenger Page đầu `WAITING_FOR_META`; Page thứ hai `WAITING_FOR_PAGE_GRANT`; bình luận `BLOCKED_PERMISSION`; Zalo/shop `WAITING_FOR_PROVIDER_GRANT`.
+
+## Checkpoint trước: 2026-10-21
 
 ## Kết quả mới nhất 2026-10-21
 
@@ -34,7 +42,7 @@ Một Page có thể có token và subscription riêng nhưng điều đó khôn
 
 - Cấu hình Meta hiện tại được giữ nguyên theo lựa chọn chủ dự án. Page webhook lưu `https://held-moss-program-mats.trycloudflare.com/api/v1/webhooks/facebook` (Quick Tunnel cũ, không được coi còn sống). OAuth runtime lưu một Quick Tunnel khác. Hai callback là hai route độc lập.
 - Hostname/VPS hiện đã có; hai URL mới và các kiểm tra giới hạn nằm ở checkpoint 2026-10-21. [Đề xuất hostname, thử nghiệm và quay lui](tasks/FB-STABLE-CALLBACK-PROPOSAL-2026-10-15.md) là phương án cũ, chưa áp dụng trên Meta.
-- Còn cần Meta App Secret và POST HMAC hợp lệ qua Internet, OAuth consent/token exchange, Page grant/subscription, privacy policy đã duyệt và phương án quay lui từng callback trước khi trình thay đổi dashboard. Sau đó mới yêu cầu tài khoản thử gửi tin mới và xác nhận trả lời thật trên Messenger.
+- Meta App Secret và POST HMAC hợp lệ qua Internet đã kiểm ngày 2026-10-22. Còn cần OAuth consent/token exchange, Page grant/subscription, privacy policy đã duyệt và phương án quay lui từng callback trước khi thay đổi dashboard. Sau đó mới yêu cầu tài khoản thử gửi tin mới và xác nhận trả lời thật trên Messenger.
 
 ## Bộ bằng chứng cho mỗi Page/OA/shop
 
