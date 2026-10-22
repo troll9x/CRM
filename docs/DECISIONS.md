@@ -1,5 +1,11 @@
 # Nhật ký quyết định
 
+## DEC-SOCIAL-PRIVACY-01 — Công khai chính sách dữ liệu social (2026-10-22)
+
+- Chủ dự án chọn tên công khai **Sơn CRM** và email nhận yêu cầu dữ liệu **sonnh.mkt@gmail.com**.
+- Lịch sử chat/bình luận được giữ lâu dài trong thời gian phục vụ khách hàng; không tự xóa theo một số ngày cố định. Yêu cầu xem/xuất/sửa/xóa được tiếp nhận qua email và xem xét theo phạm vi, quyền yêu cầu và nghĩa vụ liên quan. Không tuyên bố lưu vĩnh viễn hoặc tự động xóa/xuất khi chưa có quy trình kỹ thuật đã kiểm chứng.
+- Trang chính sách công khai `/privacy` và hướng dẫn yêu cầu xóa `/data-deletion` mô tả đúng khả năng hiện tại. Lịch sao lưu ngoài VPS và thời gian lưu bản sao lưu còn cần quyết định/quy trình riêng trước khi vận hành dữ liệu khách ở quy mô đầy đủ.
+
 ## DEC-CHANNEL-UX-01 — Người dùng kết nối Fanpage không cấu hình Meta app (2026-10-11)
 
 - **Đã chốt theo phản hồi của chủ dự án:** người quản lý Fanpage không cần biết Meta for Developers, App ID, App Secret, Graph version, callback hoặc webhook. Luồng họ dùng là mở CRM → bấm Kết nối Facebook → đăng nhập/cấp quyền trong Meta → chọn Fanpage nếu có nhiều Page → hoàn tất. Cấp lại quyền khi hết hạn/thu hồi dùng nút Kết nối lại.

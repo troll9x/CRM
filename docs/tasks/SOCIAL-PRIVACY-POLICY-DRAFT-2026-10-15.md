@@ -1,5 +1,7 @@
 # Chính sách quyền riêng tư Sơn CRM — bản nháp cần chủ dự án xác nhận
 
+**Cập nhật 2026-10-22:** chủ dự án đã chốt tên công khai Sơn CRM, email `sonnh.mkt@gmail.com`, giữ lịch sử chat/bình luận lâu dài trong thời gian phục vụ khách. Nội dung dùng để công bố được thực hiện ở `apps/web/app/privacy/page.tsx` và hướng dẫn xóa ở `apps/web/app/data-deletion/page.tsx`. Phần bên dưới là bản nháp lịch sử, gồm các placeholder không còn dùng để nộp Meta. Quy trình xóa/xuất thủ công và backup vẫn cần kiểm chứng vận hành; không tuyên bố đã tự động hóa.
+
 **Chưa công bố và chưa dùng URL này để nộp Meta App Review.** Các trường `[CẦN XÁC NHẬN]` là thông tin vận hành/pháp lý chưa được chủ dự án cung cấp; không được tự thay bằng dữ liệu giả.
 
 Đơn vị vận hành: **[CẦN XÁC NHẬN: tên pháp lý và địa chỉ liên hệ]**. Email liên hệ công khai để khách/chủ Page gửi câu hỏi hoặc yêu cầu về dữ liệu: **[CẦN XÁC NHẬN: email do đơn vị vận hành kiểm soát]**. Đây có thể là email hỗ trợ hiện có, không phải email dùng nhận webhook, token hay tin Messenger. Ngày hiệu lực: **[CẦN XÁC NHẬN]**.

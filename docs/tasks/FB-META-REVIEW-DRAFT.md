@@ -1,5 +1,7 @@
 # Sơn CRM — hồ sơ Meta App Review (bản nháp, chưa nộp)
 
+Quyết định privacy 2026-10-22: chủ dự án chọn tên công khai Sơn CRM, email `sonnh.mkt@gmail.com`, lưu lịch sử chat/bình luận lâu dài khi còn phục vụ khách. Hai route công khai `/privacy` và `/data-deletion` đã được thêm vào web; chỉ điền URL vào Meta sau khi kiểm HTTP 200 và nội dung render trên VPS. Cần quay lại trang Đăng để xem còn yêu cầu nào khác trước khi phát hành. Hồ sơ quyền bình luận vẫn chờ grant thật; chưa nộp App Review.
+
 Cập nhật live 2026-10-22: hai callback production đã được Meta lưu; OAuth từ CRM hoàn tất và chủ Page chọn 2 trong 5 Page được Meta trả về. Hai Page có grant/subscription riêng, Graph xác nhận quyền/tác vụ Messenger; quyền đọc/trả lời bình luận vẫn thiếu. Dashboard Meta báo app chưa phát hành và không phân phối event production; nút Đăng khóa do thiếu URL privacy policy. Chưa có tin mới thật, outbound hiện trên Messenger hoặc video nghiệm thu. Các câu trạng thái cũ bên dưới là checkpoint lịch sử.
 
 Cập nhật hạ tầng 2026-10-21 (nội dung quyền theo checkpoint 2026-10-16). CRM pilot đã chạy HTTPS tại `crm.nguyenhongson.vn`; GET webhook challenge đúng/sai và OAuth callback state sai đã được kiểm qua hostname, POST sai chữ ký bị từ chối. Chưa kiểm POST HMAC hợp lệ vì App Secret chưa cấp trên VPS, chưa kiểm OAuth consent/token exchange, webhook Meta thật hoặc tin Messenger hai chiều. Dashboard Meta vẫn giữ callback cũ; không nộp hồ sơ khi thiếu privacy policy được chủ dự án duyệt, quyền cần thiết và video thao tác thật.

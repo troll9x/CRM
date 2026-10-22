@@ -1,6 +1,7 @@
 'use client';
 
 import { FormEvent, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { api, type Staff } from './api-client';
 import { CustomerWorkspace } from './customer-workspace';
 import { InventoryWorkspace } from './inventory-workspace';
@@ -143,6 +144,10 @@ export default function Home() {
               {submitting ? 'Đang đăng nhập…' : 'Đăng nhập'}
             </button>
             <small>Không đưa mật khẩu thật vào Git, frontend hoặc log.</small>
+            <small>
+              <Link href="/privacy">Chính sách quyền riêng tư</Link> ·{' '}
+              <Link href="/data-deletion">Yêu cầu xóa dữ liệu</Link>
+            </small>
           </form>
         </section>
       </main>

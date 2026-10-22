@@ -40,6 +40,37 @@ button {
 .loading {
   color: var(--muted);
 }
+
+.policy-page {
+  min-height: 100vh;
+  padding: clamp(20px, 5vw, 64px);
+  background: var(--cream);
+}
+.policy-card {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: clamp(28px, 5vw, 60px);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: #fff;
+  line-height: 1.7;
+}
+.policy-card h1 {
+  line-height: 1.15;
+}
+.policy-card h2 {
+  margin-top: 32px;
+  font-size: 20px;
+}
+.policy-card a,
+.login-card a {
+  color: var(--green-2);
+}
+.policy-home {
+  display: inline-block;
+  margin-bottom: 24px;
+  font-weight: 800;
+}
 .login-page {
   min-height: 100vh;
   display: grid;
