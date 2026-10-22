@@ -9,6 +9,7 @@ Checkout phát hành: `integration/merge-crm`. Chỉ dùng `compose.production.y
 - Xác nhận DNS trỏ tới VPS, dung lượng còn đủ, Docker Compose và Nginx hoạt động. Xác nhận hostname chưa có virtual host riêng trước khi tạo.
 - Tạo `/srv/son-crm/.env.production` với quyền `0600`, bên ngoài Git. Tối thiểu: `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `DATABASE_URL=postgresql://<user>:<password>@db:5432/<db>?schema=public`. Mật khẩu dùng ký tự an toàn cho URL hoặc phải URL encode.
 - API cần `WEB_ORIGIN=https://crm.nguyenhongson.vn` và cookie Secure; Compose đã đặt cố định. Facebook/Zalo chỉ thêm App Secret, token mã hóa, webhook verify và OAuth URI khi đã kiểm quyền thật. Không sao chép `.env` local lên VPS.
+- `INTEGRATIONS_WORKER_ENABLED` mặc định `false`. Chỉ đặt `true` trong `.env.production` sau khi OAuth Page grant, webhook có chữ ký và định tuyến Page được kiểm trên VPS; sau đó tái tạo riêng API và kiểm job/health. Không coi worker chạy là bằng chứng tin đã đến Messenger.
 - Trước mọi migration của database có dữ liệu, lưu backup và thử phục hồi trên database riêng. Database mới có thể migrate rồi bootstrap một lần.
 
 ## Database mới và tài khoản đầu tiên
