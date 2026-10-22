@@ -1,5 +1,9 @@
 # Sẵn sàng tích hợp và bằng chứng quyền — checkpoint 2026-10-22
 
+## Privacy URL đã lưu trên Meta — 2026-10-22
+
+Chủ dự án chốt tên công khai Sơn CRM, email `sonnh.mkt@gmail.com` và lưu lịch sử chat/bình luận lâu dài khi còn phục vụ khách. VPS checkout `945f066` đã công bố `https://crm.nguyenhongson.vn/privacy` và `https://crm.nguyenhongson.vn/data-deletion`; cả hai trả HTTP 200 từ Internet và đã kiểm nội dung render. Theo xác nhận của chủ dự án, hai URL đã lưu vào Meta App `1682297180226928` và vẫn hiện đúng sau khi tải lại trang Thông tin cơ bản. Trang Đăng của Meta nay báo hoàn tất thiết lập bắt buộc và mở nút phát hành. Chưa bấm phát hành; trạng thái app và delivery webhook cần kiểm tiếp. Các đoạn checkpoint bên dưới phản ánh thời điểm trước khi lưu URL.
+
 ## Cập nhật trực tiếp Meta và CRM 2026-10-22
 
 Chủ dự án đã xác nhận thay hai callback. Trong Meta App `1682297180226928`, OAuth allowlist đã thêm `https://crm.nguyenhongson.vn/api/v1/integrations/oauth/facebook/callback` và giữ URI Quick Tunnel cũ; công cụ kiểm URI của Meta báo URI mới hợp lệ. Page webhook đã đổi sang `https://crm.nguyenhongson.vn/api/v1/webhooks/facebook` với verify token của VPS, Meta xác minh và lưu thành công. Các fields `messages`, `messaging_postbacks`, `feed` vẫn đăng ký v26.0. Đây là xác nhận cấu hình Meta, chưa chứng minh delivery tin production.
