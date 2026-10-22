@@ -1,5 +1,13 @@
 # Sẵn sàng tích hợp và bằng chứng quyền — checkpoint 2026-10-22
 
+## Cập nhật trực tiếp Meta và CRM 2026-10-22
+
+Chủ dự án đã xác nhận thay hai callback. Trong Meta App `1682297180226928`, OAuth allowlist đã thêm `https://crm.nguyenhongson.vn/api/v1/integrations/oauth/facebook/callback` và giữ URI Quick Tunnel cũ; công cụ kiểm URI của Meta báo URI mới hợp lệ. Page webhook đã đổi sang `https://crm.nguyenhongson.vn/api/v1/webhooks/facebook` với verify token của VPS, Meta xác minh và lưu thành công. Các fields `messages`, `messaging_postbacks`, `feed` vẫn đăng ký v26.0. Đây là xác nhận cấu hình Meta, chưa chứng minh delivery tin production.
+
+OAuth thật từ CRM production đã quay về `channelResult=ready`; `/me/accounts` trả 5 Page và chủ Page chọn 2. CRM lưu hai kết nối riêng cho Page `1579219702378230` (Tổng kho sỉ kẹo chip hoa quả sấy khô Lào Cai) và `531545630368154` (Tổng kho bánh kẹo - hoa quả sấy TQ), xác nhận grant/subscription từng Page. Nút kiểm Graph của từng Page báo Messenger có quyền và task; cả hai thiếu `pages_read_user_content` và `pages_manage_engagement`, dù task `MODERATE` có. Cả hai vẫn `APP_CONFIGURATION_PENDING`, 0 event webhook đã xử lý, hộp thư 0 tin. Không bật worker hay tuyên bố gửi live.
+
+Dashboard Meta hiện ghi app **chưa phát hành** và sẽ không phân phối webhook production, kể cả dữ liệu từ vai trò app. Trang Đăng có nút vô hiệu vì thiếu URL privacy policy. Cần chốt thông tin vận hành/chính sách dữ liệu, công bố privacy policy đúng thực tế, hoàn tất yêu cầu Meta rồi mới xin tin thử mới trên từng Page. Trạng thái đầu mục trước đó trong file là lịch sử tại thời điểm kiểm, không thay thế kết quả trực tiếp này.
+
 ## Kết quả mới nhất 2026-10-22
 
 VPS đã nhận Meta App ID/Secret hợp lệ trong `.env.production` (0600, ngoài Git), dùng OAuth callback `https://crm.nguyenhongson.vn/api/v1/integrations/oauth/facebook/callback`. Verify token webhook và khóa mã hóa token được giữ nguyên. Từ Internet, GET webhook với token đúng trả challenge, token sai trả 401; POST rỗng ký HMAC bằng App Secret thật trả 200, chữ ký sai trả 401. OAuth callback với state sai trả 400. Tài khoản owner CRM có preflight Facebook đầy đủ và khởi tạo OAuth được với redirect URI production cùng bốn scope (`pages_show_list`, `pages_messaging`, `pages_manage_metadata`, `pages_read_engagement`). Đây là kiểm tra cấu hình, chưa phải Page grant live.

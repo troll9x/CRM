@@ -1,6 +1,8 @@
 # Đề xuất chuyển callback Meta sang CRM HTTPS — 2026-10-22
 
-Trạng thái: đã chuẩn bị và thử endpoint ngoài Meta; **chưa thay cấu hình Meta**. App ID `1682297180226928` (`Sơn CRM`). Không đưa App Secret, verify token, OAuth code hay Page token vào tài liệu.
+Trạng thái 2026-10-22: **đã thay và được Meta xác minh/lưu cả hai callback** theo xác nhận của chủ dự án. App ID `1682297180226928` (`Sơn CRM`). OAuth URI mới được Meta kiểm hợp lệ; Page webhook mới được Meta xác minh, fields `messages`, `messaging_postbacks`, `feed` vẫn đăng ký. Không đưa App Secret, verify token, OAuth code hay Page token vào tài liệu.
+
+OAuth production đã hoàn tất với chủ Page, Meta trả 5 Page và chủ Page chọn 2. CRM có hai Page grant/subscription riêng nhưng chưa có event production. Meta cảnh báo app chưa phát hành nên chỉ gửi webhook thử nghiệm từ dashboard; nút Đăng đang khóa vì thiếu privacy policy công khai. Không dùng bài thử dashboard thay nghiệm thu tin khách thật.
 
 ## Hai thay đổi riêng
 

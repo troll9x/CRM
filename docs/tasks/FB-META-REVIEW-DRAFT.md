@@ -1,5 +1,7 @@
 # Sơn CRM — hồ sơ Meta App Review (bản nháp, chưa nộp)
 
+Cập nhật live 2026-10-22: hai callback production đã được Meta lưu; OAuth từ CRM hoàn tất và chủ Page chọn 2 trong 5 Page được Meta trả về. Hai Page có grant/subscription riêng, Graph xác nhận quyền/tác vụ Messenger; quyền đọc/trả lời bình luận vẫn thiếu. Dashboard Meta báo app chưa phát hành và không phân phối event production; nút Đăng khóa do thiếu URL privacy policy. Chưa có tin mới thật, outbound hiện trên Messenger hoặc video nghiệm thu. Các câu trạng thái cũ bên dưới là checkpoint lịch sử.
+
 Cập nhật hạ tầng 2026-10-21 (nội dung quyền theo checkpoint 2026-10-16). CRM pilot đã chạy HTTPS tại `crm.nguyenhongson.vn`; GET webhook challenge đúng/sai và OAuth callback state sai đã được kiểm qua hostname, POST sai chữ ký bị từ chối. Chưa kiểm POST HMAC hợp lệ vì App Secret chưa cấp trên VPS, chưa kiểm OAuth consent/token exchange, webhook Meta thật hoặc tin Messenger hai chiều. Dashboard Meta vẫn giữ callback cũ; không nộp hồ sơ khi thiếu privacy policy được chủ dự án duyệt, quyền cần thiết và video thao tác thật.
 
 Cập nhật 2026-10-22: App ID/Secret đã cấu hình riêng trên VPS; webhook HTTPS qua GET challenge và POST HMAC đúng/sai từ Internet. Owner CRM khởi tạo OAuth với redirect URI production và bốn scope Messenger/Page. Meta vẫn trỏ webhook vào Quick Tunnel cũ; OAuth allowlist trên dashboard chưa xác minh. Chưa có consent, Page grant production, webhook Page thật hoặc tin hai chiều hiện trên Messenger. Mô tả ngày 2026-10-21 phía trên là lịch sử tại thời điểm đó.
