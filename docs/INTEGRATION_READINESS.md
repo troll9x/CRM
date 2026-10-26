@@ -2,7 +2,7 @@
 
 ## Trạng thái trực tiếp trên VPS ngày 2026-10-26
 
-CRM tại `https://crm.nguyenhongson.vn/` chạy checkout `integration/merge-crm` với bản sửa giao diện Đơn hàng `a65d033` và HTML động `762317b`. Trang Đơn hàng đã được mở trực quan tại URL chính, hiển thị danh sách rỗng và nút tạo đơn nháp. aaPanel Nginx trước đó giữ HTML cũ trong proxy cache toàn cục; đã thêm `proxy_cache off` riêng trong `location /` của vhost CRM, kiểm `nginx -t`, reload và xác nhận HTTP `Cache-Control: private, no-cache, no-store` từ Internet. Không thay cache các site khác.
+CRM tại `https://crm.nguyenhongson.vn/` chạy checkout `integration/merge-crm` với bản sửa giao diện Đơn hàng `a65d033` và HTML động `762317b`. Trang Đơn hàng đã được mở trực quan tại URL chính, hiển thị danh sách rỗng và nút tạo đơn nháp. aaPanel Nginx trước đó giữ HTML cũ trong proxy cache toàn cục; đã thêm `proxy_cache off` riêng trong `location /` và `location /api/` của vhost CRM, kiểm cú pháp bằng Nginx aaPanel, reload và xác nhận HTTP `Cache-Control: private, no-cache, no-store` từ Internet. Không thay cache các site khác.
 
 Hai Page `1579219702378230` (Tổng kho sỉ kẹo chip hoa quả sấy khô Lào Cai) và `531545630368154` (Tổng kho bánh kẹo - hoa quả sấy TQ) đang `CONNECTED`. Kiểm Graph từ nút CRM của từng Page ngày 26/10: `pages_messaging` và task nhắn tin có; `pages_read_user_content` và `pages_manage_engagement` thiếu; task `MODERATE` có. Quyền gửi Messenger tồn tại ở token, nhưng chưa chứng minh trả lời CRM xuất hiện trên tài khoản thử. Trả lời bình luận vẫn bị khóa theo quyền thực tế.
 
