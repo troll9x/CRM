@@ -1,4 +1,14 @@
-# Sẵn sàng tích hợp và bằng chứng quyền — checkpoint 2026-10-22
+# Sẵn sàng tích hợp và bằng chứng quyền — checkpoint 2026-10-26
+
+## Trạng thái trực tiếp trên VPS ngày 2026-10-26
+
+CRM tại `https://crm.nguyenhongson.vn/` chạy checkout `integration/merge-crm` với bản sửa giao diện Đơn hàng `a65d033` và HTML động `762317b`. Trang Đơn hàng đã được mở trực quan tại URL chính, hiển thị danh sách rỗng và nút tạo đơn nháp. aaPanel Nginx trước đó giữ HTML cũ trong proxy cache toàn cục; đã thêm `proxy_cache off` riêng trong `location /` của vhost CRM, kiểm `nginx -t`, reload và xác nhận HTTP `Cache-Control: private, no-cache, no-store` từ Internet. Không thay cache các site khác.
+
+Hai Page `1579219702378230` (Tổng kho sỉ kẹo chip hoa quả sấy khô Lào Cai) và `531545630368154` (Tổng kho bánh kẹo - hoa quả sấy TQ) đang `CONNECTED`. Kiểm Graph từ nút CRM của từng Page ngày 26/10: `pages_messaging` và task nhắn tin có; `pages_read_user_content` và `pages_manage_engagement` thiếu; task `MODERATE` có. Quyền gửi Messenger tồn tại ở token, nhưng chưa chứng minh trả lời CRM xuất hiện trên tài khoản thử. Trả lời bình luận vẫn bị khóa theo quyền thực tế.
+
+Webhook có chữ ký Meta đã tạo 19 job production ngày 23/10 cho **Page Lào Cai**: 7 `MESSAGE` và 12 `COMMENT`. Worker bị tắt ở `.env.production`, khiến tất cả ở `PENDING` và UI rỗng. Sau bản dump `/var/backups/son-crm/pre-worker-20261026.dump` (0600, `pg_restore -l` đọc được), đã bật `INTEGRATIONS_WORKER_ENABLED=true` và tạo lại API. API readiness trả 200. Cả 19 job chuyển `SUCCEEDED`; DB có 7 tin nhắn trong 3 hội thoại và 11 bình luận duy nhất. UI production sau refresh hiển thị 14 mục (3 chat, 11 bình luận) khi xem Page Lào Cai; lọc Page TQ trả 0. Đây là **inbound Page Lào Cai đã quan sát qua Meta → webhook → job → DB → UI**, không phải fixture. Chưa có tin mới từ Page TQ hoặc phản hồi outbound được xác nhận trên Messenger. Tin 23/10 đã ngoài cửa sổ trả lời thông thường, cần tài khoản thử gửi tin mới vào từng Page để nghiệm thu hai chiều và echo.
+
+Giá trị `APP_CONFIGURATION_PENDING` lưu từ bước OAuth là checkpoint cấu hình app độc lập, không phản ánh job đã xử lý; bằng chứng sự kiện thật được đọc riêng qua `webhookEventObserved`. Nội dung cũ bên dưới là lịch sử tại thời điểm ghi, không dùng làm trạng thái hiện tại hoặc bản nộp review. App đã được phát hành ở checkpoint 22/10 theo phiên Meta trước; lượt này chưa mở lại dashboard để xác minh trạng thái phát hành hiện tại.
 
 ## Privacy URL đã lưu trên Meta — 2026-10-22
 

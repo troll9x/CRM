@@ -880,7 +880,14 @@ export function IntegrationsWorkspace({ staff, onLogout, loggingOut, onCreateQuo
                       ? `Hoạt động nhập/đồng bộ gần nhất: ${socialDateTime(connection.lastSyncAt)}`
                       : 'Chưa có hoạt động nhập/đồng bộ thành công'}
                 </small>
-                {(connection.provider === 'FACEBOOK' || connection.provider === 'ZALO') && (
+                {connection.provider === 'FACEBOOK' && (
+                  <p className="muted">
+                    Cấp quyền: {connection.capabilities?.authorization ?? 'chưa xác minh'} · Đăng
+                    ký Page: {connection.capabilities?.pageSubscription ?? 'chưa xác minh'} ·
+                    Webhook thực tế đã xử lý: {connection.webhookEventObserved ? 'có' : 'chưa có'}
+                  </p>
+                )}
+                {connection.provider === 'ZALO' && (
                   <p className="muted">
                     Cấp quyền: {connection.capabilities?.authorization ?? 'chưa xác minh'} · Webhook
                     : {connection.capabilities?.webhookSubscription ?? 'chưa đăng ký'} · Sự kiện
@@ -1124,8 +1131,8 @@ export function IntegrationsWorkspace({ staff, onLogout, loggingOut, onCreateQuo
           <div className="integration-capabilities">
             <h3>Ranh giới connector</h3>
             <p>
-              <b>Facebook:</b> webhook inbound Messenger và bình luận đang chờ cấu hình app/Page,
-              quyền và kiểm thử tài khoản.
+              <b>Facebook:</b> sự kiện chỉ hiện sau khi Meta gửi webhook và CRM xử lý. Kiểm tra
+              tin mới, phản hồi Messenger và quyền bình luận riêng cho từng Page.
             </p>
             <p>
               <b>Zalo OA:</b> API hội thoại có giới hạn/phân trang; webhook và quyền OA cần cấu

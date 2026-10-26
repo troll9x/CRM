@@ -1,5 +1,13 @@
 # Kế hoạch nghiệm thu
 
+## Kiểm tra production 2026-10-26
+
+- [x] Giao diện Đơn hàng tại URL chính hiển thị danh sách rỗng/nút tạo đơn nháp; lỗi render null đã sửa. Nginx CRM không còn phục vụ HTML cũ từ proxy cache.
+- [x] Page Lào Cai: 19 webhook Meta có chữ ký được worker xử lý (7 MESSAGE, 12 COMMENT); DB/UI có 3 chat và 11 bình luận duy nhất. Đây là inbound production, không phải fixture.
+- [ ] Page Lào Cai: tin mới từ tài khoản thử và phản hồi CRM xuất hiện trên Messenger; kiểm echo không trùng.
+- [ ] Page TQ: tin mới vào đúng hộp thư và phản hồi CRM xuất hiện ở đúng tài khoản thử; hiện 0 webhook/job.
+- [ ] Bình luận: quyền `pages_read_user_content`/`pages_manage_engagement` và thử reply live; hiện thiếu trên cả hai Page, UI/backend không cho gửi.
+
 ## Checkpoint multi-Page 2026-10-16
 
 - [x] OAuth mock Graph + DB scratch: chọn hai Page từ một consent, upsert riêng, lỗi subscription của Page thứ hai trả rõ Page lỗi và không ghi một phần; reconnect/ngắt một Page giữ Page còn lại. `/me/accounts` trang ngắn có `paging.next` vẫn đọc tiếp. Trên DB scratch mới, 8/8 bài thử OAuth và cả bộ 6 file/17 bài E2E đạt, không phải Meta live.
