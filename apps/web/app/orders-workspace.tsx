@@ -145,13 +145,15 @@ export function OrdersWorkspace({
 
   const selectedCustomerId = selected?.customer.id;
   const paymentAmount =
-    paymentDraft?.orderId === selected?.id ? paymentDraft.amount : (selected?.remainingVnd ?? '');
+    paymentDraft && paymentDraft.orderId === selected?.id
+      ? paymentDraft.amount
+      : (selected?.remainingVnd ?? '');
   const paymentAllocation =
-    paymentDraft?.orderId === selected?.id
+    paymentDraft && paymentDraft.orderId === selected?.id
       ? paymentDraft.allocation
       : (selected?.remainingVnd ?? '');
   const creditApplicationAmount =
-    creditDraft?.orderId === selected?.id
+    creditDraft && creditDraft.orderId === selected?.id
       ? creditDraft.amount
       : (() => {
           try {
