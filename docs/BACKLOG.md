@@ -140,6 +140,7 @@ Mỗi lát cắt phải có migration + API + UI + dữ liệu lưu thật + tes
 - `DONE` — metadata ảnh chỉ nhận URL HTTPS, alt text, thứ tự và lưu trữ; chưa giả lập kho file/upload.
 - `DONE` — UI responsive, API/OpenAPI, migration và E2E quyền/SKU/quy đổi/media.
 - `WAITING` — xác nhận `OPEN-02` trước khi nhập dữ liệu hàng thật; hàng cần lô/hạn/serial vẫn ngoài phạm vi code hiện tại.
+- `CODED; CHECKS PENDING` — nhập catalog từ file Shopee `.xlsx`: inspect/mapping/preview/apply, transaction Serializable, idempotency, metadata ảnh HTTPS; không nhập giá/tồn. Cần chạy migration/API test trên PostgreSQL scratch và browser acceptance. Chỉ dùng dữ liệu vận hành sau xác nhận `OPEN-02`.
 
 ### Kết quả Đợt 04A
 

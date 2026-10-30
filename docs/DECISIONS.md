@@ -110,6 +110,12 @@ Khi được xác nhận, đổi `OPEN-*` thành ADR mới gồm ngày, người
 
 ## 6. Quyết định nghiệp vụ bổ sung
 
+### DEC-CAT-IMPORT-01 — Nhập catalog từ file Shopee (2026-10-29)
+
+- **Trạng thái:** Phạm vi được chủ dự án giao triển khai; chưa thay thế xác nhận `OPEN-02` cho dữ liệu vận hành.
+- **Cách áp dụng:** Chỉ tạo mới; SKU/barcode trùng chặn cả lượt. Nhóm biến thể theo `Parent SKU` được ánh xạ rõ; nếu thiếu thì mỗi dòng là sản phẩm riêng. Đơn vị gốc phải được ánh xạ/chỉ định, không suy luận hệ số; đơn vị bán khởi tạo bằng đơn vị gốc. Giá, tồn, khuyến mãi và phí sàn không được nhập. Ảnh chỉ lưu URL HTTPS dạng metadata.
+- **Tác động:** API `catalog.write`, transaction/idempotency, bảng `ProductImportCommand`; cập nhật `BUSINESS_RULES`, `DATA_MODEL`, `API_CONTRACT`, `ACCEPTANCE`. Chưa có file nguồn nên parser dùng sheet/hàng tiêu đề và mapping do người dùng chọn, không phụ thuộc một template ngành hàng cố định.
+
 ### DEC-CUS-01 — Phân nhóm theo kênh nguồn (2026-10-08)
 
 - **Trạng thái:** Đã chốt bởi chủ dự án.

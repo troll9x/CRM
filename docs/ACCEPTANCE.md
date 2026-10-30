@@ -108,6 +108,7 @@ Kết quả kiểm thử code ngày 2026-10-08: AC-360-02–05 có E2E permissio
 - **AC-03-06 — PASS E2E:** media chỉ nhận URL HTTPS, liên kết đúng product/variant và được lưu trữ thay vì xóa cứng.
 - **AC-03-07 — PASS E2E:** role kho đọc được catalog nhưng gọi API tạo sản phẩm nhận `403 PERMISSION_DENIED`.
 - **AC-03-08 — PASS local:** UI tạo/tìm/sửa/ngừng bán sản phẩm, thêm SKU, sửa quy đổi và quản lý metadata ảnh bằng API thật.
+- **AC-03-09 — CODED; local verification pending:** nhập `.xlsx` Shopee có inspect sheet/hàng tiêu đề, ánh xạ cột, preview lỗi theo dòng, nhóm theo Parent SKU, đơn vị gốc bắt buộc, chống trùng SKU/barcode và apply atomically/idempotently. Chỉ catalog/media metadata/audit được tạo; không ghi giá hoặc kho. Cần migration trên PostgreSQL scratch, API E2E quyền/idempotency và browser review trước khi đánh dấu PASS.
 
 ## 5. Nghiệm thu Đợt 04A
 

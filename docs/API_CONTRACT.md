@@ -163,6 +163,15 @@ Ký hiệu `R` đọc, `C` tạo, `U` sửa master data, `CMD` lệnh nghiệp v
 | 03  | `GET/POST/PATCH /products`, `POST /products/{id}/variants`, `PATCH /variants/{id}`, `PUT /variants/{id}/unit-conversions`, `PUT /variants/{id}/selling-unit`, `POST /products/{id}/media`, `PATCH /media/{id}` | `catalog.read/write`, `media.manage`                                                  |
 
 Khi tạo SKU, `sellingUnitCode` tùy chọn chọn đơn vị bán cố định trong đơn vị gốc hoặc một `conversions[].unitCode` đã khai báo cùng request; nếu bỏ trống thì dùng đơn vị gốc. `PUT /variants/{id}/selling-unit` nhận `{ version, sellingUnitCode }`, lấy tên/hệ số từ danh mục quy đổi phía server và chỉ cho đổi trước khi SKU có giá. Danh sách quy đổi không được sửa/xóa nếu làm thay đổi đơn vị bán cố định.
+
+### Nhập catalog Shopee bằng Excel
+
+- `POST /products/import/inspect` đọc workbook và trả sheet, 30 hàng đầu cùng gợi ý hàng tiêu đề/ánh xạ; `POST /products/import/preview` kiểm tra dữ liệu và SKU/barcode hiện có; `POST /products/import` tạo catalog sau khi người dùng xác nhận. Cả ba yêu cầu `catalog.write`.
+- Body là bytes của file `.xlsx`, `Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, `X-File-Name` là tên file đã URL-encode. Preview/apply gửi `X-Import-Options` là JSON UTF-8 được mã hóa Base64URL, gồm `{ sheetName, headerRow, columns, defaultBaseUnitCode?, defaultBaseUnitName? }`; `columns` ánh xạ tên trường sang chỉ số cột bắt đầu từ 0. Apply bắt buộc `Idempotency-Key` 8–100 ký tự an toàn.
+- Giới hạn kỹ thuật 10 MiB và 1.000 dòng SKU mỗi lần. SKU/barcode trùng trong file hoặc trong business chặn toàn bộ lượt nhập; không có chế độ cập nhật/ghi đè. Cùng key và cùng file/options trả lại response cũ; cùng key với payload khác trả `409 IDEMPOTENCY_KEY_REUSED`.
+- Cần ánh xạ tên sản phẩm và SKU; mỗi SKU phải có đơn vị gốc qua cột hoặc cặp đơn vị mặc định. Chỉ `Parent SKU` tường minh dùng để nhóm biến thể. Đơn vị bán khởi tạo bằng đơn vị gốc, không tự thêm quy đổi. URL ảnh HTTPS chỉ được lưu làm metadata, không tải ảnh.
+- Giá/tồn/khuyến mãi/phí của sàn bị bỏ qua; API không ghi `PriceTier`, `StockBalance` hoặc `StockMovement`. `422 PRODUCT_IMPORT_HAS_ERRORS` bảo đảm không tạo một phần; preview trả lỗi theo số dòng. Việc nhập hàng vận hành vẫn chờ xác nhận `OPEN-02`.
+
 | UI | `GET /overview` | `overview.read`; KPI, bảng so sánh và đơn mua gần đây từ dữ liệu thật |
 | 04A | `GET/POST/PATCH /suppliers`, `GET/POST/PATCH /purchase-orders`, `POST /purchase-orders/{id}/order`, `POST /purchase-orders/{id}/cancel` | `purchasing.read/write`; đơn mua không tăng tồn |
 | 04B | `GET/POST /goods-receipts`, `GET /warehouses`, `GET /stock-balances`, `GET /stock-movements` | `inventory.read/receive`; trường giá vốn chỉ có với `cost.view` |

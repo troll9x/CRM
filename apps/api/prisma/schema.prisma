@@ -265,6 +265,7 @@ model Business {
   opportunities                SalesOpportunity[]
   products                     Product[]
   productVariants              ProductVariant[]
+  productImportCommands        ProductImportCommand[]
   suppliers                    Supplier[]
   purchaseOrders               PurchaseOrder[]
   warehouses                   Warehouse[]
@@ -355,6 +356,7 @@ model StaffUser {
   createdSocialTickets      SocialTicket[]                @relation("SocialTicketCreator")
   socialTicketEvents        SocialTicketEvent[]
   socialOutbounds           SocialOutbound[]
+  productImportCommands     ProductImportCommand[]
 
   @@index([businessId, status])
   @@map("staff_users")
@@ -662,6 +664,22 @@ model ProductVariant {
   @@unique([businessId, barcode])
   @@index([productId, status])
   @@map("product_variants")
+}
+
+model ProductImportCommand {
+  id             String    @id @default(cuid())
+  businessId     String    @map("business_id")
+  actorId        String    @map("actor_id")
+  idempotencyKey String    @map("idempotency_key") @db.VarChar(100)
+  requestHash    String    @map("request_hash") @db.Char(64)
+  response       Json
+  createdAt      DateTime  @default(now()) @map("created_at")
+  business       Business  @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  actor          StaffUser @relation(fields: [actorId], references: [id], onDelete: Restrict)
+
+  @@unique([businessId, idempotencyKey])
+  @@index([businessId, createdAt])
+  @@map("product_import_commands")
 }
 
 model UnitConversion {

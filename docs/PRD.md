@@ -26,7 +26,7 @@ Chủ cửa hàng cần một luồng thống nhất để biết khách nào c�
 ### Bản nội bộ đầu tiên — sau Đợt 08
 
 - Quản lý khách và nhiều địa chỉ, nhóm sỉ/lẻ, nhắc việc.
-- Quản lý sản phẩm, SKU, đơn vị và quy đổi.
+- Quản lý sản phẩm, SKU, đơn vị và quy đổi; nhập hàng loạt catalog từ file Excel Shopee qua xem trước/ánh xạ cột, không nhập giá hoặc tồn kho.
 - Nhập hàng, tồn đầu kỳ, sổ kho, giữ/xuất/điều chỉnh có chứng từ.
 - Bảng giá, bậc số lượng, báo giá và phiên bản giá đã chốt.
 - Xử lý trọn một đơn sỉ và một đơn lẻ; theo chính sách ngày 2026-10-07, không giao thiếu, mỗi đơn giao đủ lượng còn lại trong một lần.

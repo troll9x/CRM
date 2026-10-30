@@ -45,6 +45,7 @@ Trạng thái: 06A–06D, 07A/07B, đổi trả 08A và báo cáo gross giao hà
 
 - **BR-CAT-01:** SKU là duy nhất trong một đơn vị kinh doanh; SKU/sản phẩm đã có lịch sử được ngừng bán thay vì xóa.
 - **BR-CAT-02:** Barcode nếu có là duy nhất trong một đơn vị kinh doanh; thuộc tính biến thể là metadata, không thay thế SKU nội bộ.
+- **BR-CAT-03 — Nhập catalog từ file:** Nhập Excel chỉ tạo sản phẩm/SKU mới; SKU hoặc barcode đã tồn tại chặn toàn bộ đợt, không ghi đè. Chỉ các dòng có cùng `Parent SKU` được nhóm thành biến thể; thiếu `Parent SKU` thì mỗi dòng là một sản phẩm riêng. Người dùng phải ánh xạ hoặc khai báo đơn vị gốc; hệ thống không tự suy luận quy đổi. Giá và tồn từ file sàn không được ghi vào bảng giá hoặc sổ kho.
 - **BR-UOM-01:** Mỗi SKU có một đơn vị cơ sở. Biến động kho quy về đơn vị cơ sở và lưu hệ số tại thời điểm giao dịch.
 - **BR-UOM-02:** Không đổi/xóa quy đổi đã được chứng từ tham chiếu; tạo phiên bản/hiệu lực mới.
 - **BR-UOM-03:** Đơn vị gốc luôn có hệ số 1; quy đổi khác phải có mã riêng và hệ số dương. Đợt 03 cho thay danh sách vì chưa có chứng từ tham chiếu; từ Đợt 04 trở đi phải áp dụng `BR-UOM-02`.

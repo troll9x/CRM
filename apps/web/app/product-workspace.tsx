@@ -45,6 +45,55 @@ type ProductDetail = Omit<ProductSummary, 'variants'> & {
   media: Media[];
 };
 
+const PRODUCT_IMPORT_FIELDS = [
+  'productName',
+  'parentSku',
+  'sku',
+  'variantName',
+  'description',
+  'category',
+  'brand',
+  'barcode',
+  'color',
+  'size',
+  'imageUrl',
+  'baseUnitCode',
+  'baseUnitName',
+] as const;
+
+type ProductImportField = (typeof PRODUCT_IMPORT_FIELDS)[number];
+type ProductImportColumns = Partial<Record<ProductImportField, number>>;
+type ImportSheet = {
+  name: string;
+  rowCount: number;
+  columnCount: number;
+  rows: Array<{ rowNumber: number; values: string[] }>;
+  headerCandidates: Array<{ rowNumber: number; values: string[]; mapping: ProductImportColumns }>;
+};
+type ImportPreview = {
+  productCount: number;
+  variantCount: number;
+  ignoredRows: number[];
+  issues: Array<{ row: number; field: string; code: string; message: string }>;
+  warnings: string[];
+};
+
+const PRODUCT_IMPORT_LABELS: Record<ProductImportField, string> = {
+  productName: 'Tên sản phẩm *',
+  parentSku: 'Parent SKU (nhóm biến thể)',
+  sku: 'SKU *',
+  variantName: 'Tên phân loại',
+  description: 'Mô tả',
+  category: 'Danh mục',
+  brand: 'Thương hiệu',
+  barcode: 'Barcode',
+  color: 'Màu sắc',
+  size: 'Kích thước / dung tích',
+  imageUrl: 'URL ảnh HTTPS',
+  baseUnitCode: 'Mã đơn vị gốc',
+  baseUnitName: 'Tên đơn vị gốc',
+};
+
 function field(form: FormData, name: string) {
   return String(form.get(name) ?? '').trim();
 }
@@ -82,9 +131,139 @@ export function ProductWorkspace({
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
+  const [showImport, setShowImport] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importSheets, setImportSheets] = useState<ImportSheet[]>([]);
+  const [importSheetName, setImportSheetName] = useState('');
+  const [importHeaderRow, setImportHeaderRow] = useState(1);
+  const [importColumns, setImportColumns] = useState<ProductImportColumns>({});
+  const [importDefaultUnitCode, setImportDefaultUnitCode] = useState('');
+  const [importDefaultUnitName, setImportDefaultUnitName] = useState('');
+  const [importPreview, setImportPreview] = useState<ImportPreview | null>(null);
+  const [importIdempotencyKey, setImportIdempotencyKey] = useState('');
+  const [importing, setImporting] = useState(false);
   const [editingProduct, setEditingProduct] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+
+  const selectedImportSheet = importSheets.find((sheet) => sheet.name === importSheetName);
+  const selectedImportHeader = selectedImportSheet?.rows.find(
+    (row) => row.rowNumber === importHeaderRow,
+  );
+
+  function optionsForImport() {
+    return {
+      sheetName: importSheetName,
+      headerRow: importHeaderRow,
+      columns: importColumns,
+      ...(importDefaultUnitCode.trim() && importDefaultUnitName.trim()
+        ? {
+            defaultBaseUnitCode: importDefaultUnitCode.trim(),
+            defaultBaseUnitName: importDefaultUnitName.trim(),
+          }
+        : {}),
+    };
+  }
+
+  function importHeaders(file: File, withOptions = false) {
+    return {
+      'content-type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'x-file-name': encodeURIComponent(file.name),
+      ...(withOptions
+        ? {
+            'x-import-options': btoa(
+              String.fromCharCode(...new TextEncoder().encode(JSON.stringify(optionsForImport()))),
+            )
+              .replace(/\+/g, '-')
+              .replace(/\//g, '_')
+              .replace(/=+$/g, ''),
+          }
+        : {}),
+    };
+  }
+
+  function applySuggestedMapping(sheet: ImportSheet | undefined, headerRow: number) {
+    const candidate = sheet?.headerCandidates.find((row) => row.rowNumber === headerRow);
+    setImportColumns(candidate?.mapping ?? {});
+    setImportPreview(null);
+    setImportIdempotencyKey('');
+  }
+
+  async function inspectImportFile(file: File | null) {
+    setImportFile(file);
+    setImportSheets([]);
+    setImportPreview(null);
+    setImportIdempotencyKey('');
+    if (!file) return;
+    setImporting(true);
+    setError('');
+    try {
+      const result = await api<{ sheets: ImportSheet[] }>('/products/import/inspect', {
+        method: 'POST',
+        body: file,
+        headers: importHeaders(file),
+      });
+      setImportSheets(result.sheets);
+      const firstSheet = result.sheets[0];
+      setImportSheetName(firstSheet?.name ?? '');
+      const suggestedRow = firstSheet?.headerCandidates[0]?.rowNumber ?? 1;
+      setImportHeaderRow(suggestedRow);
+      applySuggestedMapping(firstSheet, suggestedRow);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Không đọc được file Excel.');
+    } finally {
+      setImporting(false);
+    }
+  }
+
+  async function previewProductImport() {
+    if (!importFile) return;
+    setImporting(true);
+    setError('');
+    setMessage('');
+    setImportIdempotencyKey('');
+    try {
+      const result = await api<ImportPreview>('/products/import/preview', {
+        method: 'POST',
+        body: importFile,
+        headers: importHeaders(importFile, true),
+      });
+      setImportPreview(result);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Không kiểm tra được file nhập.');
+      setImportPreview(null);
+    } finally {
+      setImporting(false);
+    }
+  }
+
+  async function applyProductImport() {
+    if (!importFile || !importPreview || importPreview.issues.length) return;
+    const key = importIdempotencyKey || crypto.randomUUID();
+    setImportIdempotencyKey(key);
+    setImporting(true);
+    setError('');
+    try {
+      const result = await api<{ createdProducts: number; createdVariants: number }>(
+        '/products/import',
+        {
+          method: 'POST',
+          body: importFile,
+          headers: { ...importHeaders(importFile, true), 'idempotency-key': key },
+        },
+      );
+      setMessage(`Đã nhập ${result.createdProducts} sản phẩm và ${result.createdVariants} SKU.`);
+      setShowImport(false);
+      setImportFile(null);
+      setImportSheets([]);
+      setImportPreview(null);
+      await loadProducts('');
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Không nhập được sản phẩm.');
+    } finally {
+      setImporting(false);
+    }
+  }
 
   const loadDetail = useCallback(async (id: string) => {
     const product = await api<ProductDetail>(`/products/${id}`);
@@ -374,6 +553,11 @@ export function ProductWorkspace({
         </div>
         <div className="header-actions">
           {canWrite && (
+            <button className="ghost" onClick={() => setShowImport((current) => !current)}>
+              {showImport ? 'Đóng nhập Excel' : 'Nhập Excel Shopee'}
+            </button>
+          )}
+          {canWrite && (
             <button className="ghost" onClick={() => setShowCreate((current) => !current)}>
               {showCreate ? 'Đóng biểu mẫu' : '+ Thêm sản phẩm'}
             </button>
@@ -389,6 +573,185 @@ export function ProductWorkspace({
       </div>
       {message && <div className="success-message">{message}</div>}
       {error && <div className="error-message">{error}</div>}
+
+      {showImport && canWrite && (
+        <section className="panel-form" style={{ display: 'grid', gap: 16 }}>
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">NHẬP DANH MỤC</p>
+              <h2>Nhập sản phẩm từ Excel Shopee</h2>
+            </div>
+            <span>Chỉ hỗ trợ .xlsx, tối đa 10 MiB</span>
+          </div>
+          <p className="form-warning">
+            Nhập sản phẩm và SKU mới. Giá bán, tồn kho, phí và dữ liệu đơn hàng trong file sẽ không
+            được ghi vào CRM. Hãy xác nhận đơn vị gốc trước khi nhập dữ liệu vận hành.
+          </p>
+          <label>
+            File Excel Shopee (.xlsx)
+            <input
+              type="file"
+              accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+              onChange={(event) => void inspectImportFile(event.currentTarget.files?.[0] ?? null)}
+            />
+          </label>
+
+          {importSheets.length > 0 && selectedImportSheet && (
+            <>
+              <div className="form-grid three" style={{ alignItems: 'end' }}>
+                <label>
+                  Sheet
+                  <select
+                    value={importSheetName}
+                    onChange={(event) => {
+                      const sheet = importSheets.find((item) => item.name === event.target.value);
+                      const row = sheet?.headerCandidates[0]?.rowNumber ?? 1;
+                      setImportSheetName(event.target.value);
+                      setImportHeaderRow(row);
+                      applySuggestedMapping(sheet, row);
+                    }}
+                  >
+                    {importSheets.map((sheet) => (
+                      <option key={sheet.name} value={sheet.name}>
+                        {sheet.name} ({sheet.rowCount} dòng)
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Hàng tiêu đề
+                  <select
+                    value={importHeaderRow}
+                    onChange={(event) => {
+                      const row = Number(event.target.value);
+                      setImportHeaderRow(row);
+                      applySuggestedMapping(selectedImportSheet, row);
+                    }}
+                  >
+                    {selectedImportSheet.rows.map((row) => (
+                      <option key={row.rowNumber} value={row.rowNumber}>
+                        {row.rowNumber}:{' '}
+                        {row.values.filter(Boolean).slice(0, 4).join(' · ') || '(trống)'}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <div className="assumption-note">
+                  Nếu file không có đơn vị gốc, điền cả mã và tên đơn vị mặc định bên dưới.
+                </div>
+              </div>
+              <div
+                className="form-grid three"
+                style={{ maxHeight: 420, overflow: 'auto', padding: '4px 2px' }}
+              >
+                {PRODUCT_IMPORT_FIELDS.map((fieldName) => (
+                  <label key={fieldName}>
+                    {PRODUCT_IMPORT_LABELS[fieldName]}
+                    <select
+                      value={importColumns[fieldName] ?? ''}
+                      onChange={(event) => {
+                        const value = event.target.value;
+                        setImportColumns((current) => {
+                          const next = { ...current };
+                          if (value === '') delete next[fieldName];
+                          else next[fieldName] = Number(value);
+                          return next;
+                        });
+                        setImportPreview(null);
+                        setImportIdempotencyKey('');
+                      }}
+                    >
+                      <option value="">Không ánh xạ</option>
+                      {selectedImportHeader?.values.map((heading, index) => (
+                        <option key={index} value={index}>
+                          Cột {index + 1}: {heading || '(không có tên)'}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ))}
+              </div>
+              <div className="form-grid three" style={{ alignItems: 'end' }}>
+                <label>
+                  Mã đơn vị gốc mặc định
+                  <input
+                    value={importDefaultUnitCode}
+                    onChange={(event) => {
+                      setImportDefaultUnitCode(event.target.value);
+                      setImportPreview(null);
+                      setImportIdempotencyKey('');
+                    }}
+                    placeholder="VD: CAI"
+                  />
+                </label>
+                <label>
+                  Tên đơn vị gốc mặc định
+                  <input
+                    value={importDefaultUnitName}
+                    onChange={(event) => {
+                      setImportDefaultUnitName(event.target.value);
+                      setImportPreview(null);
+                      setImportIdempotencyKey('');
+                    }}
+                    placeholder="VD: Cái"
+                  />
+                </label>
+                <div className="assumption-note">
+                  Không tạo quy đổi từ dữ liệu Shopee. Đơn vị bán ban đầu được đặt bằng đơn vị gốc.
+                </div>
+              </div>
+              <div className="header-actions" style={{ justifyContent: 'flex-start' }}>
+                <button
+                  className="ghost"
+                  type="button"
+                  onClick={() => void previewProductImport()}
+                  disabled={importing}
+                >
+                  {importing ? 'Đang kiểm tra…' : 'Kiểm tra dữ liệu'}
+                </button>
+                {importPreview && importPreview.issues.length === 0 && (
+                  <button
+                    className="primary compact"
+                    type="button"
+                    onClick={() => void applyProductImport()}
+                    disabled={importing}
+                  >
+                    {importing ? 'Đang nhập…' : `Xác nhận nhập ${importPreview.variantCount} SKU`}
+                  </button>
+                )}
+              </div>
+            </>
+          )}
+          {importing && importSheets.length === 0 && (
+            <div className="empty-state">Đang đọc cấu trúc file…</div>
+          )}
+          {importPreview && (
+            <div style={{ display: 'grid', gap: 8 }}>
+              <b>
+                Xem trước: {importPreview.productCount} sản phẩm, {importPreview.variantCount} SKU
+              </b>
+              {importPreview.ignoredRows.length > 0 && (
+                <span>Bỏ qua dòng hướng dẫn: {importPreview.ignoredRows.join(', ')}</span>
+              )}
+              {importPreview.warnings.map((warning) => (
+                <p className="assumption-note" key={warning}>
+                  {warning}
+                </p>
+              ))}
+              {importPreview.issues.length > 0 && (
+                <div className="error-message" role="alert">
+                  <b>Cần sửa {importPreview.issues.length} lỗi trước khi nhập:</b>
+                  {importPreview.issues.map((issue, index) => (
+                    <div key={`${issue.row}-${issue.field}-${index}`}>
+                      Dòng {issue.row} · {issue.field}: {issue.message}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </section>
+      )}
 
       {showCreate && canWrite && (
         <form className="panel-form create-catalog" onSubmit={createProduct}>

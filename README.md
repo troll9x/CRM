@@ -10,7 +10,7 @@ CRM nội bộ theo mô hình **web → API → PostgreSQL**, viết bằng ti�
 
 - Đăng nhập nhân viên, phiên làm việc, phân quyền RBAC ở backend và nhật ký thao tác.
 - Hồ sơ khách hàng 360°: nhóm sỉ/lẻ, nguồn, nhiều địa chỉ, công việc/cơ hội, ghi chú và timeline. Không tự gộp khách chỉ vì tên hoặc số điện thoại giống nhau.
-- Danh mục sản phẩm, SKU/barcode, đơn vị bán và quy đổi; nhà cung cấp, đơn mua, nhận hàng và sổ kho.
+- Danh mục sản phẩm, SKU/barcode, đơn vị bán và quy đổi; nhập catalog hàng loạt từ Excel Shopee; nhà cung cấp, đơn mua, nhận hàng và sổ kho.
 - Giá admin theo SKU/bậc; báo giá có revision, phí giao, giảm giá, thuế, tiền cọc dự kiến và chuyển báo giá hợp lệ thành đơn nháp.
 - Đơn bán, giữ/nhả tồn, thu tiền nhiều lần, phân bổ tiền và số dư khách hàng; xuất kho/giao đủ; tiếp nhận đổi trả và kiểm tra chất lượng.
 - Dashboard và báo cáo doanh thu hàng đã giao, cùng sản phẩm giao nhiều. Đây là báo cáo **gross**, chưa trừ hàng trả/hoàn tiền.
@@ -51,6 +51,15 @@ Sau khi khởi động:
 - OpenAPI: <http://localhost:4000/docs>
 
 Đăng nhập bằng thông tin owner được cấu hình trong `.env`/seed local. Không lưu mật khẩu thử nghiệm trong README.
+
+## Nhập sản phẩm từ file Shopee
+
+1. Trong Shopee Seller Center, tải template nhập sản phẩm mới nhất theo ngành hàng. [Hướng dẫn Shopee Seller Education (ví dụ thị trường Malaysia)](https://cdngarenanow-a.akamaihd.net/shopee/seller/seller_cms/e8420f9b3f575f9d9ed24e16256aa271/Mass%20Upload%20User%20Guide%20(New%20UI)%20MY.pdf) mô tả upload theo template/ngành hàng; tên cột và phần hướng dẫn có thể khác theo thị trường. CRM nhận `.xlsx` và cho phép ánh xạ cột thủ công.
+2. Mở **Danh mục hàng hóa → Nhập Excel Shopee**, chọn workbook, sheet và hàng tiêu đề. Kiểm tra gợi ý ánh xạ; bắt buộc ánh xạ tên sản phẩm, SKU và đơn vị gốc (hoặc nhập cả mã/tên đơn vị mặc định).
+3. Chọn **Kiểm tra dữ liệu**. Sửa lỗi SKU/barcode trùng, tên thiếu hoặc đơn vị chưa hợp lệ trong file rồi xem trước lại. Các dòng cùng `Parent SKU` được gom thành một sản phẩm có nhiều biến thể; nếu không có `Parent SKU`, mỗi dòng là sản phẩm riêng.
+4. Chọn xác nhận nhập khi preview không còn lỗi. Mỗi đợt tối đa 1.000 dòng SKU và 10 MiB; import là tạo mới, không ghi đè catalog đang có.
+
+Giá, số lượng tồn, khuyến mãi và phí trên file Shopee không được nhập vào CRM. Ảnh chỉ lưu URL HTTPS làm metadata; CRM không tải ảnh. Tạo bảng giá và chứng từ kho theo luồng riêng. Chưa dùng dữ liệu hàng thật trước khi xác nhận `OPEN-02` trong [quyết định](docs/DECISIONS.md).
 
 ## Kiểm tra
 

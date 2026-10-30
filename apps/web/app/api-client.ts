@@ -13,10 +13,18 @@ type ApiFailure = { error: { code: string; message: string }; meta?: { requestId
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
 
 export async function api<T>(path: string, options?: RequestInit): Promise<T> {
+  const headers = new Headers(options?.headers);
+  const isBinaryBody =
+    (typeof Blob !== 'undefined' && options?.body instanceof Blob) ||
+    (typeof FormData !== 'undefined' && options?.body instanceof FormData) ||
+    options?.body instanceof ArrayBuffer;
+  if (!isBinaryBody && !headers.has('content-type')) {
+    headers.set('content-type', 'application/json');
+  }
   const response = await fetch(`${API_URL}${path}`, {
     ...options,
     credentials: 'include',
-    headers: { 'content-type': 'application/json', ...options?.headers },
+    headers,
   });
   const payload = (await response.json()) as ApiSuccess<T> | ApiFailure;
   if (!response.ok || !('data' in payload)) {
