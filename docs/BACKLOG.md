@@ -1,5 +1,9 @@
 # Backlog theo phụ thuộc
 
+## AI-CUSTOMER-INSIGHTS-01 — yêu cầu được nhắc lại 31/10/2026
+
+**CHƯA TRIỂN KHAI.** Không có module AI phân tích khách hàng trong code hoặc VPS; dashboard số liệu và hồ sơ 360° không phải AI. [Phạm vi, dữ liệu, quyền và tiêu chí nghiệm thu](tasks/AI-CUSTOMER-INSIGHTS-01.md). Ưu tiên thực hiện sau cổng dữ liệu/riêng tư; không gửi dữ liệu khách tới model bên ngoài hoặc hiển thị dự báo giả khi chưa có cấu hình, quyền và bằng chứng kiểm thử.
+
 ## Cổng nghiệm thu 31/10/2026
 
 [Đối chiếu kế hoạch gốc](ACCEPTANCE_GAP_AUDIT_2026-10-31.md) là thứ tự khắc phục hiện hành. Chủ dự án xác nhận giữ chính sách 07/10: giao đủ một lần, không bán chịu, không COD; đây là thay đổi phạm vi so với kế hoạch gốc. P0 còn lại: dữ liệu/chính sách hàng thật; hoàn tiền/giảm nợ; import khách/đơn; chi phí nhập/cảnh báo tồn; báo cáo net/giá vốn; kịch bản hai đơn liên module; nghiệm thu giao diện; backup off-host và phục hồi DB+file. Không đánh dấu Đợt 08 DONE dựa trên build hoặc HTTP 200. Toàn bộ API E2E trên PostgreSQL scratch mới đạt 18 suite/63 test ngày 31/10; điều này không thay browser/live acceptance. Import Shopee đã deploy 30/10; vẫn cần workbook thực tế và nghiệm thu qua UI. Các checkpoint cũ bên dưới giữ để truy vết, không phải trạng thái mới nhất.
