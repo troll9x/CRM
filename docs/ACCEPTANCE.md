@@ -1,5 +1,7 @@
 # Kế hoạch nghiệm thu
 
+**Cổng nghiệm thu 31/10/2026:** [Đối chiếu kế hoạch gốc và khoảng thiếu](ACCEPTANCE_GAP_AUDIT_2026-10-31.md). Bản nội bộ Đợt 00–08 chưa đạt; các dấu kiểm bên dưới chỉ áp dụng cho đúng phạm vi và bằng chứng ghi tại từng mục. Chưa có biên bản người dùng chính nghiệm thu trọn một đơn sỉ và một đơn lẻ trên môi trường thử.
+
 ## Kiểm tra production 2026-10-26
 
 - [x] Giao diện Đơn hàng tại URL chính hiển thị danh sách rỗng/nút tạo đơn nháp; lỗi render null đã sửa. Nginx CRM không còn phục vụ HTML cũ từ proxy cache.

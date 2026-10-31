@@ -128,6 +128,14 @@ export function OverviewWorkspace({
   const [error, setError] = useState('');
   const canReadAdminAlerts = staff.permissions.includes('admin.alerts.read');
   const canReadSalesReports = staff.permissions.includes('sales-reports.read');
+  const hasComparisonData = Object.values(overview?.comparisons ?? {}).some((items) =>
+    items?.some((item) => item.value > 0),
+  );
+  const hasDeliveredSales =
+    (salesReport?.monthlyRevenue.some((month) => BigInt(month.revenueVnd) > BigInt(0)) ?? false) ||
+    (salesReport?.topProducts.length ?? 0) > 0;
+  const canReadCustomers = staff.permissions.includes('customers.read');
+  const canReadCatalog = staff.permissions.includes('catalog.read');
 
   useEffect(() => {
     let active = true;
@@ -243,39 +251,64 @@ export function OverviewWorkspace({
       {error && <div className="error-message">{error}</div>}
       {overview && (
         <>
-          <div className="business-kpis">
-            {overview.kpis.activeCustomers !== undefined && (
-              <button onClick={() => onNavigate('customers')}>
-                <span>Khách đang hoạt động</span>
-                <strong>{overview.kpis.activeCustomers.toLocaleString('vi-VN')}</strong>
-                <small>{overview.kpis.openTasks} việc cần xử lý</small>
-              </button>
-            )}
-            {overview.kpis.overdueTasks !== undefined && (
-              <button
-                onClick={() => onNavigate('customers')}
-                className={overview.kpis.overdueTasks ? 'alert' : ''}
-              >
-                <span>Việc quá hạn</span>
-                <strong>{overview.kpis.overdueTasks.toLocaleString('vi-VN')}</strong>
-                <small>Cần ưu tiên hôm nay</small>
-              </button>
-            )}
-            {overview.kpis.activeVariants !== undefined && (
-              <button onClick={() => onNavigate('products')}>
-                <span>Danh mục đang bán</span>
-                <strong>{overview.kpis.activeVariants.toLocaleString('vi-VN')} SKU</strong>
-                <small>{overview.kpis.activeProducts} sản phẩm</small>
-              </button>
-            )}
-            {overview.kpis.orderedPurchaseOrders !== undefined && (
-              <button onClick={() => onNavigate('purchasing')}>
-                <span>Đơn mua đang mở</span>
-                <strong>{overview.kpis.orderedPurchaseOrders.toLocaleString('vi-VN')}</strong>
-                <small>{overview.kpis.draftPurchaseOrders} đơn nháp</small>
-              </button>
-            )}
-          </div>
+          {!hasComparisonData && (
+            <section className="overview-card" aria-label="Bắt đầu sử dụng CRM">
+              <h2>Chưa có dữ liệu kinh doanh để so sánh</h2>
+              <p className="empty-copy">
+                Thêm khách hàng và sản phẩm, sau đó ghi chứng từ mua bán thực tế. Tổng quan sẽ hiển
+                thị số liệu và biểu đồ khi có dữ liệu.
+              </p>
+              {(canReadCustomers || canReadCatalog) && (
+                <div className="header-actions">
+                  {canReadCustomers && (
+                    <button className="ghost" onClick={() => onNavigate('customers')}>
+                      Mở khách hàng
+                    </button>
+                  )}
+                  {canReadCatalog && (
+                    <button className="ghost" onClick={() => onNavigate('products')}>
+                      Mở sản phẩm
+                    </button>
+                  )}
+                </div>
+              )}
+            </section>
+          )}
+          {hasComparisonData && (
+            <div className="business-kpis">
+              {overview.kpis.activeCustomers !== undefined && (
+                <button onClick={() => onNavigate('customers')}>
+                  <span>Khách đang hoạt động</span>
+                  <strong>{overview.kpis.activeCustomers.toLocaleString('vi-VN')}</strong>
+                  <small>{overview.kpis.openTasks} việc cần xử lý</small>
+                </button>
+              )}
+              {overview.kpis.overdueTasks !== undefined && (
+                <button
+                  onClick={() => onNavigate('customers')}
+                  className={overview.kpis.overdueTasks ? 'alert' : ''}
+                >
+                  <span>Việc quá hạn</span>
+                  <strong>{overview.kpis.overdueTasks.toLocaleString('vi-VN')}</strong>
+                  <small>Cần ưu tiên hôm nay</small>
+                </button>
+              )}
+              {overview.kpis.activeVariants !== undefined && (
+                <button onClick={() => onNavigate('products')}>
+                  <span>Danh mục đang bán</span>
+                  <strong>{overview.kpis.activeVariants.toLocaleString('vi-VN')} SKU</strong>
+                  <small>{overview.kpis.activeProducts} sản phẩm</small>
+                </button>
+              )}
+              {overview.kpis.orderedPurchaseOrders !== undefined && (
+                <button onClick={() => onNavigate('purchasing')}>
+                  <span>Đơn mua đang mở</span>
+                  <strong>{overview.kpis.orderedPurchaseOrders.toLocaleString('vi-VN')}</strong>
+                  <small>{overview.kpis.draftPurchaseOrders} đơn nháp</small>
+                </button>
+              )}
+            </div>
+          )}
 
           {canReadSalesReports && (
             <section className="overview-card sales-report-card">
@@ -337,63 +370,72 @@ export function OverviewWorkspace({
                     Doanh thu hàng hóa đã giao, không gồm phí giao/thuế và chưa trừ hàng trả. Sản
                     phẩm xếp theo lượng giao quy về đơn vị gốc.
                   </p>
-                  <div className="sales-report-grid">
-                    <div
-                      className="monthly-chart"
-                      role="img"
-                      aria-label="Biểu đồ doanh thu hàng hóa theo tháng"
-                    >
-                      {(() => {
-                        const rows = reportMonths(salesReport);
-                        const maximum = rows.reduce((max, row) => {
-                          const amount = BigInt(row.revenueVnd);
-                          return amount > max ? amount : max;
-                        }, BigInt(0));
-                        return rows.map((row) => {
-                          const amount = BigInt(row.revenueVnd);
-                          const height =
-                            maximum === BigInt(0) ? 0 : Number((amount * BigInt(100)) / maximum);
-                          return (
-                            <div
-                              className="monthly-column"
-                              key={row.month}
-                              title={`${row.month}: ${formatVnd(row.revenueVnd)}`}
-                            >
-                              <strong>
-                                {amount > BigInt(0) ? formatVnd(row.revenueVnd) : '—'}
-                              </strong>
-                              <div className="monthly-bar-track">
-                                <span style={{ height: `${height}%` }} />
+                  {!hasDeliveredSales ? (
+                    <p className="empty-copy">
+                      Chưa có đơn đã giao trong khoảng thời gian này. Báo cáo sẽ hiển thị khi có
+                      chứng từ giao hàng thực tế.
+                    </p>
+                  ) : (
+                    <div className="sales-report-grid">
+                      <div
+                        className="monthly-chart"
+                        role="img"
+                        aria-label="Biểu đồ doanh thu hàng hóa theo tháng"
+                      >
+                        {(() => {
+                          const rows = reportMonths(salesReport);
+                          const maximum = rows.reduce((max, row) => {
+                            const amount = BigInt(row.revenueVnd);
+                            return amount > max ? amount : max;
+                          }, BigInt(0));
+                          return rows.map((row) => {
+                            const amount = BigInt(row.revenueVnd);
+                            const height =
+                              maximum === BigInt(0) ? 0 : Number((amount * BigInt(100)) / maximum);
+                            return (
+                              <div
+                                className="monthly-column"
+                                key={row.month}
+                                title={`${row.month}: ${formatVnd(row.revenueVnd)}`}
+                              >
+                                <strong>
+                                  {amount > BigInt(0) ? formatVnd(row.revenueVnd) : '—'}
+                                </strong>
+                                <div className="monthly-bar-track">
+                                  <span style={{ height: `${height}%` }} />
+                                </div>
+                                <span>{row.month.slice(5)}</span>
                               </div>
-                              <span>{row.month.slice(5)}</span>
+                            );
+                          });
+                        })()}
+                      </div>
+                      <div className="bestseller-list">
+                        <h3>Sản phẩm giao nhiều</h3>
+                        {salesReport.topProducts.length ? (
+                          salesReport.topProducts.map((product, index) => (
+                            <div className="bestseller-row" key={product.variantId}>
+                              <span className="bestseller-rank">{index + 1}</span>
+                              <div>
+                                <strong>
+                                  {product.productName} · {product.variantName}
+                                </strong>
+                                <small>{product.sku}</small>
+                              </div>
+                              <b>
+                                {Number(product.deliveredBaseQuantity).toLocaleString('vi-VN')}{' '}
+                                {product.baseUnitName}
+                              </b>
                             </div>
-                          );
-                        });
-                      })()}
+                          ))
+                        ) : (
+                          <p className="empty-copy">
+                            Chưa có hàng giao trong khoảng thời gian này.
+                          </p>
+                        )}
+                      </div>
                     </div>
-                    <div className="bestseller-list">
-                      <h3>Sản phẩm giao nhiều</h3>
-                      {salesReport.topProducts.length ? (
-                        salesReport.topProducts.map((product, index) => (
-                          <div className="bestseller-row" key={product.variantId}>
-                            <span className="bestseller-rank">{index + 1}</span>
-                            <div>
-                              <strong>
-                                {product.productName} · {product.variantName}
-                              </strong>
-                              <small>{product.sku}</small>
-                            </div>
-                            <b>
-                              {Number(product.deliveredBaseQuantity).toLocaleString('vi-VN')}{' '}
-                              {product.baseUnitName}
-                            </b>
-                          </div>
-                        ))
-                      ) : (
-                        <p className="empty-copy">Chưa có hàng giao trong khoảng thời gian này.</p>
-                      )}
-                    </div>
-                  </div>
+                  )}
                 </>
               )}
             </section>
@@ -443,28 +485,34 @@ export function OverviewWorkspace({
             </section>
           )}
 
-          <div className="overview-grid">
-            {overview.comparisons.customersByGroup && (
-              <Comparison
-                title="Khách hàng theo nhóm"
-                items={overview.comparisons.customersByGroup}
-              />
-            )}
-            {overview.comparisons.opportunitiesByStage && (
-              <Comparison
-                title="Cơ hội bán hàng"
-                items={overview.comparisons.opportunitiesByStage}
-              />
-            )}
-            {overview.comparisons.catalog && (
-              <Comparison title="So sánh danh mục" items={overview.comparisons.catalog} />
-            )}
-            {overview.comparisons.purchasing && (
-              <Comparison title="So sánh mua hàng" items={overview.comparisons.purchasing} />
-            )}
-          </div>
+          {hasComparisonData && (
+            <div className="overview-grid">
+              {overview.comparisons.customersByGroup &&
+                overview.comparisons.customersByGroup.some((item) => item.value > 0) && (
+                  <Comparison
+                    title="Khách hàng theo nhóm"
+                    items={overview.comparisons.customersByGroup}
+                  />
+                )}
+              {overview.comparisons.opportunitiesByStage &&
+                overview.comparisons.opportunitiesByStage.some((item) => item.value > 0) && (
+                  <Comparison
+                    title="Cơ hội bán hàng"
+                    items={overview.comparisons.opportunitiesByStage}
+                  />
+                )}
+              {overview.comparisons.catalog &&
+                overview.comparisons.catalog.some((item) => item.value > 0) && (
+                  <Comparison title="So sánh danh mục" items={overview.comparisons.catalog} />
+                )}
+              {overview.comparisons.purchasing &&
+                overview.comparisons.purchasing.some((item) => item.value > 0) && (
+                  <Comparison title="So sánh mua hàng" items={overview.comparisons.purchasing} />
+                )}
+            </div>
+          )}
 
-          {overview.recentPurchaseOrders && (
+          {overview.recentPurchaseOrders && overview.recentPurchaseOrders.length > 0 && (
             <section className="overview-card recent-table">
               <div className="overview-card-head">
                 <div>
