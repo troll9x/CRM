@@ -2,7 +2,7 @@
 
 ## Cổng nghiệm thu 31/10/2026
 
-[Đối chiếu kế hoạch gốc](ACCEPTANCE_GAP_AUDIT_2026-10-31.md) là thứ tự khắc phục hiện hành. P0: dữ liệu/chính sách hàng thật; giao nhiều đợt, hoàn tiền/giảm nợ, COD/nợ; kịch bản hai đơn liên module; nghiệm thu giao diện; backup off-host và phục hồi DB+file. Không đánh dấu Đợt 08 DONE dựa trên build hoặc HTTP 200. Import Shopee đã qua migration/E2E scratch 6/6 và deploy 30/10; vẫn cần workbook thực tế, tài khoản production và browser acceptance. Các checkpoint cũ bên dưới giữ để truy vết, không phải trạng thái mới nhất.
+[Đối chiếu kế hoạch gốc](ACCEPTANCE_GAP_AUDIT_2026-10-31.md) là thứ tự khắc phục hiện hành. Chủ dự án xác nhận giữ chính sách 07/10: giao đủ một lần, không bán chịu, không COD; đây là thay đổi phạm vi so với kế hoạch gốc. P0 còn lại: dữ liệu/chính sách hàng thật; hoàn tiền/giảm nợ; import khách/đơn; chi phí nhập/cảnh báo tồn; báo cáo net/giá vốn; kịch bản hai đơn liên module; nghiệm thu giao diện; backup off-host và phục hồi DB+file. Không đánh dấu Đợt 08 DONE dựa trên build hoặc HTTP 200. Toàn bộ API E2E trên PostgreSQL scratch mới đạt 18 suite/63 test ngày 31/10; điều này không thay browser/live acceptance. Import Shopee đã deploy 30/10; vẫn cần workbook thực tế và nghiệm thu qua UI. Các checkpoint cũ bên dưới giữ để truy vết, không phải trạng thái mới nhất.
 
 ## SOCIAL-INBOX-TICKET-01 — tiếp sau code local 2026-10-14
 

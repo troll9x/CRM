@@ -1,5 +1,9 @@
 # Nhật ký quyết định
 
+## Xác nhận phạm vi nghiệm thu 31/10/2026
+
+Chủ dự án xác nhận giữ quyết định 07/10: giao đủ một lần (`BR-SHIP-01`), thu đủ trước xác nhận (`OPEN-04`/`BR-ORDER-02`), không bán chịu và không COD ở bản hiện tại. Các mô tả giao nhiều đợt, mua nợ và COD trong kế hoạch gốc không còn là tiêu chí nghiệm thu cho bản này. Không tự mở lại các luồng đó khi sửa các khoảng thiếu khác; xem [đối chiếu nghiệm thu](ACCEPTANCE_GAP_AUDIT_2026-10-31.md).
+
 ## DEC-SOCIAL-PRIVACY-01 — Công khai chính sách dữ liệu social (2026-10-22)
 
 - Chủ dự án chọn tên công khai **Sơn CRM** và email nhận yêu cầu dữ liệu **sonnh.mkt@gmail.com**.
