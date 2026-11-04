@@ -84,6 +84,7 @@ services:
 volumes:
   crm_postgres_data:
   crm_ollama_models:
+    external: true
     name: crm_ai_benchmark
 
 networks:
