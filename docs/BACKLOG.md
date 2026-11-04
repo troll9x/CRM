@@ -175,6 +175,7 @@ Mỗi lát cắt phải có migration + API + UI + dữ liệu lưu thật + tes
 
 - Meta: callback HTTPS ổn định + privacy policy/app publish/review; thử webhook tin mới từ tài khoản kiểm soát, gửi từ CRM và đối chiếu Messenger. Hiện CODE_READY, chưa LIVE_VERIFIED.
 - Meta comments: cấp pages_read_user_content/pages_manage_engagement và Page MODERATE thực tế, sau đó thử reply. Hiện PERMISSION_REQUIRED.
+- FB-MEDIA-SOURCE-LINK-01: API và UI cho ảnh Messenger/permalink comment đã viết và kiểm Graph read-only trên Page kết nối; cần xác nhận UI production với tài khoản có quyền Page. Không có lưu trữ ảnh bền vững; chính sách retention vẫn mở.
 - Chat → báo giá/đơn: nút mở báo giá nháp đã điền Customer liên kết và ghi chú nguồn hội thoại; còn cần FK nguồn bất biến, ticket source, thử bằng dữ liệu có SKU/giá/tồn và xác nhận chuyển đơn. Không tự chốt hoặc ghi tiền.
 - Cập nhật 2026-10-15: FK Conversation/Message/Ticket đã thêm ở Quote, Order truy qua sourceQuote; scratch E2E cho tạo báo giá/nguồn/idempotency đạt. Còn nghiệm thu UI trực quan chat → báo giá → đơn và live Messenger sau khi callback, app publish đủ điều kiện. Không đưa fixture vào DB vận hành.
 - Shopee/TikTok: app/shop OAuth + scope thật trước adapter nhận đơn/fulfillment. Zalo: OA/app grant và account test trước adapter gửi. Hiện NOT_CONNECTED.

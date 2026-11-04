@@ -1171,6 +1171,19 @@ button {
   white-space: pre-wrap;
   line-height: 1.5;
 }
+.social-message-image {
+  display: block;
+  max-width: min(100%, 480px);
+  max-height: 480px;
+  width: auto;
+  height: auto;
+  border-radius: 8px;
+  object-fit: contain;
+}
+.social-image-status {
+  display: block;
+  font-size: 12px;
+}
 .social-comment-context {
   padding: 13px;
   border: 1px solid var(--line);
@@ -1195,18 +1208,47 @@ button {
   border-top: 1px solid var(--line);
   background: #fff;
 }
-.social-compose form { display: grid; gap: 8px; }
-.social-compose label { font-size: 12px; font-weight: 700; }
-.social-compose textarea {
-  width: 100%; min-height: 76px; resize: vertical;
-  border: 1px solid var(--line); border-radius: 9px;
-  padding: 10px 12px; font: inherit; color: inherit;
+.social-compose form {
+  display: grid;
+  gap: 8px;
 }
-.social-compose textarea:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
-.social-compose-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-.social-compose-actions small, .social-send-status { color: var(--muted); font-size: 12px; }
-.social-send-status { margin: 0 0 6px; line-height: 1.45; }
-.social-compose .social-compose-note { padding: 0; border: 0; }
+.social-compose label {
+  font-size: 12px;
+  font-weight: 700;
+}
+.social-compose textarea {
+  width: 100%;
+  min-height: 76px;
+  resize: vertical;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 10px 12px;
+  font: inherit;
+  color: inherit;
+}
+.social-compose textarea:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 2px;
+}
+.social-compose-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.social-compose-actions small,
+.social-send-status {
+  color: var(--muted);
+  font-size: 12px;
+}
+.social-send-status {
+  margin: 0 0 6px;
+  line-height: 1.45;
+}
+.social-compose .social-compose-note {
+  padding: 0;
+  border: 0;
+}
 .social-profile-body section {
   padding: 15px;
   border-bottom: 1px solid var(--line);

@@ -5,6 +5,7 @@
 ### Ticket nguồn social — triển khai local 2026-10-14
 
 - **BR-SOCIAL-TICKET-01:** Ticket nội bộ tham chiếu đúng một hội thoại hoặc một bình luận đã lưu trong cùng business. Nguồn comment giữ permalink tại lúc tạo; nguồn chat không tự suy ra permalink. Không lấy ID tác giả comment để gộp với PSID Messenger hay tạo Customer.
+- **BR-SOCIAL-MEDIA-01:** Ảnh tin nhắn Facebook và permalink bình luận chỉ hiển thị cho nhân viên có quyền đọc đúng Page và business. URL CDN cũ có thể hết hạn; backend ưu tiên lấy URL mới từ Meta, giới hạn host/MIME/kích thước và không đưa token hoặc signed URL ra JSON. Permalink bình luận được lấy theo comment ID và lưu khi hợp lệ; không tự suy ra từ post ID.
 - **BR-SOCIAL-TICKET-02:** Người có `integrations.inbox.manage` được tạo/cập nhật; người có `integrations.read` được xem. Loại yêu cầu, ưu tiên, nhãn, trạng thái và người xử lý độc lập với kênh/loại tương tác. Người xử lý phải là nhân viên ACTIVE cùng business.
 - **BR-SOCIAL-TICKET-03:** Tạo ticket dùng request key duy nhất theo business; gửi lại cùng payload trả ticket cũ, dùng key với payload khác báo conflict. Cập nhật yêu cầu version hiện tại, ghi event audit atomically. Chỉ đóng ticket đã `RESOLVED`; ticket `CLOSED` phải mở lại trước khi xử lý tiếp.
 - **BR-SOCIAL-TICKET-04:** Ticket không gửi tin/bình luận, không tạo đơn, thay kho hoặc ghi nhận tiền. Liên kết Customer/đơn chỉ hiển thị khi có quan hệ đã xác nhận trong DB.

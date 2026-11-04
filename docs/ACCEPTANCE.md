@@ -9,6 +9,7 @@
 - [x] Giao diện Đơn hàng tại URL chính hiển thị danh sách rỗng/nút tạo đơn nháp; lỗi render null đã sửa. Nginx CRM không còn phục vụ HTML cũ từ proxy cache.
 - [x] Page Lào Cai: 19 webhook Meta có chữ ký được worker xử lý (7 MESSAGE, 12 COMMENT); DB/UI có 3 chat và 11 bình luận duy nhất. Đây là inbound production, không phải fixture.
 - [ ] Page Lào Cai: tin mới từ tài khoản thử và phản hồi CRM xuất hiện trên Messenger; kiểm echo không trùng.
+- [ ] FB-MEDIA-SOURCE-LINK-01: ảnh thật trong hội thoại và permalink bài viết/bình luận hiển thị trên trình duyệt production với nhân viên có quyền Page; ảnh cũ hết hạn vẫn mở được khi Graph trả URL mới. Backend unit test/Graph read-only đã đạt ngày 2026-11-04; chờ nghiệm thu UI sau triển khai. Xem [`tasks/FB-MEDIA-SOURCE-LINK-01.md`](tasks/FB-MEDIA-SOURCE-LINK-01.md).
 - [ ] Page TQ: tin mới vào đúng hộp thư và phản hồi CRM xuất hiện ở đúng tài khoản thử; hiện 0 webhook/job.
 - [ ] Bình luận: quyền `pages_read_user_content`/`pages_manage_engagement` và thử reply live; hiện thiếu trên cả hai Page, UI/backend không cho gửi.
 

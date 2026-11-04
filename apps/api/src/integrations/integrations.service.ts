@@ -187,7 +187,27 @@ export class IntegrationsService {
       },
     });
     const hasMore = rows.length > limit;
-    const items = rows.slice(0, limit);
+    const items = rows.slice(0, limit).map((row) => ({
+      ...row,
+      // Provider URLs can expire and may carry signed query values. The browser
+      // only needs attachment type/count; image bytes use the authenticated API.
+      mediaMetadata: Array.isArray(row.mediaMetadata)
+        ? row.mediaMetadata.slice(0, 10).map((item) => ({
+            type:
+              item &&
+              typeof item === 'object' &&
+              !Array.isArray(item) &&
+              typeof item['type'] === 'string'
+                ? item['type']
+                : 'unknown',
+          }))
+        : row.mediaMetadata &&
+            typeof row.mediaMetadata === 'object' &&
+            !Array.isArray(row.mediaMetadata) &&
+            typeof row.mediaMetadata['count'] === 'number'
+          ? { count: Math.min(Math.max(row.mediaMetadata['count'], 0), 10) }
+          : null,
+    }));
     return { items, nextCursor: hasMore ? items.at(-1)?.id : null };
   }
 

@@ -334,7 +334,12 @@ export class IntegrationWorkerService implements OnModuleInit, OnModuleDestroy {
         externalCommentId: event.commentId,
         OR: [{ providerAt: { lt: providerAt } }, { providerAt, status: { not: 'DELETED' } }],
       },
-      data: { body: event.body, status: event.status ?? 'ACTIVE', providerAt },
+      data: {
+        body: event.body,
+        status: event.status ?? 'ACTIVE',
+        providerAt,
+        ...(event.sourceUrl ? { sourceUrl: event.sourceUrl } : {}),
+      },
     });
   }
 

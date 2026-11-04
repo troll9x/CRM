@@ -16,6 +16,7 @@ import { FacebookSendClient } from './facebook-send.client';
 import { SocialOutboundService } from './social-outbound.service';
 import { IntegrationPageAccessService } from './integration-page-access.service';
 import { IntegrationPageAccessGuard } from './integration-page-access.guard';
+import { FacebookSourceMediaService } from './facebook-source-media.service';
 
 @Module({
   controllers: [
@@ -34,6 +35,7 @@ import { IntegrationPageAccessGuard } from './integration-page-access.guard';
     SocialOutboundService,
     IntegrationPageAccessService,
     IntegrationPageAccessGuard,
+    FacebookSourceMediaService,
     FacebookOAuthClient,
     FacebookAuthService,
     ZaloOAuthClient,

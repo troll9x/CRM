@@ -1,7 +1,8 @@
 ﻿'use client';
 
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
-import { api, type Staff } from './api-client';
+import Image from 'next/image';
+import { api, apiBlob, type Staff } from './api-client';
 
 type Connection = {
   id: string;
@@ -882,9 +883,9 @@ export function IntegrationsWorkspace({ staff, onLogout, loggingOut, onCreateQuo
                 </small>
                 {connection.provider === 'FACEBOOK' && (
                   <p className="muted">
-                    Cấp quyền: {connection.capabilities?.authorization ?? 'chưa xác minh'} · Đăng
-                    ký Page: {connection.capabilities?.pageSubscription ?? 'chưa xác minh'} ·
-                    Webhook thực tế đã xử lý: {connection.webhookEventObserved ? 'có' : 'chưa có'}
+                    Cấp quyền: {connection.capabilities?.authorization ?? 'chưa xác minh'} · Đăng ký
+                    Page: {connection.capabilities?.pageSubscription ?? 'chưa xác minh'} · Webhook
+                    thực tế đã xử lý: {connection.webhookEventObserved ? 'có' : 'chưa có'}
                   </p>
                 )}
                 {connection.provider === 'ZALO' && (
@@ -1131,8 +1132,8 @@ export function IntegrationsWorkspace({ staff, onLogout, loggingOut, onCreateQuo
           <div className="integration-capabilities">
             <h3>Ranh giới connector</h3>
             <p>
-              <b>Facebook:</b> sự kiện chỉ hiện sau khi Meta gửi webhook và CRM xử lý. Kiểm tra
-              tin mới, phản hồi Messenger và quyền bình luận riêng cho từng Page.
+              <b>Facebook:</b> sự kiện chỉ hiện sau khi Meta gửi webhook và CRM xử lý. Kiểm tra tin
+              mới, phản hồi Messenger và quyền bình luận riêng cho từng Page.
             </p>
             <p>
               <b>Zalo OA:</b> API hội thoại có giới hạn/phân trang; webhook và quyền OA cần cấu
@@ -1570,6 +1571,85 @@ function facebookSourceUrl(value: string | null): string | null {
   }
 }
 
+function imageAttachmentIndices(metadata: unknown): number[] {
+  if (Array.isArray(metadata)) {
+    return metadata.flatMap((item: unknown, index) => {
+      if (!item || typeof item !== 'object' || Array.isArray(item)) return [];
+      const type = (item as { type?: unknown }).type;
+      return type === 'image' || type === 'sticker' ? [index] : [];
+    });
+  }
+  if (metadata && typeof metadata === 'object' && !Array.isArray(metadata)) {
+    const count = (metadata as { count?: unknown }).count;
+    if (typeof count === 'number' && Number.isInteger(count) && count > 0)
+      return Array.from({ length: Math.min(count, 10) }, (_, index) => index);
+  }
+  return [];
+}
+
+function MessageImage({
+  conversationId,
+  messageId,
+  index,
+}: {
+  conversationId: string;
+  messageId: string;
+  index: number;
+}) {
+  const [url, setUrl] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+    let objectUrl: string | null = null;
+    void apiBlob(
+      `/integrations/conversations/${conversationId}/messages/${messageId}/images/${index}`,
+    )
+      .then((blob) => {
+        if (!active) return;
+        objectUrl = URL.createObjectURL(blob);
+        setUrl(objectUrl);
+      })
+      .catch(() => {
+        if (active) setFailed(true);
+      });
+    return () => {
+      active = false;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [conversationId, messageId, index, attempt]);
+
+  if (failed)
+    return (
+      <span className="social-image-status">
+        Ảnh chưa tải được.{' '}
+        <button
+          type="button"
+          className="ghost"
+          onClick={() => {
+            setFailed(false);
+            setUrl(null);
+            setAttempt((value) => value + 1);
+          }}
+        >
+          Thử lại
+        </button>
+      </span>
+    );
+  if (!url) return <small>Đang tải ảnh đính kèm…</small>;
+  return (
+    <Image
+      unoptimized
+      width={480}
+      height={480}
+      className="social-message-image"
+      src={url}
+      alt="Ảnh khách gửi trong hội thoại"
+    />
+  );
+}
+
 type SocialFilters = {
   view: 'all' | 'chat' | 'comment' | 'ticket';
   query: string;
@@ -1712,6 +1792,7 @@ function SocialInbox(props: SocialInboxProps) {
   const [drafts, setDrafts] = useState<Record<string, { body: string; key: string }>>({});
   const [sendBusy, setSendBusy] = useState(false);
   const sendLock = useRef(false);
+  const [sourceLinks, setSourceLinks] = useState<Record<string, string | null>>({});
 
   useEffect(() => {
     void api<Array<{ id: string; displayName: string }>>('/integrations/assignees')
@@ -1760,6 +1841,29 @@ function SocialInbox(props: SocialInboxProps) {
       )
     : null;
   const ticket = active?.type === 'ticket' ? tickets.find((row) => row.id === active.id) : null;
+  const sourceCommentId = comment?.id ?? ticket?.commentId ?? null;
+  const storedSourceLink = facebookSourceUrl(comment?.sourceUrl ?? ticket?.sourceUrl ?? null);
+  const sourceLink =
+    storedSourceLink ??
+    (sourceCommentId ? facebookSourceUrl(sourceLinks[sourceCommentId] ?? null) : null);
+
+  useEffect(() => {
+    if (!sourceCommentId || storedSourceLink || sourceCommentId in sourceLinks) return;
+    let activeRequest = true;
+    void api<{ status: string; url: string | null }>(
+      `/integrations/comments/${sourceCommentId}/source-link`,
+    )
+      .then((result) => {
+        if (activeRequest)
+          setSourceLinks((current) => ({ ...current, [sourceCommentId]: result.url }));
+      })
+      .catch(() => {
+        if (activeRequest) setSourceLinks((current) => ({ ...current, [sourceCommentId]: null }));
+      });
+    return () => {
+      activeRequest = false;
+    };
+  }, [sourceCommentId, storedSourceLink, sourceLinks]);
   const relatedTickets =
     active?.type === 'ticket'
       ? [ticket].filter((row): row is SocialTicket => !!row)
@@ -2192,20 +2296,40 @@ function SocialInbox(props: SocialInboxProps) {
             {messagePages[chat.id]?.items
               .slice()
               .reverse()
-              .map((message) => (
-                <article
-                  key={message.id}
-                  className={`social-bubble ${message.direction === 'OUTBOUND' ? 'outbound' : 'inbound'}`}
-                >
-                  <small>
-                    {message.direction === 'OUTBOUND' ? activeAccount : 'Khách'} ·{' '}
-                    {socialDateTime(message.providerAt)} ·{' '}
-                    {message.importJobId ? 'Lịch sử Meta' : 'Webhook'}
-                  </small>
-                  <p>{message.body ?? `Nội dung ${message.contentType}`}</p>
-                  {message.mediaMetadata != null && <small>Có dữ liệu tệp đính kèm từ kênh</small>}
-                </article>
-              ))}
+              .map((message) => {
+                const imageIndices =
+                  chat.connection.provider === 'FACEBOOK'
+                    ? imageAttachmentIndices(message.mediaMetadata)
+                    : [];
+                return (
+                  <article
+                    key={message.id}
+                    className={`social-bubble ${message.direction === 'OUTBOUND' ? 'outbound' : 'inbound'}`}
+                  >
+                    <small>
+                      {message.direction === 'OUTBOUND' ? activeAccount : 'Khách'} ·{' '}
+                      {socialDateTime(message.providerAt)} ·{' '}
+                      {message.importJobId ? 'Lịch sử Meta' : 'Webhook'}
+                    </small>
+                    {message.body && <p>{message.body}</p>}
+                    {imageIndices.map((index) => (
+                      <MessageImage
+                        key={`${message.id}:${index}`}
+                        conversationId={chat.id}
+                        messageId={message.id}
+                        index={index}
+                      />
+                    ))}
+                    {!message.body && imageIndices.length === 0 && (
+                      <p>
+                        {message.mediaMetadata != null
+                          ? 'Tệp đính kèm chưa hỗ trợ xem trước'
+                          : `Nội dung ${message.contentType}`}
+                      </p>
+                    )}
+                  </article>
+                );
+              })}
             {messagePages[chat.id]?.items.length === 0 && (
               <p>Chưa có tin nhắn lưu trong hội thoại.</p>
             )}
@@ -2216,10 +2340,31 @@ function SocialInbox(props: SocialInboxProps) {
             <article className="social-comment-context">
               <small>Bài viết nguồn · {comment.externalPostId}</small>
               <p>CRM chưa lưu nội dung bài viết gốc. Mở permalink để xem ngữ cảnh trên Facebook.</p>
-              {facebookSourceUrl(comment.sourceUrl) && (
-                <a href={facebookSourceUrl(comment.sourceUrl)!} target="_blank" rel="noreferrer">
-                  Mở bình luận trên Facebook ↗
+              {sourceLink ? (
+                <a href={sourceLink} target="_blank" rel="noreferrer">
+                  Mở bài viết và bình luận trên Facebook ↗
                 </a>
+              ) : (
+                <small>
+                  {sourceCommentId && !(sourceCommentId in sourceLinks)
+                    ? 'Đang lấy liên kết từ Facebook…'
+                    : 'Chưa lấy được liên kết từ Facebook.'}{' '}
+                  {sourceCommentId && sourceCommentId in sourceLinks && (
+                    <button
+                      type="button"
+                      className="ghost"
+                      onClick={() =>
+                        setSourceLinks((current) => {
+                          const next = { ...current };
+                          delete next[sourceCommentId];
+                          return next;
+                        })
+                      }
+                    >
+                      Thử lại
+                    </button>
+                  )}
+                </small>
               )}
             </article>
             {comment.externalParentId && (
@@ -2248,8 +2393,8 @@ function SocialInbox(props: SocialInboxProps) {
                 {ticket.conversationId ? 'Từ chat' : 'Từ bình luận'} · {ticketKinds[ticket.kind]}
               </small>
               <p>{ticket.summary}</p>
-              {facebookSourceUrl(ticket.sourceUrl) && (
-                <a href={facebookSourceUrl(ticket.sourceUrl)!} target="_blank" rel="noreferrer">
+              {sourceLink && (
+                <a href={sourceLink} target="_blank" rel="noreferrer">
                   Mở nguồn ↗
                 </a>
               )}
@@ -2318,8 +2463,8 @@ function SocialInbox(props: SocialInboxProps) {
             ) : (
               <p className="social-compose-note">
                 {sendReasons[sendCapability.status] ?? `Chưa thể gửi: ${sendCapability.status}.`}{' '}
-                {comment && facebookSourceUrl(comment.sourceUrl) && (
-                  <a href={facebookSourceUrl(comment.sourceUrl)!} target="_blank" rel="noreferrer">
+                {comment && sourceLink && (
+                  <a href={sourceLink} target="_blank" rel="noreferrer">
                     Mở trong Facebook ↗
                   </a>
                 )}

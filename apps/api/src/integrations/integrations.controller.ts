@@ -8,8 +8,10 @@ import {
   Put,
   Query,
   Req,
+  Res,
   UseGuards,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { ConfigService } from '@nestjs/config';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { RequestStaff } from '../common/request-context';
@@ -23,6 +25,7 @@ import { SocialTicketsService } from './social-tickets.service';
 import { SocialOutboundService } from './social-outbound.service';
 import { IntegrationPageAccessService } from './integration-page-access.service';
 import { IntegrationPageAccessGuard } from './integration-page-access.guard';
+import { FacebookSourceMediaService } from './facebook-source-media.service';
 import { INTEGRATION_PROVIDERS, providerPreflight } from './provider-preflight';
 import {
   AddNoteDto,
@@ -56,6 +59,7 @@ export class IntegrationsController {
     private readonly socialTickets: SocialTicketsService,
     private readonly socialOutbound: SocialOutboundService,
     private readonly pageAccess: IntegrationPageAccessService,
+    private readonly sourceMedia: FacebookSourceMediaService,
   ) {}
 
   @Get('providers/preflight')
@@ -129,6 +133,22 @@ export class IntegrationsController {
     return this.integrations.conversationMessages(actor.businessId, id, query);
   }
 
+  @Get('conversations/:id/messages/:messageId/images/:index')
+  @RequirePermissions(PERMISSIONS.INTEGRATIONS_READ)
+  async messageImage(
+    @CurrentStaff() actor: RequestStaff,
+    @Param('id') id: string,
+    @Param('messageId') messageId: string,
+    @Param('index') index: string,
+    @Res() response: Response,
+  ): Promise<void> {
+    const image = await this.sourceMedia.messageImage(actor, id, messageId, index);
+    response.setHeader('Content-Type', image.mimeType);
+    response.setHeader('Cache-Control', 'private, max-age=300');
+    response.setHeader('X-Content-Type-Options', 'nosniff');
+    response.send(image.bytes);
+  }
+
   @Get('conversations/:id/send-capability')
   @RequirePermissions(PERMISSIONS.INTEGRATIONS_READ)
   messengerCapability(@CurrentStaff() actor: RequestStaff, @Param('id') id: string) {
@@ -155,6 +175,12 @@ export class IntegrationsController {
   @RequirePermissions(PERMISSIONS.INTEGRATIONS_READ)
   comments(@CurrentStaff() actor: RequestStaff, @Query() query: ListIntegrationQueryDto) {
     return this.integrations.comments(actor, query);
+  }
+
+  @Get('comments/:id/source-link')
+  @RequirePermissions(PERMISSIONS.INTEGRATIONS_READ)
+  commentSourceLink(@CurrentStaff() actor: RequestStaff, @Param('id') id: string) {
+    return this.sourceMedia.commentLink(actor, id);
   }
 
   @Get('comments/:id/reply-capability')

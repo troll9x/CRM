@@ -2,6 +2,8 @@
 
 ## Bổ sung Facebook backfill 2026-10-13
 
+Ngày 2026-11-04: không thêm bảng/cột cho ảnh và deep link. `ConversationMessage.mediaMetadata` vẫn giữ metadata provider phục vụ làm mới URL ảnh theo `externalMessageId`; API danh sách chỉ xuất loại/số lượng. `SocialComment.sourceUrl` nhận permalink hợp lệ từ Graph theo `externalCommentId` nếu webhook/backfill thiếu. Không lưu bytes ảnh bền vững; URL CDN trong metadata có thể hết hạn.
+
 `IntegrationJob(kind=BACKFILL)` tái sử dụng queue/lease hiện hành. `payload` là checkpoint có dataset, khoảng UTC `[since,until)`, `rootAfter`, stack task/cursor và tiến độ/page budget; tuyệt đối không chứa Page token, `paging.next` hoặc raw Graph body. Unique `(connectionId,idempotencyKey)` khóa double-click cùng phạm vi. `ConversationMessage.importJobId` và `SocialComment.importJobId` nullable (migration `20261012010000_facebook_backfill_provenance`) đánh dấu nguồn lịch sử; webhook mới để null. Unique `(connectionId,externalMessageId)`/`(connectionId,externalCommentId)` chống trùng giữa backfill, webhook và reconnect. Backfill chỉ insert-missing, không đổi unread/note/assignment/trạng thái comment cũ; conversation `lastMessageAt` chỉ tăng.
 
 ## Bổ sung schema đồng bộ đa kênh (migration 20261008230000)

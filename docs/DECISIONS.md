@@ -13,6 +13,7 @@ Chủ dự án xác nhận giữ quyết định 07/10: giao đủ một lần (
 ## DEC-CHANNEL-UX-01 — Người dùng kết nối Fanpage không cấu hình Meta app (2026-10-11)
 
 - **Đã chốt theo phản hồi của chủ dự án:** người quản lý Fanpage không cần biết Meta for Developers, App ID, App Secret, Graph version, callback hoặc webhook. Luồng họ dùng là mở CRM → bấm Kết nối Facebook → đăng nhập/cấp quyền trong Meta → chọn Fanpage nếu có nhiều Page → hoàn tất. Cấp lại quyền khi hết hạn/thu hồi dùng nút Kết nối lại.
+- **Triển khai 2026-11-04 theo yêu cầu ảnh/deep link:** ảnh Messenger được tải theo nhu cầu qua backend từ Graph/CDN Meta, giới hạn 8 MB; chưa xây kho ảnh bền vững khi chính sách lưu giữ ảnh còn mở. Deep link dùng permalink của comment do Meta trả, không ghép URL từ post ID. Chỉ người có quyền đọc Page xem được.
 - **Phân trách nhiệm:** CRM/đơn vị triển khai cấu hình và duy trì một Meta app của dịch vụ ở backend trước khi mở nút cho người dùng. App ID/secret, scope, HTTPS callback/webhook, review và vận hành không phải bước onboarding của từng khách. Không thể bỏ qua yêu cầu app của Meta bằng cách chỉ biết URL Page hoặc dùng đăng nhập Facebook cá nhân để cào dữ liệu.
 - **Trạng thái hiện tại:** chủ dự án xác nhận chưa có Meta app; UI chỉ báo dịch vụ chưa sẵn sàng, không tuyên bố Page đã kết nối. Code OAuth local tiếp tục được tái sử dụng; kiểm thử live chờ app/permissions và browser/helper hoặc thao tác cấp quyền của chủ Page.
 
