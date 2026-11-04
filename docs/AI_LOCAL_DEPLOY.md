@@ -30,4 +30,5 @@ Ngày 04/11/2026, model được đo trên VPS với dữ kiện tổng hợp gi
 - Source VPS ở commit `24d4570`; API và web cùng image `sha256:9ab4b87d698d6ab94725438c0b28dd578d8932806a28d4d3256c4688b0e2fc40`.
 - `api` và `db` healthy, `web` và `ollama` chạy. HTTPS `/` trả 200, `/api/v1/health/ready` trả 200, POST AI chưa đăng nhập trả 401.
 - API container gọi được `/api/tags` của Ollama và thấy `qwen3:1.7b`. Mạng `ai_internal` có `Internal=true`; Ollama không publish cổng 11434 ra host.
+- Gọi `/api/generate` từ chính API container bằng dữ kiện tổng hợp 2 đơn trả 200 sau 57 giây, JSON tiếng Việt có 2 ID đơn hợp lệ và tổng 300.000 VND đúng đầu vào. Trong lúc chạy, public health vẫn 200; Ollama dùng khoảng 1,7 GiB RAM. Đây là dữ kiện thử, không phải kết quả khách thật.
 - VPS còn khoảng 5,1 GB sau dọn cache build. Chưa xác minh giao diện hồ sơ khách và kết quả AI trên chứng từ production vì hiện chưa có customer/đơn. Chưa coi đây là nghiệm thu độ chính xác của model.
