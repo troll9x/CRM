@@ -126,3 +126,8 @@ Khi được xác nhận, đổi `OPEN-*` thành ADR mới gồm ngày, người
 - **Quyết định:** Facebook/Messenger và Zalo là nguồn khách sỉ; Shopee và TikTok Shop là nguồn khách lẻ.
 - **Cách áp dụng:** Backend tự đặt nhóm trong create/update nếu nguồn nhận diện thuộc các kênh trên; dữ liệu nhóm do client gửi không được ghi đè mapping. Nguồn khác/không rõ vẫn dùng lựa chọn thủ công.
 - **Tác động:** Không đổi schema; lưu tiếp vào `Customer.source` và dùng `Customer.groupId` hiện có. Có E2E cho mapping; không đồng nghĩa connector đã kết nối.
+## 2026-10-31 — AI khách hàng xử lý tại VPS
+
+Chủ dự án yêu cầu chỉ xử lý AI trên VPS. Lát cắt đầu chỉ dùng dữ kiện đơn đã giao, không gửi thông tin định danh hoặc hội thoại vào model. Ollama là dịch vụ nội bộ và không mở cổng công khai. Model đưa gợi ý có người kiểm tra; tiền vẫn do backend tính từ chứng từ. Chưa chấp nhận dự báo mua lại hay hành động tự động.
+
+\n

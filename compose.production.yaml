@@ -35,9 +35,13 @@ services:
       INTEGRATIONS_WORKER_ENABLED: ${INTEGRATIONS_WORKER_ENABLED:-false}
     ports:
       - '127.0.0.1:4000:4000'
+    networks:
+      - default
+      - ai_internal
     depends_on:
       db:
         condition: service_healthy
+    # AI chỉ truy cập qua DNS nội bộ; endpoint Ollama không công bố ra Internet.
     healthcheck:
       test:
         - CMD
@@ -62,5 +66,26 @@ services:
       api:
         condition: service_healthy
 
+  ollama:
+    image: ollama/ollama:0.12.11@sha256:3d8a05e3432d50ea57594fabe971e46cc8fe963a0f9f8c40400bd56cd5388e47
+    profiles: ['ai']
+    restart: unless-stopped
+    environment:
+      OLLAMA_NUM_PARALLEL: '1'
+      OLLAMA_MAX_LOADED_MODELS: '1'
+      OLLAMA_KEEP_ALIVE: '0'
+    mem_limit: 2300m
+    cpus: 1.5
+    volumes:
+      - crm_ollama_models:/root/.ollama
+    networks:
+      - ai_internal
+
 volumes:
   crm_postgres_data:
+  crm_ollama_models:
+    name: crm_ai_benchmark
+
+networks:
+  ai_internal:
+    internal: true

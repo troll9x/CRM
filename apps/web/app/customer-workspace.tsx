@@ -146,6 +146,23 @@ type MergePreview = {
   canMerge: boolean;
 };
 
+type CustomerAiInsight =
+  | { status: 'INSUFFICIENT_DATA'; analyzedAt: string; scope: string; reason: string }
+  | {
+      status: 'READY';
+      runId: string;
+      analyzedAt: string;
+      scope: string;
+      facts: {
+        deliveredOrderCount: number;
+        recognizedRevenueVnd: string;
+        latestDeliveredAt: string;
+        evidence: Array<{ id: string; deliveredAt: string; recognizedRevenueVnd: string }>;
+      };
+      result: { summary: string; suggestion: string; evidenceIds: string[] };
+      notice: string;
+    };
+
 function value(form: FormData, name: string) {
   return String(form.get(name) ?? '').trim();
 }
@@ -225,8 +242,13 @@ export function CustomerWorkspace({
   const [mergeTargetId, setMergeTargetId] = useState('');
   const [mergePreview, setMergePreview] = useState<MergePreview | null>(null);
   const [mergeCommandKey, setMergeCommandKey] = useState('');
+  const [aiInsight, setAiInsight] = useState<CustomerAiInsight | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiFeedbackSent, setAiFeedbackSent] = useState(false);
 
   const loadDetail = useCallback(async (id: string) => {
+    setAiInsight(null);
+    setAiFeedbackSent(false);
     const [detail, activity] = await Promise.all([
       api<CustomerDetail>(`/customers/${id}`),
       api<CustomerTimeline>(`/customers/${id}/timeline`),
@@ -234,6 +256,36 @@ export function CustomerWorkspace({
     setSelected(detail);
     setTimeline(activity);
   }, []);
+
+  async function analyzeCustomer() {
+    if (!selected || aiLoading) return;
+    setAiLoading(true);
+    setError('');
+    try {
+      const insight = await api<CustomerAiInsight>(`/customers/${selected.id}/ai-insights`, {
+        method: 'POST',
+      });
+      setAiInsight(insight);
+      setAiFeedbackSent(false);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Không phân tích được khách hàng.');
+    } finally {
+      setAiLoading(false);
+    }
+  }
+
+  async function sendAiFeedback(useful: boolean) {
+    if (!selected || aiInsight?.status !== 'READY' || aiFeedbackSent) return;
+    try {
+      await api(`/customers/${selected.id}/ai-insights/${aiInsight.runId}/feedback`, {
+        method: 'POST',
+        body: JSON.stringify({ useful }),
+      });
+      setAiFeedbackSent(true);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Không lưu được phản hồi AI.');
+    }
+  }
 
   async function loadMoreTimeline() {
     if (!selected || !timeline?.nextCursor || timelineLoading) return;
@@ -1045,6 +1097,70 @@ export function CustomerWorkspace({
                   <b>Ghi chú hồ sơ hiện tại</b>
                   <p>{selected.notes}</p>
                   <small>Trường thông tin hiện tại; không phải lịch sử thay đổi.</small>
+                </div>
+              )}
+
+              {staff.permissions.includes('orders.read') && (
+                <div className="detail-section">
+                  <div className="section-heading">
+                    <div>
+                      <p className="eyebrow">AI NỘI BỘ · ĐƠN ĐÃ GIAO</p>
+                      <h3>Phân tích khách hàng</h3>
+                    </div>
+                    <button
+                      className="secondary"
+                      disabled={aiLoading}
+                      onClick={() => void analyzeCustomer()}
+                    >
+                      {aiLoading ? 'Đang phân tích…' : 'Phân tích bằng AI'}
+                    </button>
+                  </div>
+                  <small>
+                    Model chạy trên VPS; chỉ số đơn đã giao và giá trị ghi nhận được đối chiếu từ
+                    chứng từ. Gợi ý cần người dùng kiểm tra.
+                  </small>
+                  {aiInsight?.status === 'INSUFFICIENT_DATA' && <p>{aiInsight.reason}</p>}
+                  {aiInsight?.status === 'READY' && (
+                    <div className="profile-note">
+                      <b>{aiInsight.result.summary}</b>
+                      <p>{aiInsight.result.suggestion}</p>
+                      <p>{aiInsight.notice}</p>
+                      <small>
+                        {aiInsight.facts.deliveredOrderCount} đơn đã giao · Giá trị ghi nhận{' '}
+                        {new Intl.NumberFormat('vi-VN').format(
+                          BigInt(aiInsight.facts.recognizedRevenueVnd),
+                        )}{' '}
+                        ₫ · Lần giao gần nhất {readableDate(aiInsight.facts.latestDeliveredAt)}
+                      </small>
+                      <div className="activity-list">
+                        {aiInsight.facts.evidence
+                          .filter((item) => aiInsight.result.evidenceIds.includes(item.id))
+                          .map((item) => (
+                            <article key={item.id}>
+                              <small>
+                                Đơn {item.id} · Giao {readableDate(item.deliveredAt)}
+                              </small>
+                            </article>
+                          ))}
+                      </div>
+                      <small>
+                        Phân tích lúc {readableDate(aiInsight.analyzedAt)} · Mã lần chạy{' '}
+                        {aiInsight.runId}
+                      </small>
+                      {aiFeedbackSent ? (
+                        <small>Đã ghi nhận phản hồi.</small>
+                      ) : (
+                        <div>
+                          <button className="ghost" onClick={() => void sendAiFeedback(true)}>
+                            Hữu ích
+                          </button>{' '}
+                          <button className="ghost" onClick={() => void sendAiFeedback(false)}>
+                            Chưa đúng
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 

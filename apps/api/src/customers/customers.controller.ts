@@ -5,6 +5,7 @@ import { CurrentStaff } from '../identity/current-staff.decorator';
 import { PERMISSIONS } from '../identity/permissions';
 import { RequirePermissions } from '../identity/require-permissions.decorator';
 import { CustomersService } from './customers.service';
+import { CustomerInsightsService } from './customer-insights.service';
 import {
   AddressInputDto,
   CreateCustomerDto,
@@ -24,7 +25,33 @@ import {
 @ApiTags('customers')
 @Controller('customers')
 export class CustomersController {
-  constructor(private readonly customers: CustomersService) {}
+  constructor(
+    private readonly customers: CustomersService,
+    private readonly insights: CustomerInsightsService,
+  ) {}
+
+  @Post(':id/ai-insights')
+  @RequirePermissions(PERMISSIONS.CUSTOMERS_READ, PERMISSIONS.ORDERS_READ)
+  @ApiOperation({ summary: 'Phân tích đơn đã giao bằng model chạy nội bộ trên VPS' })
+  analyzeCustomer(
+    @Param('id') id: string,
+    @CurrentStaff() actor: RequestStaff,
+    @Req() request: RequestWithContext,
+  ) {
+    return this.insights.analyze(id, actor, request.requestId);
+  }
+
+  @Post(':id/ai-insights/:runId/feedback')
+  @RequirePermissions(PERMISSIONS.CUSTOMERS_READ, PERMISSIONS.ORDERS_READ)
+  feedbackCustomerInsight(
+    @Param('id') id: string,
+    @Param('runId') runId: string,
+    @Body() body: { useful?: unknown },
+    @CurrentStaff() actor: RequestStaff,
+    @Req() request: RequestWithContext,
+  ) {
+    return this.insights.feedback(id, runId, body?.useful, actor, request.requestId);
+  }
 
   @Get()
   @RequirePermissions(PERMISSIONS.CUSTOMERS_READ)

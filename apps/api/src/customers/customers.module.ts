@@ -5,9 +5,10 @@ import { OpportunitiesController } from './opportunities.controller';
 import { OpportunitiesService } from './opportunities.service';
 import { TasksController } from './tasks.controller';
 import { TasksService } from './tasks.service';
+import { CustomerInsightsService } from './customer-insights.service';
 
 @Module({
   controllers: [CustomersController, TasksController, OpportunitiesController],
-  providers: [CustomersService, TasksService, OpportunitiesService],
+  providers: [CustomersService, TasksService, OpportunitiesService, CustomerInsightsService],
 })
 export class CustomersModule {}

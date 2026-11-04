@@ -164,3 +164,8 @@ SocialOutbound lưu ý định gửi theo businessId, connectionId, đúng một
 # Bổ sung 2026-10-16 — quyền nhân viên theo tài khoản kênh
 
 `IntegrationStaffAccess` gắn một `StaffUser` với một `IntegrationConnection` trong cùng business, unique `(connectionId, staffId)`. `canRead` quyết định xem connection, hộp thư, bình luận, ticket và đơn ngoài của tài khoản đó; `canSend` chỉ có ý nghĩa khi `canRead=true` và vai trò có quyền gửi. Thu hồi xóa grant, không xóa dữ liệu nguồn. Quản trị viên có `connectors.manage` quản lý toàn bộ connection của business. Migration additive `20261016010000_integration_staff_access` chỉ được áp trên DB scratch ở checkpoint này.
+## Lưu vết AI khách hàng, lát cắt 01
+
+Không thêm bảng nghiệp vụ. `audit_logs` ghi `customer.ai_insight` với `promptVersion`, `model`, dữ kiện chứng từ đã lọc và kết quả model; `customer.ai_feedback` ghi `useful` gắn `runId`. Audit giữ business/actor/requestId và thời điểm UTC. Cần thiết kế bảng `AiRun` riêng cùng chính sách retention khi mở rộng sang hội thoại hoặc dự báo.
+
+\n

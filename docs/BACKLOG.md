@@ -2,7 +2,7 @@
 
 ## AI-CUSTOMER-INSIGHTS-01 — yêu cầu được nhắc lại 31/10/2026
 
-**CHƯA TRIỂN KHAI.** Không có module AI phân tích khách hàng trong code hoặc VPS; dashboard số liệu và hồ sơ 360° không phải AI. [Phạm vi, dữ liệu, quyền và tiêu chí nghiệm thu](tasks/AI-CUSTOMER-INSIGHTS-01.md). Ưu tiên thực hiện sau cổng dữ liệu/riêng tư; không gửi dữ liệu khách tới model bên ngoài hoặc hiển thị dự báo giả khi chưa có cấu hình, quyền và bằng chứng kiểm thử.
+**ĐANG TRIỂN KHAI.** API/UI phân tích đơn đã giao bằng model tại VPS đã được thêm; chưa nghiệm thu model với dữ liệu đại diện, chưa có dự báo mua lại hoặc AI hội thoại. [Phạm vi, dữ liệu, quyền và tiêu chí nghiệm thu](tasks/AI-CUSTOMER-INSIGHTS-01.md). Không gửi dữ liệu khách tới model bên ngoài hoặc hiển thị dự báo giả.
 
 ## Cổng nghiệm thu 31/10/2026
 

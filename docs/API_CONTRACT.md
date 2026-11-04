@@ -281,3 +281,10 @@ POST /integrations/conversations/:id/send và POST /integrations/comments/:id/re
 ## Nguồn social của báo giá (2026-10-15)
 
 `POST /quotes` nhận thêm tùy chọn `sourceConversationId`, `sourceMessageId`, `sourceTicketId` (ID nội bộ). Tin/phiếu cần hội thoại nguồn. Backend yêu cầu `quotes.write`, thêm `integrations.read` và grant xem Page khi có nguồn; hội thoại phải thuộc business hiện tại và Customer đã liên kết đúng `customerId`. Tin và phiếu phải thuộc hội thoại đó. Lỗi: 403 thiếu quyền/Page grant, 404 hội thoại ngoài business/không có, 422 thiếu hội thoại hoặc nguồn/Customer không khớp. ID nguồn tham gia hash idempotency và audit; bất biến sau khi tạo, `PATCH /quotes/:id` không nhận các trường này. Response quote chứa ba ID nullable và `sourceAccount` `{provider,displayName}` hoặc null để UI chỉ rõ Page/OA nguồn; response order từ báo giá chứa các ID trong `sourceQuote`. Đơn nhập tay có `sourceQuote=null`.
+## AI phân tích khách hàng, lát cắt 01 (2026-10-31)
+
+`POST /customers/:id/ai-insights` cần `customers.read` và `orders.read`; chỉ xét customer thuộc business và đang ACTIVE. Nếu chưa có đơn CONFIRMED với shipment DELIVERED, trả `INSUFFICIENT_DATA` mà không gọi model. Nếu có, backend tính số đơn, tổng `recognizedRevenueVnd`, lần giao gần nhất trên toàn bộ lịch sử và lấy ID tối đa 3 đơn giao gần nhất làm chứng cứ cho model Ollama nội bộ. Model chỉ viết `summary`, `suggestion`, `evidenceIds`. Kết quả `READY` gồm `runId`, `analyzedAt`, `scope`, `facts`, `result`, `notice`. Không có tên, liên hệ, địa chỉ hoặc transcript trong prompt. 404 nếu customer ngoài business; 403 nếu thiếu quyền; 429 nếu nhân viên gọi lại trong 5 phút; 503 nếu model không sẵn sàng; 502 nếu đầu ra không hợp lệ.
+
+`POST /customers/:id/ai-insights/:runId/feedback` nhận `{ "useful": true|false }`, cần cùng quyền, chỉ chấp nhận run cùng business/customer và một phản hồi mỗi nhân viên/run. Ghi audit log, không tự thực hiện hành động đối với khách.
+
+\n

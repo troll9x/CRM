@@ -122,3 +122,8 @@ Trạng thái: 06A–06D, 07A/07B, đổi trả 08A và báo cáo gross giao hà
 
 - Báo giá tạo từ chat chỉ nhận hội thoại đã liên kết Customer của cùng business; nhân viên phải có cả `quotes.write` và `integrations.read`. ID tin/phiếu kèm theo phải thuộc hội thoại. Backend lưu FK và audit trong transaction tạo báo giá; không dùng ghi chú làm bằng chứng nguồn.
 - Nguồn social và Customer của báo giá đã liên kết không đổi khi sửa draft. Đơn chuyển từ báo giá truy về nguồn qua `sourceQuoteId`; đơn nhập tay không được gán nguồn chat giả. SKU/giá/tồn vẫn theo kiểm tra backend hiện hành, không tự phát hành/chốt/thu tiền từ tin nhắn.
+## BR-AI-01 — gợi ý phân tích khách hàng
+
+AI chỉ đọc đơn CONFIRMED có shipment DELIVERED trong cùng business; `recognizedRevenueVnd` là nguồn số tiền đã giao. Đơn nháp, đơn hủy, phiếu thu và hội thoại không được tính là doanh thu. Model không được sửa số liệu, giá, kho, tiền hoặc gửi tin. Mọi nhận định AI là gợi ý cần kiểm tra chứng từ; thiếu đơn đã giao phải trả thiếu dữ liệu.
+
+\n

@@ -1,6 +1,6 @@
 # AI-CUSTOMER-INSIGHTS-01 — phân tích khách hàng có bằng chứng
 
-Trạng thái 31/10/2026: **CHƯA TRIỂN KHAI**. Yêu cầu được chủ dự án nhắc lại trong đợt nghiệm thu. Đây là module riêng của kế hoạch gốc mục 4.10 (AI gợi ý có người duyệt), 4.15 (phân tích/dự báo) và Đợt 10/14–15; không được suy là đã có từ Customer 360° hoặc dashboard.
+Trạng thái 04/11/2026: **ĐANG TRIỂN KHAI LÁT CẮT 01**. Đã thêm API và giao diện phân tích đơn đã giao bằng model nội bộ. Model trên VPS đã trả JSON tiếng Việt đúng dữ kiện giả lập; còn cần kiểm thử với chứng từ đại diện và nghiệm thu trước khi coi là hoàn thành. Đây là module riêng của kế hoạch gốc mục 4.10 và 4.15; không được suy là đã có từ Customer 360° hoặc dashboard.
 
 ## Đầu vào và đầu ra bản đầu
 
@@ -23,4 +23,4 @@ Trạng thái 31/10/2026: **CHƯA TRIỂN KHAI**. Yêu cầu được chủ dự
 - Mọi nhận định cần nguồn; thử phản ví dụ chứng minh model không bịa lịch sử mua. Lưu feedback và đo tỷ lệ người sửa, độ chính xác, chi phí trên bộ ca đã duyệt trước khi bật production.
 - Thử lỗi model, timeout, request lặp và nhân viên mất quyền giữa lúc yêu cầu; không tạo kết quả hiển thị sai hoặc nhân đôi chi phí không kiểm soát.
 
-Chưa chọn provider, chưa có quyền gửi dữ liệu khách ra ngoài và chưa có bằng chứng API/model thật. Vì vậy không thêm nút “AI” giả hoặc gọi các quy tắc thống kê là tích hợp AI.
+Chủ dự án đã chọn xử lý chỉ trên VPS. Lát cắt 01 dùng Ollama `qwen3:1.7b` nội bộ, không đưa tên, số điện thoại, email, địa chỉ hoặc hội thoại vào prompt. Số liệu do backend tính từ đơn đã xác nhận và shipment đã giao; model chỉ viết gợi ý, nguồn được kiểm tra bằng ID. Kết quả và feedback lưu trong audit log. Chưa có dữ liệu production để đo độ đúng và chưa có dự báo mua lại.

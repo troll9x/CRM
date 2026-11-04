@@ -116,3 +116,8 @@ Chỉ giữ 5 quyết định chặn Đợt 01–06 tại `docs/DECISIONS.md`: `
 ### Trạng thái triển khai 06–09 (08/10/2026)
 
 Đã có luồng local cho đơn nháp, giữ/nhả hàng, thu đủ trước xác nhận, phiếu thu/phân bổ, dùng số dư khách vào đơn nháp, phải thu, giao đủ một lần và doanh thu hàng ghi nhận khi giao xong. Chưa hoàn tất màn hình tác nghiệp kho riêng, công nợ/chi phí/hoàn tiền, đổi trả/QA, báo cáo bán chạy/tháng và Facebook. COD tạm hoãn vì yêu cầu đối soát sau giao mâu thuẫn với quy tắc thu đủ trước xác nhận. Đây chưa phải trạng thái sẵn sàng production.
+## AI khách hàng — lát cắt triển khai 31/10/2026
+
+Nhân viên có quyền xem khách và đơn có thể yêu cầu AI nội bộ trên VPS tóm tắt lịch sử đơn đã giao của một khách. Hệ thống tính số đơn, giá trị ghi nhận và lần giao gần nhất từ chứng từ, rồi gửi dữ kiện tối thiểu cho model. Kết quả là gợi ý có ID chứng cứ và phản hồi hữu ích/chưa đúng; không thực hiện hành động tự động. Thiếu đơn đã giao phải hiển thị thiếu dữ liệu. Phân tích hội thoại, dự báo mua lại và khuyến nghị mua hàng chưa thuộc lát cắt này.
+
+\n

@@ -91,3 +91,8 @@ E2E cần PostgreSQL thử nghiệm riêng, đã migrate/seed và đáp ứng gu
 - [Backlog](docs/BACKLOG.md) · [Handoff hiện tại](docs/HANDOFF.md) · [Hướng dẫn local](docs/LOCAL_DEVELOPMENT.md)
 - [Sẵn sàng tích hợp](docs/INTEGRATION_READINESS.md) · [Cấu hình tích hợp](docs/INTEGRATIONS_SETUP.md)
 - [Ma trận chức năng AMIS](docs/AMIS_FEATURE_MATRIX.md)
+# AI phân tích khách hàng
+
+Lát cắt phân tích đơn đã giao bằng model chạy nội bộ trên VPS: [triển khai, kiểm tra và giới hạn](docs/AI_LOCAL_DEPLOY.md). Kết quả AI là gợi ý có chứng cứ; khi chưa có đơn giao, hệ thống báo thiếu dữ liệu.
+
+\n
