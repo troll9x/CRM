@@ -330,4 +330,6 @@ Mỗi test ghi: Given dữ liệu/role/version; When request hoặc thao tác; T
 
 Chỉ xử lý trên VPS. Cần xác nhận 401/403/404, đơn nháp không vào dữ kiện, số tiền cộng từ shipment, thiếu đơn trả `INSUFFICIENT_DATA`, model lỗi trả 503, ID chứng cứ giả bị từ chối, feedback có audit, model không gửi tin hay đổi đơn. Chưa nghiệm thu độ chính xác với dữ liệu khách thật; production hiện không có khách/đơn để kiểm tra luồng có kết quả.
 
+Ngày 04/11/2026: source/build production và model nội bộ đã chạy; public `/` và health 200, POST AI không phiên 401. Unit test kiểm tra điều kiện truy vấn nguồn và từ chối ID chứng cứ giả; chưa có E2E đối chiếu SQL với chứng từ. 0 customer/0 sales order/0 shipment nên các ca 403/404 và AI có dữ liệu trên API/UI production còn chờ bộ chứng từ thật hoặc staging tách biệt.
+
 \n
