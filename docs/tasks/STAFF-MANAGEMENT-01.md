@@ -43,4 +43,10 @@ Quyền Page/OA/shop dùng `IntegrationStaffAccess` hiện có: cần vai trò �
 - PostgreSQL scratch riêng `crm_staff_scratch`: `staff-management.e2e-spec.ts` và `auth.e2e-spec.ts` đạt 6/6 bài; không dùng DB vận hành.
 - Unit trong workspace: API 69/69, web 11/11. Typecheck đạt. Lint toàn bộ và build API/web đạt trong worktree kiểm tra chỉ chứa module này trên nền `05db25f`; không đưa các sửa Facebook chưa hoàn tất vào bản kiểm tra.
 - Build web ở worktree kiểm tra đặt root Turbopack rộng hơn để dùng dependency junction; cấu hình này chỉ thuộc môi trường kiểm tra, không thay `next.config.ts` của repo chuẩn.
-- Browser access host không sẵn sàng, chưa nghiệm thu UI trực quan hoặc thao tác form bằng trình duyệt. Chưa triển khai module này lên VPS, không tạo/reset tài khoản vận hành.
+- Browser access host không sẵn sàng, chưa nghiệm thu UI trực quan hoặc thao tác form bằng trình duyệt; không tạo/reset tài khoản vận hành khi kiểm tra.
+
+## Triển khai VPS 12/11/2026
+
+- Release ứng dụng `b9519cd` đã build thành công bằng Dockerfile production và chạy tại `https://crm.nguyenhongson.vn/`. API/web cùng image `sha256:96a22b7f1d0256e0522c936ad6920ea42bd93b7685be0b215bd62e0f9ab9b714`; API healthy. Không chạy migration, không đổi dữ liệu hay mật khẩu tài khoản thật.
+- Public `/` và `/api/v1/health/ready` trả 200. HTML có `private, no-cache, no-store` và tham chiếu bundle mới `/_next/static/chunks/3u07x84h-376r.js` trả 200, chứa module staff/reset-password. `/api/v1/staff`, `/api/v1/roles` chặn chưa đăng nhập bằng 401; API log xác nhận route sửa tài khoản/reset/role/lock được đăng ký. Chưa thay bằng chứng này cho nghiệm thu UI đăng nhập.
+- Image trước deploy được giữ ở `son-crm-app:rollback-05db25f-20261112`. Khi cần quay lại: tag image đó thành `son-crm-app:production`, rồi `docker compose --profile ai --env-file .env.production -f compose.production.yaml up -d --no-build api web` trong `/srv/son-crm`; kiểm tra health và domain sau chuyển.

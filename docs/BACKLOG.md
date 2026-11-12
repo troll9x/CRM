@@ -2,7 +2,7 @@
 
 ## STAFF-MANAGEMENT-01 — 12/11/2026
 
-Đã viết module tài khoản/phân quyền trên RBAC hiện có, không cần migration. E2E DB scratch đạt tạo/sửa/role/reset/khóa và bảo vệ quyền, business, phiên, owner đồng thời. Chờ kiểm tra UI trực quan và triển khai production; xem [task và demo](tasks/STAFF-MANAGEMENT-01.md).
+Đã triển khai release `b9519cd` lên VPS ngày 12/11/2026, không cần migration. E2E DB scratch đạt tạo/sửa/role/reset/khóa và bảo vệ quyền, business, phiên, owner đồng thời; public page/health/bundle mới 200, API quản trị bảo vệ 401. Còn kiểm tra UI trực quan bằng tài khoản quản trị; xem [task và demo](tasks/STAFF-MANAGEMENT-01.md).
 
 ## AI-CUSTOMER-INSIGHTS-01 — yêu cầu được nhắc lại 31/10/2026
 

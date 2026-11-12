@@ -4,7 +4,8 @@
 
 - [x] API và UI tạo/sửa tài khoản, nhiều vai trò, quyền hiệu lực, reset mật khẩu, khóa/mở khóa và grant kênh dùng DB thật.
 - [x] E2E PostgreSQL scratch: trùng email/DTO, scope business, chặn nâng quyền, thu hồi session khi đổi role/reset/khóa, mật khẩu cũ bị từ chối, owner khóa chéo đồng thời vẫn còn một owner ACTIVE.
-- [ ] Nghiệm thu giao diện trực quan desktop/mobile và triển khai production. Xem [STAFF-MANAGEMENT-01](tasks/STAFF-MANAGEMENT-01.md).
+- [x] Triển khai production release `b9519cd` ngày 12/11/2026; Docker build đạt, API healthy, public page/health/bundle mới 200 và API quản trị chặn chưa đăng nhập 401. Không có migration hoặc tài khoản test production.
+- [ ] Nghiệm thu giao diện trực quan desktop/mobile bằng tài khoản quản trị. Xem [STAFF-MANAGEMENT-01](tasks/STAFF-MANAGEMENT-01.md).
 
 **Cổng nghiệm thu 31/10/2026:** [Đối chiếu kế hoạch gốc và khoảng thiếu](ACCEPTANCE_GAP_AUDIT_2026-10-31.md). Bản nội bộ Đợt 00–08 chưa đạt; các dấu kiểm bên dưới chỉ áp dụng cho đúng phạm vi và bằng chứng ghi tại từng mục. Chưa có biên bản người dùng chính nghiệm thu trọn một đơn sỉ và một đơn lẻ trên môi trường thử.
 
