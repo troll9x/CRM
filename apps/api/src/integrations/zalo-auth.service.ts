@@ -38,6 +38,7 @@ export class ZaloAuthService {
     url.searchParams.set('channelAttempt', id);
     url.searchParams.set('channelProvider', 'ZALO');
     url.searchParams.set('channelResult', result);
+    url.hash = 'integrations';
     return url.toString();
   }
 

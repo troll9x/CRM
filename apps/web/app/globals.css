@@ -591,12 +591,12 @@ button {
   border-radius: 10px;
   font-weight: 800;
 }
-.dashboard-shell nav {
+.dashboard-shell > aside nav {
   display: grid;
   gap: 6px;
   margin-top: 22px;
 }
-.dashboard-shell nav button {
+.dashboard-shell > aside nav button {
   padding: 12px;
   display: flex;
   justify-content: space-between;
@@ -606,11 +606,11 @@ button {
   border-radius: 9px;
   text-align: left;
 }
-.dashboard-shell nav button.active {
+.dashboard-shell > aside nav button.active {
   color: #fff;
   background: rgba(255, 255, 255, 0.1);
 }
-.dashboard-shell nav small {
+.dashboard-shell > aside nav small {
   font-size: 9px;
   opacity: 0.7;
 }
@@ -2816,7 +2816,7 @@ button {
     min-height: auto;
     padding: 12px;
   }
-  .dashboard-shell nav {
+  .dashboard-shell > aside nav {
     grid-template-columns: 1fr 1fr;
     margin-top: 10px;
   }

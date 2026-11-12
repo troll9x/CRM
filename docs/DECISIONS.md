@@ -1,5 +1,9 @@
 # Nhật ký quyết định
 
+## MULTICHANNEL-UX-02 — 12/11/2026
+
+Theo yêu cầu làm gọn giao diện và kết nối một chạm: người dùng cấp quyền qua nền tảng; ứng dụng dịch vụ do quản trị viên thiết lập một lần. Chủ dự án xác nhận chưa có ứng dụng tích hợp cho Zalo OA, Shopee và TikTok Shop. Không biến nút hướng dẫn thành kết nối giả; không coi thiếu ứng dụng là lỗi phần mềm. Các giới hạn quyền/webhook vẫn được lưu và xem trong chẩn đoán quản trị. Shopee/TikTok còn thiếu adapter cấp quyền và nhập đơn.
+
 ## COMMERCIAL-UX-01 — 12/11/2026
 
 Theo yêu cầu tối ưu UI/UX thành sản phẩm CRM thương mại: dùng design token và shell mới trên stack hiện có, không thêm thư viện UI/dependency hoặc nguồn asset bên ngoài. Điều hướng dựa vào quyền thật; tìm nhanh chỉ tìm màn hình. Bản UI không tự mở nghiệp vụ, quyền provider hoặc các phần Facebook chưa kiểm chứng. Nghiệm thu code/build và kiểm tra trực quan được ghi riêng.
@@ -135,6 +139,7 @@ Khi được xác nhận, đổi `OPEN-*` thành ADR mới gồm ngày, người
 - **Quyết định:** Facebook/Messenger và Zalo là nguồn khách sỉ; Shopee và TikTok Shop là nguồn khách lẻ.
 - **Cách áp dụng:** Backend tự đặt nhóm trong create/update nếu nguồn nhận diện thuộc các kênh trên; dữ liệu nhóm do client gửi không được ghi đè mapping. Nguồn khác/không rõ vẫn dùng lựa chọn thủ công.
 - **Tác động:** Không đổi schema; lưu tiếp vào `Customer.source` và dùng `Customer.groupId` hiện có. Có E2E cho mapping; không đồng nghĩa connector đã kết nối.
+
 ## 2026-10-31 — AI khách hàng xử lý tại VPS
 
 Chủ dự án yêu cầu chỉ xử lý AI trên VPS. Lát cắt đầu chỉ dùng dữ kiện đơn đã giao, không gửi thông tin định danh hoặc hội thoại vào model. Ollama là dịch vụ nội bộ và không mở cổng công khai. Model đưa gợi ý có người kiểm tra; tiền vẫn do backend tính từ chứng từ. Chưa chấp nhận dự báo mua lại hay hành động tự động.

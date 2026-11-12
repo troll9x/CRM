@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import Image from 'next/image';
 import { api, apiBlob, type Staff } from './api-client';
+import { ChannelCatalog } from './channel-catalog';
 
 type Connection = {
   id: string;
@@ -685,16 +686,18 @@ export function IntegrationsWorkspace({ staff, onLogout, loggingOut, onCreateQuo
         <div>
           <span className="eyebrow">KÊNH BÁN & CHĂM SÓC</span>
           <h1>Đồng bộ đa kênh</h1>
-          <p>
-            Nhận và xử lý hội thoại trong CRM. Gửi chỉ mở theo quyền của đúng tài khoản và tương
-            tác; đơn sàn chưa tự tạo đơn bán, xuất kho hay ghi nhận thanh toán.
-          </p>
+          <p>Quản lý kênh bán, hội thoại và khách hàng tại một nơi.</p>
         </div>
         <div className="action-row">
           <button className="secondary" onClick={() => void refresh()} disabled={busy}>
             Làm mới dữ liệu
           </button>
-          <button className="secondary" onClick={onLogout} disabled={loggingOut} data-workspace-logout>
+          <button
+            className="secondary"
+            onClick={onLogout}
+            disabled={loggingOut}
+            data-workspace-logout
+          >
             Đăng xuất
           </button>
         </div>
@@ -709,76 +712,59 @@ export function IntegrationsWorkspace({ staff, onLogout, loggingOut, onCreateQuo
           {notice}
         </div>
       )}
-      <div className="integration-status-note">
-        <strong>Trạng thái thật:</strong>{' '}
-        {facebookConnections.length
-          ? `${facebookConnections.length} Facebook Page có kết nối. Kiểm tra quyền và sự kiện mới riêng cho từng Page; kết nối không chứng minh tin hai chiều live.`
-          : 'Chưa có Facebook Page nào được xác thực. Tạo mục kết nối chỉ ghi nhận Page/OA/shop cần cấu hình; không mô phỏng dữ liệu hoặc báo “đã kết nối”.'}
-      </div>
-      <nav className="integration-tabs">
-        {(['connections', 'social', 'orders', 'jobs', 'mapping'] as const).map((item) => (
-          <button key={item} className={tab === item ? 'active' : ''} onClick={() => setTab(item)}>
-            {
+      <nav className="integration-tabs" aria-label="Chức năng đa kênh">
+        {(['connections', 'social', 'orders', 'jobs', 'mapping'] as const)
+          .filter((item) =>
+            item === 'jobs'
+              ? staff.permissions.includes('connectors.manage')
+              : item === 'mapping'
+                ? staff.permissions.includes('integrations.mapping.manage')
+                : true,
+          )
+          .map((item) => (
+            <button
+              key={item}
+              className={tab === item ? 'active' : ''}
+              aria-current={tab === item ? 'page' : undefined}
+              onClick={() => setTab(item)}
+            >
               {
-                connections: 'Kết nối',
-                social: `Hộp thư (${conversations.length + comments.length}) · Ticket (${tickets.length})`,
-                orders: `Đơn sàn (${orders.length})`,
-                jobs: 'Nhật ký đồng bộ',
-                mapping: 'Liên kết SKU',
-              }[item]
-            }
-          </button>
-        ))}
+                {
+                  connections: 'Kết nối',
+                  social: `Hộp thư (${conversations.length + comments.length})`,
+                  orders: `Đơn sàn (${orders.length})`,
+                  jobs: 'Nhật ký đồng bộ',
+                  mapping: 'Liên kết SKU',
+                }[item]
+              }
+            </button>
+          ))}
       </nav>
 
       {tab === 'connections' && (
         <section className="integration-panel">
-          <h2>Tài khoản kênh</h2>
+          <div className="channel-section-heading">
+            <div>
+              <h2>Kênh kết nối</h2>
+              <p>Chọn nền tảng để thêm tài khoản vào CRM.</p>
+            </div>
+            <span className="channel-account-count">
+              {connections.filter((item) => item.status === 'CONNECTED').length} tài khoản đã cấp
+              quyền
+            </span>
+          </div>
           {staff.permissions.includes('connectors.manage') && (
-            <div className="integration-form">
-              <h3>Kết nối Facebook Page</h3>
-              <p>
-                Bấm kết nối, đăng nhập Facebook và cấp quyền một lần. Sau đó chọn các Fanpage bạn
-                muốn nhận tin nhắn và bình luận. Bạn không cần tạo ứng dụng Meta hay nhập mã kỹ
-                thuật.
-              </p>
-              {!providerPreflight.find((item) => item.provider === 'FACEBOOK')
-                ?.canStartAuthorization && (
-                <p role="status">
-                  Kết nối Facebook chưa sẵn sàng trên hệ thống này. Người quản trị kỹ thuật cần hoàn
-                  tất thiết lập dịch vụ; bạn không cần thao tác trên Meta for Developers.
-                </p>
-              )}
-              <button
-                className="primary"
-                disabled={
-                  busy ||
-                  !providerPreflight.find((item) => item.provider === 'FACEBOOK')
-                    ?.canStartAuthorization
-                }
-                onClick={() => void startFacebook()}
-              >
-                Kết nối Facebook
-              </button>
-              <h3>Kết nối Zalo OA</h3>
-              <p>
-                OA cần được duyệt và cấp quyền cho Zalo App. Chỉ cấp quyền OA, không dùng Zalo cá
-                nhân.
-              </p>
-              {!providerPreflight.find((item) => item.provider === 'ZALO')
-                ?.canStartAuthorization && (
-                <p role="status">Kết nối Zalo OA chưa sẵn sàng trên hệ thống này.</p>
-              )}
-              <button
-                className="primary"
-                disabled={
-                  busy ||
-                  !providerPreflight.find((item) => item.provider === 'ZALO')?.canStartAuthorization
-                }
-                onClick={() => void startZalo()}
-              >
-                Kết nối Zalo OA
-              </button>
+            <ChannelCatalog
+              preflight={providerPreflight}
+              connections={connections}
+              busy={busy || loading}
+              onConnect={(provider) =>
+                provider === 'FACEBOOK' ? void startFacebook() : void startZalo()
+              }
+            />
+          )}
+          {staff.permissions.includes('connectors.manage') && (
+            <div className="channel-account-selection">
               {channelAttempt?.status === 'READY' && (
                 <div>
                   {attemptProvider === 'zalo' ? (
@@ -836,25 +822,13 @@ export function IntegrationsWorkspace({ staff, onLogout, loggingOut, onCreateQuo
               )}
             </div>
           )}
-          {staff.permissions.includes('connectors.manage') && (
-            <details className="integration-status-note">
-              <summary>Thông tin kỹ thuật dành cho người triển khai</summary>
-              <p>
-                Cấu hình ứng dụng nền tảng là việc thiết lập một lần ở phía CRM, không phải bước của
-                người kết nối Fanpage/OA.
-              </p>
-              {providerPreflight.map((item) => (
-                <p key={item.provider}>
-                  {providerNames[item.provider] ?? item.provider}: {item.explanation}
-                  {item.missingConfiguration.length > 0 && (
-                    <> Thiếu tên cấu hình: {item.missingConfiguration.join(', ')}.</>
-                  )}
-                </p>
-              ))}
-              <small>Không hiển thị giá trị secret.</small>
-            </details>
+          <div className="channel-section-heading">
+            <h3>Tài khoản của bạn</h3>
+          </div>
+          {!loading && connections.length === 0 && (
+            <p className="channel-empty">Chưa có tài khoản. Chọn một kênh ở trên để bắt đầu.</p>
           )}
-          <div className="integration-cards">
+          <div className="integration-cards channel-connected-accounts">
             {connections.map((connection) => (
               <article key={connection.id}>
                 <div className="integration-card-title">
@@ -867,8 +841,10 @@ export function IntegrationsWorkspace({ staff, onLogout, loggingOut, onCreateQuo
                         : connection.status === 'PAUSED'
                           ? 'Đã tạm dừng'
                           : connection.status === 'CONNECTED'
-                            ? 'Đã xác thực tài khoản'
-                            : connection.status}
+                            ? 'Đã cấp quyền'
+                            : connection.status === 'REAUTH_REQUIRED'
+                              ? 'Cần kết nối lại'
+                              : 'Cần kiểm tra'}
                   </span>
                 </div>
                 <p>
@@ -876,91 +852,105 @@ export function IntegrationsWorkspace({ staff, onLogout, loggingOut, onCreateQuo
                 </p>
                 <small>
                   {connection.lastErrorCode
-                    ? `Lỗi gần nhất: ${connection.lastErrorCode}`
+                    ? 'Đồng bộ gián đoạn. Mở kiểm tra kết nối để xem chi tiết.'
                     : connection.lastSyncAt
                       ? `Hoạt động nhập/đồng bộ gần nhất: ${socialDateTime(connection.lastSyncAt)}`
                       : 'Chưa có hoạt động nhập/đồng bộ thành công'}
                 </small>
-                {connection.provider === 'FACEBOOK' && (
-                  <p className="muted">
-                    Cấp quyền: {connection.capabilities?.authorization ?? 'chưa xác minh'} · Đăng ký
-                    Page: {connection.capabilities?.pageSubscription ?? 'chưa xác minh'} · Webhook
-                    thực tế đã xử lý: {connection.webhookEventObserved ? 'có' : 'chưa có'}
-                  </p>
-                )}
-                {connection.provider === 'ZALO' && (
-                  <p className="muted">
-                    Cấp quyền: {connection.capabilities?.authorization ?? 'chưa xác minh'} · Webhook
-                    : {connection.capabilities?.webhookSubscription ?? 'chưa đăng ký'} · Sự kiện
-                    webhook đã xử lý: {connection.webhookEventObserved ? 'có' : 'chưa có'}
-                  </p>
-                )}
-                {facebookConnectionHint(connection) && (
-                  <p className="integration-status-note" role="status">
-                    {facebookConnectionHint(connection)}
-                  </p>
-                )}
-                {connection.provider === 'FACEBOOK' &&
-                  staff.permissions.includes('connectors.manage') && (
-                    <>
-                      <button
-                        className="secondary"
-                        disabled={busy}
-                        onClick={() => {
-                          void api<FacebookGrants>(
-                            `/integrations/connections/${connection.id}/facebook-grants`,
-                          )
-                            .then((result) =>
-                              setFacebookGrants((previous) => ({
-                                ...previous,
-                                [connection.id]: result,
-                              })),
-                            )
-                            .catch((e: unknown) =>
-                              setError(
-                                e instanceof Error ? e.message : 'Không kiểm tra được quyền Meta.',
-                              ),
-                            );
-                        }}
-                      >
-                        Kiểm tra quyền gửi Meta
-                      </button>
-                      {facebookGrants[connection.id] && (
-                        <p className="integration-status-note" role="status">
-                          Graph: {facebookGrants[connection.id].status}
-                          {facebookGrants[connection.id].permissions &&
-                            facebookGrants[connection.id].tasks && (
-                              <>
-                                {' '}
-                                · Messenger:{' '}
-                                {facebookGrants[connection.id].permissions?.pages_messaging &&
-                                facebookGrants[connection.id].tasks?.messaging
-                                  ? 'quyền và tác vụ có'
-                                  : 'thiếu quyền hoặc tác vụ'}
-                                · Bình luận:{' '}
-                                {facebookGrants[connection.id].permissions
-                                  ?.pages_read_user_content &&
-                                facebookGrants[connection.id].permissions
-                                  ?.pages_manage_engagement &&
-                                facebookGrants[connection.id].tasks?.moderation
-                                  ? 'quyền và tác vụ có'
-                                  : 'thiếu quyền hoặc tác vụ'}{' '}
-                                · pages_read_user_content:{' '}
-                                {facebookGrants[connection.id].permissions?.pages_read_user_content
-                                  ? 'có'
-                                  : 'thiếu'}{' '}
-                                · pages_manage_engagement:{' '}
-                                {facebookGrants[connection.id].permissions?.pages_manage_engagement
-                                  ? 'có'
-                                  : 'thiếu'}{' '}
-                                · MODERATE:{' '}
-                                {facebookGrants[connection.id].tasks?.moderation ? 'có' : 'thiếu'}
-                              </>
-                            )}
-                        </p>
+                {staff.permissions.includes('connectors.manage') && (
+                  <details className="channel-account-diagnostics">
+                    <summary>Kiểm tra kết nối</summary>
+                    {connection.lastErrorCode && <p>Mã lỗi: {connection.lastErrorCode}</p>}
+                    {connection.provider === 'FACEBOOK' && (
+                      <p className="muted">
+                        Cấp quyền: {connection.capabilities?.authorization ?? 'chưa xác minh'} ·
+                        Đăng ký Page: {connection.capabilities?.pageSubscription ?? 'chưa xác minh'}{' '}
+                        · Webhook thực tế đã xử lý:{' '}
+                        {connection.webhookEventObserved ? 'có' : 'chưa có'}
+                      </p>
+                    )}
+                    {connection.provider === 'ZALO' && (
+                      <p className="muted">
+                        Cấp quyền: {connection.capabilities?.authorization ?? 'chưa xác minh'} ·
+                        Webhook : {connection.capabilities?.webhookSubscription ?? 'chưa đăng ký'} ·
+                        Sự kiện webhook đã xử lý:{' '}
+                        {connection.webhookEventObserved ? 'có' : 'chưa có'}
+                      </p>
+                    )}
+                    {facebookConnectionHint(connection) && (
+                      <p className="integration-status-note" role="status">
+                        {facebookConnectionHint(connection)}
+                      </p>
+                    )}
+                    {connection.provider === 'FACEBOOK' &&
+                      staff.permissions.includes('connectors.manage') && (
+                        <>
+                          <button
+                            className="secondary"
+                            disabled={busy}
+                            onClick={() => {
+                              void api<FacebookGrants>(
+                                `/integrations/connections/${connection.id}/facebook-grants`,
+                              )
+                                .then((result) =>
+                                  setFacebookGrants((previous) => ({
+                                    ...previous,
+                                    [connection.id]: result,
+                                  })),
+                                )
+                                .catch((e: unknown) =>
+                                  setError(
+                                    e instanceof Error
+                                      ? e.message
+                                      : 'Không kiểm tra được quyền Meta.',
+                                  ),
+                                );
+                            }}
+                          >
+                            Kiểm tra quyền gửi Meta
+                          </button>
+                          {facebookGrants[connection.id] && (
+                            <p className="integration-status-note" role="status">
+                              Graph: {facebookGrants[connection.id].status}
+                              {facebookGrants[connection.id].permissions &&
+                                facebookGrants[connection.id].tasks && (
+                                  <>
+                                    {' '}
+                                    · Messenger:{' '}
+                                    {facebookGrants[connection.id].permissions?.pages_messaging &&
+                                    facebookGrants[connection.id].tasks?.messaging
+                                      ? 'quyền và tác vụ có'
+                                      : 'thiếu quyền hoặc tác vụ'}
+                                    · Bình luận:{' '}
+                                    {facebookGrants[connection.id].permissions
+                                      ?.pages_read_user_content &&
+                                    facebookGrants[connection.id].permissions
+                                      ?.pages_manage_engagement &&
+                                    facebookGrants[connection.id].tasks?.moderation
+                                      ? 'quyền và tác vụ có'
+                                      : 'thiếu quyền hoặc tác vụ'}{' '}
+                                    · pages_read_user_content:{' '}
+                                    {facebookGrants[connection.id].permissions
+                                      ?.pages_read_user_content
+                                      ? 'có'
+                                      : 'thiếu'}{' '}
+                                    · pages_manage_engagement:{' '}
+                                    {facebookGrants[connection.id].permissions
+                                      ?.pages_manage_engagement
+                                      ? 'có'
+                                      : 'thiếu'}{' '}
+                                    · MODERATE:{' '}
+                                    {facebookGrants[connection.id].tasks?.moderation
+                                      ? 'có'
+                                      : 'thiếu'}
+                                  </>
+                                )}
+                            </p>
+                          )}
+                        </>
                       )}
-                    </>
-                  )}
+                  </details>
+                )}
                 {staff.permissions.includes('connectors.manage') && (
                   <details>
                     <summary
@@ -1099,7 +1089,25 @@ export function IntegrationsWorkspace({ staff, onLogout, loggingOut, onCreateQuo
             ))}
           </div>
           {staff.permissions.includes('connectors.manage') && (
-            <details className="integration-status-note">
+            <details className="channel-diagnostics">
+              <summary>Thiết lập dịch vụ & chẩn đoán</summary>
+              <p>
+                Cấu hình ứng dụng nền tảng là việc thiết lập một lần ở phía CRM, không phải bước của
+                người kết nối Fanpage/OA.
+              </p>
+              {providerPreflight.map((item) => (
+                <p key={item.provider}>
+                  {providerNames[item.provider] ?? item.provider}: {item.explanation}
+                  {item.missingConfiguration.length > 0 && (
+                    <> Thiếu tên cấu hình: {item.missingConfiguration.join(', ')}.</>
+                  )}
+                </p>
+              ))}
+              <small>Không hiển thị giá trị secret.</small>
+            </details>
+          )}
+          {staff.permissions.includes('connectors.manage') && (
+            <details className="channel-diagnostics">
               <summary>Khai báo tài khoản để chuẩn bị tích hợp (không cấp quyền)</summary>
               <form className="integration-form" onSubmit={createConnection}>
                 <h3>Ghi nhận tài khoản cần cấu hình</h3>
@@ -1129,8 +1137,8 @@ export function IntegrationsWorkspace({ staff, onLogout, loggingOut, onCreateQuo
               </form>
             </details>
           )}
-          <div className="integration-capabilities">
-            <h3>Ranh giới connector</h3>
+          <details className="channel-diagnostics integration-capabilities">
+            <summary>Phạm vi dữ liệu từng kênh</summary>
             <p>
               <b>Facebook:</b> sự kiện chỉ hiện sau khi Meta gửi webhook và CRM xử lý. Kiểm tra tin
               mới, phản hồi Messenger và quyền bình luận riêng cho từng Page.
@@ -1143,7 +1151,7 @@ export function IntegrationsWorkspace({ staff, onLogout, loggingOut, onCreateQuo
               <b>Shopee, TikTok Shop:</b> chưa thể gọi API nếu thiếu app/partner credentials, shop
               authorization và scope đọc đơn.
             </p>
-          </div>
+          </details>
         </section>
       )}
 

@@ -193,6 +193,7 @@ describe('Facebook OAuth local contract (mock provider, scratch database only)',
       .query({ state, code: 'fixture-code' })
       .expect(303);
     expect(callback.headers.location).toContain('channelResult=ready');
+    expect(new URL(callback.headers.location as string).hash).toBe('#integrations');
     expect(JSON.stringify(callback.body)).not.toContain('fixture-user-token');
     const attemptId = start.body.data.attemptId as string;
     const choice = await agent

@@ -42,6 +42,7 @@ export class FacebookAuthService {
       throw new BadRequestException('WEB_ORIGIN chưa hợp lệ cho callback.');
     origin.searchParams.set('channelAttempt', id);
     origin.searchParams.set('channelResult', result);
+    origin.hash = 'integrations';
     return origin.toString();
   }
 

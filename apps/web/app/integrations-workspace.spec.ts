@@ -20,12 +20,14 @@ describe('Facebook connection entry point', () => {
       }),
     );
 
-    expect(markup).toContain('Kết nối Facebook');
-    expect(markup).toContain('Bạn không cần tạo ứng dụng Meta');
-    expect(markup).toContain('Kết nối Facebook chưa sẵn sàng');
+    expect(markup).toContain('Thiết lập Facebook');
+    expect(markup).toContain('Zalo OA');
+    expect(markup).toContain('Shopee');
+    expect(markup).toContain('TikTok Shop');
+    expect(markup).not.toContain('Trạng thái thật:');
     expect(markup).toContain('<details');
     expect(markup).toContain('Làm mới dữ liệu');
-    expect(markup).toContain('Thông tin kỹ thuật dành cho người triển khai');
+    expect(markup).toContain('Thiết lập dịch vụ &amp; chẩn đoán');
     expect(markup).toContain('Khai báo tài khoản để chuẩn bị tích hợp (không cấp quyền)');
     expect(markup).not.toContain('name="appId"');
     expect(markup).not.toContain('name="appSecret"');

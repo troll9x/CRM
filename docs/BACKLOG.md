@@ -1,5 +1,9 @@
 # Backlog theo phụ thuộc
 
+## MULTICHANNEL-UX-02 — 12/11/2026
+
+Đã sửa lỗi CSS tab/sidebar, thu gọn thẻ kết nối và chẩn đoán, sửa callback quay về đúng module. Còn mở: đăng ký/duyệt ứng dụng Zalo/Shopee/TikTok; cấu hình backend an toàn; adapter OAuth/refresh và nhập đơn Shopee/TikTok theo tài liệu hiện hành cho app/thị trường; cấp quyền tài khoản và nghiệm thu live từng kênh. Chưa xác minh trực quan desktop/mobile do công cụ trình duyệt bị chặn.
+
 ## COMMERCIAL-UX-01 — 12/11/2026
 
 Đã triển khai UI `022deec` lên VPS: shell/design token, điều hướng theo quyền, tìm nhanh, mobile drawer, đăng nhập, recovery lỗi/hết phiên và tải tiếp hồ sơ khách. Giữ nguyên API/schema/nghiệp vụ. Build/lint/typecheck, API 62 và web 17 unit test đạt; public HTML/CSS/JS mới và health 200. Còn nghiệm thu trực quan do công cụ trình duyệt bị chặn. Xem [COMMERCIAL-UX-01](tasks/COMMERCIAL-UX-01.md).

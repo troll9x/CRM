@@ -1,5 +1,13 @@
 # Kế hoạch nghiệm thu
 
+## MULTICHANNEL-UX-02 — 12/11/2026
+
+- Không còn banner “Trạng thái thật”; tab đa kênh không kế thừa màu/bố cục sidebar.
+- Bốn thẻ Facebook/Zalo/Shopee/TikTok hiển thị khả năng dịch vụ thật; khai báo thủ công không được đếm là tài khoản đã cấp quyền.
+- Facebook/Zalo chỉ mở OAuth khi backend sẵn sàng; thiếu dịch vụ mở hướng dẫn thiết lập, không báo thành công. Shopee/TikTok chưa có OAuth adapter.
+- OAuth quay về `#integrations`; giữ kiểm soát state/replay/actor/business hiện có.
+- Bằng chứng kiểm thử và giới hạn trực quan/live: [MULTICHANNEL-UX-02](tasks/MULTICHANNEL-UX-02.md).
+
 ## COMMERCIAL-UX-01 — 12/11/2026
 
 - [x] Code khung UI, điều hướng theo quyền, hash URL, tìm màn hình/keyboard, menu mobile, trạng thái hết phiên và tải tiếp khách hàng.
@@ -341,6 +349,7 @@ Mỗi test ghi: Given dữ liệu/role/version; When request hoặc thao tác; T
 
 - Tạo Customer/SKU/giá admin/tồn trên DB `crm_social_quote_scratch_20261015`; source Conversation/Message/Ticket thuộc business và Customer liên kết được lưu bằng FK trong Quote. Lặp key trả cùng quote; tin sai hội thoại trả 422; vai trò thiếu quyền tạo báo giá trả 403; PATCH đổi nguồn trả 400. Phát hành revision rồi chuyển đơn nháp; GET order trả `sourceQuote` chứa đủ ba ID nguồn.
 - Bộ quote E2E 3/3 và webhook E2E 1/1 chạy trên DB scratch; migration 32/32. API/web typecheck, API lint, gateway smoke (allowlist/GET/POST chữ ký/health) đạt. Chưa có nghiệm thu UI trình duyệt cho đường dẫn này hoặc gửi Messenger live.
+
 ## AI-CUSTOMER-INSIGHTS-01 — lát cắt 01
 
 Chỉ xử lý trên VPS. Cần xác nhận 401/403/404, đơn nháp không vào dữ kiện, số tiền cộng từ shipment, thiếu đơn trả `INSUFFICIENT_DATA`, model lỗi trả 503, ID chứng cứ giả bị từ chối, feedback có audit, model không gửi tin hay đổi đơn. Chưa nghiệm thu độ chính xác với dữ liệu khách thật; production hiện không có khách/đơn để kiểm tra luồng có kết quả.

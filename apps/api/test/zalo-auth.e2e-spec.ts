@@ -136,10 +136,11 @@ describe('Zalo OA OAuth local contract (mock provider, scratch database only)', 
     const agent = await owner();
     const start = await agent.post('/api/v1/integrations/oauth/zalo/start').send({}).expect(201);
     const state = new URL(start.body.data.authorizationUrl as string).searchParams.get('state')!;
-    await request(app.getHttpServer())
+    const callback = await request(app.getHttpServer())
       .get('/api/v1/integrations/oauth/zalo/callback')
       .query({ state, code: 'fixture-code', oa_id: oaId })
       .expect(303);
+    expect(new URL(callback.headers.location as string).hash).toBe('#integrations');
     const attemptId = start.body.data.attemptId as string;
     const choice = await agent
       .get(`/api/v1/integrations/oauth/zalo/attempts/${attemptId}`)
