@@ -33,3 +33,10 @@ Không gửi secret, code cấp quyền, access/refresh token qua chat hoặc co
 ## Nghiệm thu còn mở
 
 Desktop/mobile và thao tác OAuth trực quan; app approval, credentials và consent thật cho ba kênh; Shopee/TikTok authorization/order adapters; webhook và gửi/nhận thật theo quyền từng tài khoản.
+
+
+## Triển khai VPS — 12/11/2026
+
+- Source release `7fe0bc4` đã push và fast-forward trên `/srv/son-crm`; production Docker build thành công bằng Node 24.18.0. API/web đang chạy image `sha256:db106430f9e3ecf69d1df266bf74468a5bdd37b51c2ce945f4277e5147cb04d9`, tag `son-crm-app:release-7fe0bc4`; API health đạt. Không migrate/seed DB production.
+- Public `/`, `/api/v1/health/ready`, `/privacy`, `/data-deletion` trả 200. Đã tải 10 JS/CSS assets từ HTML public, đều 200; xác nhận có component/style kênh mới, sidebar selector đã thu hẹp, không có chuỗi banner cũ trong JS. `/` dùng cache `private, no-cache, no-store`; preflight chưa đăng nhập trả 401. Đây là bằng chứng HTTP/assets, không phải thao tác giao diện hoặc tích hợp live.
+- Rollback API giữ tại `son-crm-app:rollback-api-before-channel-ux`, web tại `son-crm-app:rollback-web-before-channel-ux` (hai image trước đó khác nhau). Trong `/srv/son-crm`: tag image rollback API thành `son-crm-app:production`, chạy compose `up -d --no-build --no-deps api`; sau khi API healthy, tag image rollback web thành `son-crm-app:production`, chạy compose `up -d --no-build --no-deps web`. Dùng cùng `--profile ai --env-file .env.production -f compose.production.yaml`; kiểm lại health và public assets sau quay lui.
