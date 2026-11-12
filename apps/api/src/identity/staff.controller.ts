@@ -5,6 +5,8 @@ import { CurrentStaff } from './current-staff.decorator';
 import { AssignRolesDto } from './dto/assign-roles.dto';
 import { CreateStaffDto } from './dto/create-staff.dto';
 import { LockStaffDto } from './dto/lock-staff.dto';
+import { UpdateStaffDto } from './dto/update-staff.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { PERMISSIONS } from './permissions';
 import { RequirePermissions } from './require-permissions.decorator';
 import { StaffService } from './staff.service';
@@ -18,7 +20,7 @@ export class StaffController {
   @Get()
   @ApiOperation({ summary: 'Danh sách nhân viên của đơn vị hiện tại' })
   list(@CurrentStaff() actor: RequestStaff) {
-    return this.staff.list(actor.businessId);
+    return this.staff.list(actor);
   }
 
   @Post()
@@ -43,7 +45,7 @@ export class StaffController {
   }
 
   @Put(':id/roles')
-  @RequirePermissions(PERMISSIONS.ROLES_MANAGE)
+  @RequirePermissions(PERMISSIONS.STAFF_MANAGE, PERMISSIONS.ROLES_MANAGE)
   @ApiOperation({ summary: 'Thay toàn bộ vai trò và thu hồi phiên cũ' })
   assignRoles(
     @Param('id') id: string,
@@ -52,5 +54,25 @@ export class StaffController {
     @Req() request: RequestWithContext,
   ) {
     return this.staff.assignRoles(id, dto, actor, request.requestId);
+  }
+
+  @Patch(':id')
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateStaffDto,
+    @CurrentStaff() actor: RequestStaff,
+    @Req() request: RequestWithContext,
+  ) {
+    return this.staff.update(id, dto, actor, request.requestId);
+  }
+
+  @Post(':id/reset-password')
+  resetPassword(
+    @Param('id') id: string,
+    @Body() dto: ResetPasswordDto,
+    @CurrentStaff() actor: RequestStaff,
+    @Req() request: RequestWithContext,
+  ) {
+    return this.staff.resetPassword(id, dto.password, actor, request.requestId);
   }
 }

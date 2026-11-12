@@ -1,5 +1,9 @@
 # Backlog theo phụ thuộc
 
+## STAFF-MANAGEMENT-01 — 12/11/2026
+
+Đã viết module tài khoản/phân quyền trên RBAC hiện có, không cần migration. E2E DB scratch đạt tạo/sửa/role/reset/khóa và bảo vệ quyền, business, phiên, owner đồng thời. Chờ kiểm tra UI trực quan và triển khai production; xem [task và demo](tasks/STAFF-MANAGEMENT-01.md).
+
 ## AI-CUSTOMER-INSIGHTS-01 — yêu cầu được nhắc lại 31/10/2026
 
 **ĐANG TRIỂN KHAI.** API/UI phân tích đơn đã giao bằng model tại VPS đã được thêm; chưa nghiệm thu model với dữ liệu đại diện, chưa có dự báo mua lại hoặc AI hội thoại. [Phạm vi, dữ liệu, quyền và tiêu chí nghiệm thu](tasks/AI-CUSTOMER-INSIGHTS-01.md). Không gửi dữ liệu khách tới model bên ngoài hoặc hiển thị dự báo giả.

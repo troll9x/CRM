@@ -90,8 +90,20 @@ export class AuthService {
     const rawToken = randomBytes(32).toString('base64url');
     const sessionHash = this.hashToken(rawToken);
     const expiresAt = new Date(Date.now() + this.ttlMilliseconds);
-    await this.prisma.$transaction([
-      this.prisma.session.create({
+    const currentStaff = await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM businesses WHERE id = ${staff.businessId} FOR UPDATE`;
+      const current = await tx.staffUser.findUnique({
+        where: { id: staff.id },
+        include: staffAccessInclude,
+      });
+      // A reset/lock may have completed while password verification was running.
+      if (!current || current.status !== 'ACTIVE' || current.passwordHash !== staff.passwordHash)
+        throw new ProblemException(
+          HttpStatus.UNAUTHORIZED,
+          'INVALID_CREDENTIALS',
+          'Tài khoản đã thay đổi. Vui lòng đăng nhập lại.',
+        );
+      await tx.session.create({
         data: {
           id: sessionHash,
           staffUserId: staff.id,
@@ -99,8 +111,8 @@ export class AuthService {
           ipAddress: metadata.ipAddress,
           userAgent: metadata.userAgent?.slice(0, 500),
         },
-      }),
-      this.prisma.auditLog.create({
+      });
+      await tx.auditLog.create({
         data: {
           businessId: staff.businessId,
           actorId: staff.id,
@@ -109,9 +121,10 @@ export class AuthService {
           entityId: sessionHash,
           requestId: metadata.requestId,
         },
-      }),
-    ]);
-    return { rawToken, staff: this.toRequestStaff(staff), expiresAt };
+      });
+      return current;
+    });
+    return { rawToken, staff: this.toRequestStaff(currentStaff), expiresAt };
   }
 
   async authenticate(

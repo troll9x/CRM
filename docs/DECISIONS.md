@@ -1,5 +1,9 @@
 # Nhật ký quyết định
 
+## STAFF-MANAGEMENT-01 — 12/11/2026
+
+Theo yêu cầu xây module tài khoản/phân quyền, hoàn thiện UI trên RBAC hiện có, chọn nhiều vai trò và phân quyền theo tài khoản kênh. Không đổi bộ quyền của các vai trò hệ thống trong lát cắt này. Mọi cấp quyền bị giới hạn bởi quyền actor, owner chỉ owner được quản trị, không tự hạ quyền/khóa/reset và bảo vệ owner ACTIVE cuối cùng. Reset do quản trị đặt mật khẩu mới, thu hồi phiên; không giả lập email mời hoặc gửi mật khẩu tự động.
+
 ## Xác nhận phạm vi nghiệm thu 31/10/2026
 
 Chủ dự án xác nhận giữ quyết định 07/10: giao đủ một lần (`BR-SHIP-01`), thu đủ trước xác nhận (`OPEN-04`/`BR-ORDER-02`), không bán chịu và không COD ở bản hiện tại. Các mô tả giao nhiều đợt, mua nợ và COD trong kế hoạch gốc không còn là tiêu chí nghiệm thu cho bản này. Không tự mở lại các luồng đó khi sửa các khoảng thiếu khác; xem [đối chiếu nghiệm thu](ACCEPTANCE_GAP_AUDIT_2026-10-31.md).

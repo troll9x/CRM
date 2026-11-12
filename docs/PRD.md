@@ -1,5 +1,9 @@
 # PRD — CRM bán sỉ và bán lẻ
 
+## Quản trị tài khoản nhân viên — 12/11/2026
+
+Màn hình **Tài khoản & phân quyền** dành cho người có `staff.manage`: tạo/sửa nhân viên, gán nhiều vai trò hiện có, xem quyền hiệu lực, reset mật khẩu, khóa/mở tài khoản và cấp quyền theo Page/OA/shop. Gán quyền không vượt quyền của người thao tác; bảo vệ owner cuối cùng, thu hồi phiên cũ sau đổi vai trò/reset/khóa. Chi tiết tại [STAFF-MANAGEMENT-01](tasks/STAFF-MANAGEMENT-01.md).
+
 ## Phạm vi bổ sung 09 — đa kênh (2026-10-08)
 
 Lát cắt hộp thư social 2026-10-14: giao diện desktop ba vùng, điều hướng vùng trên màn hẹp và ticket nội bộ lưu DB từ chat/comment. Bộ lọc trên tối đa 100 bản ghi gần nhất mỗi loại hiện là bộ lọc dữ liệu đã tải; chưa có phân trang/count toàn bộ từ server. Gửi trả lời từ CRM chưa có API/provider permission được kiểm chứng nên không mở ô soạn.

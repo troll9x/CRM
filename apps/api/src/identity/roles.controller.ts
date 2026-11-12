@@ -24,7 +24,9 @@ export class RolesController {
         name: true,
         description: true,
         isSystem: true,
-        permissions: { select: { permissionKey: true } },
+        permissions: {
+          select: { permissionKey: true, permission: { select: { description: true } } },
+        },
       },
     });
   }

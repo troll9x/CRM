@@ -10,6 +10,143 @@
   --danger: #a9483c;
 }
 
+.staff-workspace {
+  padding: 32px;
+  min-width: 0;
+}
+.staff-workspace > header {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+.staff-workspace h1 {
+  margin: 8px 0;
+}
+.staff-workspace .action-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.staff-layout {
+  display: grid;
+  grid-template-columns: minmax(240px, 340px) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+.staff-panel {
+  background: white;
+  padding: 24px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  min-width: 0;
+}
+.staff-panel h2 {
+  margin-top: 0;
+}
+.staff-panel label {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.staff-panel input:not([type='checkbox']),
+.staff-panel select {
+  width: 100%;
+  min-width: 0;
+}
+.staff-panel fieldset {
+  margin: 0 0 16px;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+.staff-panel fieldset:has(legend) {
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.staff-panel hr {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: 24px 0;
+}
+.staff-panel small {
+  display: block;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.staff-panel details {
+  padding: 10px 0;
+}
+.staff-panel summary {
+  cursor: pointer;
+}
+.staff-panel li {
+  margin: 8px 0;
+  overflow-wrap: anywhere;
+}
+.staff-panel .staff-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.staff-check input {
+  margin-top: 4px;
+}
+.staff-role-options > div {
+  border: 1px solid var(--line);
+  padding: 12px;
+  border-radius: 10px;
+  margin: 10px 0;
+}
+.staff-role-options .staff-check {
+  margin-bottom: 0;
+}
+.staff-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 18px;
+}
+.staff-list button {
+  display: grid;
+  text-align: left;
+  gap: 5px;
+  width: 100%;
+  padding: 14px;
+  overflow-wrap: anywhere;
+}
+.staff-list button.selected {
+  background: var(--mint);
+  border-color: var(--green);
+}
+.staff-list span {
+  font-size: 14px;
+}
+.staff-notice {
+  background: var(--mint);
+  padding: 14px;
+  border-radius: 10px;
+}
+.staff-confirm {
+  background: var(--cream);
+  padding: 16px;
+  border-radius: 10px;
+  margin-top: 20px;
+}
+.staff-confirm button {
+  margin-right: 8px;
+}
+@media (max-width: 1000px) {
+  .staff-layout {
+    grid-template-columns: 1fr;
+  }
+  .staff-workspace {
+    padding: 20px;
+  }
+}
+
 * {
   box-sizing: border-box;
 }

@@ -1,5 +1,9 @@
 # Hợp đồng API v1
 
+## Quản trị nhân viên — 12/11/2026
+
+`GET /staff` thêm `permissions` và `canManage`; `GET /roles` thêm `permissions[].permission.description`. `PATCH /staff/:id` nhận `{displayName,email}` và `POST /staff/:id/reset-password` nhận `{password}` tối thiểu 12 ký tự, cần `staff.manage`. `PUT /staff/:id/roles` cần cả `staff.manage` và `roles.manage`; `POST /staff` có role cũng cần cả hai quyền. Backend giới hạn business, không cấp vượt quyền actor, chỉ owner quản lý owner. Đổi vai trò/reset/khóa thu hồi phiên và audit atomically; tự khóa/tự đổi role/reset trả 422, trùng email 409, ID ngoài business 404, vượt quyền 403. [Hợp đồng và demo đầy đủ](tasks/STAFF-MANAGEMENT-01.md).
+
 ## API đa kênh (local implementation; provider rollout vẫn chờ credentials/evidence)
 
 - `GET/POST /integrations/connections`: xem/khai báo external account; tạo mới luôn `NEEDS_SETUP`, không giả nhận OAuth.

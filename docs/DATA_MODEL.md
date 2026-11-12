@@ -1,5 +1,7 @@
 # Mô hình dữ liệu đích ở mức khung
 
+Quản trị tài khoản 12/11/2026 dùng `StaffUser`, `Role`, `RolePermission`, `StaffUserRole`, `Session`, `AuditLog` và `IntegrationStaffAccess` hiện có, không cần migration. Mọi mutation nhân viên và tạo session lấy row lock trên `Business` để tuần tự hóa thay đổi quyền/khóa tài khoản. Mật khẩu vẫn băm theo cơ chế hiện có; quyền hiệu lực tính từ các vai trò cùng business.
+
 ## Bổ sung Facebook backfill 2026-10-13
 
 Ngày 2026-11-04: không thêm bảng/cột cho ảnh và deep link. `ConversationMessage.mediaMetadata` vẫn giữ metadata provider phục vụ làm mới URL ảnh theo `externalMessageId`; API danh sách chỉ xuất loại/số lượng. `SocialComment.sourceUrl` nhận permalink hợp lệ từ Graph theo `externalCommentId` nếu webhook/backfill thiếu. Không lưu bytes ảnh bền vững; URL CDN trong metadata có thể hết hạn.

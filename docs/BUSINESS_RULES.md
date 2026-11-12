@@ -1,5 +1,11 @@
 # Quy tắc nghiệp vụ
 
+## Quản trị nhân viên — 12/11/2026
+
+- **BR-STAFF-01:** `staff.manage` quản trị tài khoản; gán vai trò cần thêm `roles.manage`. Không cấp quyền vượt quyền của actor; vai trò owner chỉ owner được cấp/quản lý. Mọi lookup nhân viên/role phải cùng business.
+- **BR-STAFF-02:** Không tự khóa, tự đổi vai trò hoặc reset chính mình trong module quản trị; giữ ít nhất một owner ACTIVE. Khóa hàng business và reload quyền actor trong transaction để bảo vệ khi thao tác đồng thời.
+- **BR-STAFF-03:** Đổi vai trò/reset/khóa thu hồi phiên cũ và ghi audit cùng transaction. Mở khóa không khôi phục phiên. Tạo session đăng nhập kiểm lại status/password hash sau lấy cùng khóa business. Không trả password hash hoặc mật khẩu qua API/audit.
+
 ## Đồng bộ đa kênh — quy tắc được giao 2026-10-08
 
 ### Ticket nguồn social — triển khai local 2026-10-14

@@ -15,6 +15,7 @@ import { ReturnsWorkspace } from './returns-workspace';
 import { ReceivablesWorkspace } from './receivables-workspace';
 import { ShipmentsWorkspace } from './shipments-workspace';
 import { IntegrationsWorkspace } from './integrations-workspace';
+import { StaffWorkspace } from './staff-workspace';
 
 export default function Home() {
   const [staff, setStaff] = useState<Staff | null>(null);
@@ -39,6 +40,7 @@ export default function Home() {
     | 'receivables'
     | 'shipments'
     | 'integrations'
+    | 'staff'
   >('overview');
 
   useEffect(() => {
@@ -246,13 +248,20 @@ export default function Home() {
               Đồng bộ đa kênh
             </button>
           )}
+          {staff.permissions.includes('staff.manage') && (
+            <button className={view === 'staff' ? 'active' : ''} onClick={() => setView('staff')}>
+              Tài khoản & phân quyền
+            </button>
+          )}
         </nav>
         <div className="staff-mini">
           <b>{staff.displayName}</b>
           <span>{staff.email}</span>
         </div>
       </aside>
-      {view === 'customers' ? (
+      {view === 'staff' && staff.permissions.includes('staff.manage') ? (
+        <StaffWorkspace staff={staff} onLogout={logout} loggingOut={submitting} />
+      ) : view === 'customers' ? (
         <CustomerWorkspace staff={staff} onLogout={logout} loggingOut={submitting} />
       ) : view === 'products' ? (
         <ProductWorkspace staff={staff} onLogout={logout} loggingOut={submitting} />
