@@ -29,3 +29,11 @@ Không chạy migration hoặc seed production, không in nội dung tin/UID/tok
 ## Cách dùng
 
 Kết nối Facebook ở mục Kết nối → chủ Page đăng nhập/cấp quyền → chọn Page → cấp quyền nhân viên trên Page. Sau đó nhân viên mở Hộp thư và trả lời dưới tên Fanpage. Chỉ bấm Cấp lại quyền Facebook khi CRM báo token/quyền cần bổ sung. Nếu quá cửa sổ phản hồi, cần khách nhắn lại; không yêu cầu đăng nhập Facebook để xử lý lỗi này.
+
+
+## Kết quả cuối và triển khai — 12/11/2026
+
+- Nhập bù Page thứ nhất dừng ở giới hạn mở rộng 110 trang, còn 21 task trong checkpoint và root chưa quét hết: 444 record fetched, 74 conversation discovered, 56 message inserted, 27 duplicate, 314 skipped, 0 failed. Page thứ hai SUCCEEDED sau 6 trang và không thêm tin. DB cuối kiểm tra: 54 OUTBOUND_ECHO, 29 INBOUND. Không coi đây là toàn bộ lịch sử 30 ngày; có thể tiếp tục bằng mở rộng quota ở nhật ký đồng bộ, giữ checkpoint/chống trùng.
+- Release `003d161` đã push/build/deploy API và web với image `sha256:1a188ca3905518e7357cf48b14ef495e9f085017d97399f666bda2bb78cc3962`, tag `son-crm-app:release-003d161`. Hai container running, API healthy. Image trước giữ ở `son-crm-app:rollback-before-chat-two-way`.
+- Public `/` và readiness 200; 10 JS/CSS assets đều 200, JS có direction OUTBOUND_ECHO và nút cấp lại quyền mới; inbox chưa đăng nhập trả 401. HTTP/assets không thay nghiệm thu thao tác trình duyệt hoặc xác nhận gửi/nhận live.
+- Nếu cần rollback: tại `/srv/son-crm`, tag `son-crm-app:rollback-before-chat-two-way` thành `son-crm-app:production`, dùng compose production `up -d --no-build --no-deps --wait api web`, rồi kiểm readiness và assets. Rollback image không xóa dữ liệu đã nhập hoặc thay subscription echo đã được Meta xác nhận.
