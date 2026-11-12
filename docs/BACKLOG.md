@@ -2,7 +2,7 @@
 
 ## COMMERCIAL-UX-01 — 12/11/2026
 
-Đã viết shell/design token, điều hướng theo quyền, tìm nhanh, mobile drawer, đăng nhập, recovery lỗi/hết phiên và tải tiếp hồ sơ khách. Giữ nguyên API/schema/nghiệp vụ. Gate code đạt build/lint/typecheck, API 62 và web 17 unit test; còn triển khai và nghiệm thu trực quan. Xem [COMMERCIAL-UX-01](tasks/COMMERCIAL-UX-01.md).
+Đã triển khai UI `022deec` lên VPS: shell/design token, điều hướng theo quyền, tìm nhanh, mobile drawer, đăng nhập, recovery lỗi/hết phiên và tải tiếp hồ sơ khách. Giữ nguyên API/schema/nghiệp vụ. Build/lint/typecheck, API 62 và web 17 unit test đạt; public HTML/CSS/JS mới và health 200. Còn nghiệm thu trực quan do công cụ trình duyệt bị chặn. Xem [COMMERCIAL-UX-01](tasks/COMMERCIAL-UX-01.md).
 
 ## STAFF-MANAGEMENT-01 — 12/11/2026
 

@@ -33,3 +33,10 @@ Không đổi schema hoặc hợp đồng backend. Những phần Facebook/priva
 - Worktree kiểm tra riêng trên nền `bfe2c07`, chỉ đưa source UI của lát cắt này vào; không mang các sửa Facebook/private reply chưa hoàn tất.
 - `npm run lint`, build API/web và typecheck web đạt; API unit 62/62, web unit 17/17. Các test mới kiểm hash không vượt quyền, landing không role, quyền đổi trả, tìm không dấu và phân biệt hết phiên với sai mật khẩu/lần đầu mở ứng dụng. UTF-8 source đạt.
 - Cấu hình root Turbopack rộng hơn chỉ dùng trong worktree kiểm tra để đọc dependency junction; cấu hình repo và VPS được giữ nguyên.
+
+## Triển khai 12/11/2026
+
+- Release UI `022deec` đã build bằng cấu hình production trên VPS. Chỉ chuyển container web sang image `sha256:d27b16e7435a2b212714e236a7d82378b244c986723f0b4d4f5f085234196aa0`, tag `son-crm-app:release-022deec`. API tiếp tục chạy image của release `b9519cd`, healthy; không có migration hoặc thao tác tài khoản/dữ liệu thật.
+- Public `/` trả 200 và cache `private, no-cache, no-store`. HTML có shell tải mới và tham chiếu CSS `/_next/static/chunks/1_lb4ee21zun9.css` cùng JS `/_next/static/chunks/2g7uvazaoaf4f.js`, cả hai 200; đối chiếu nội dung xác nhận CSS shell/dialog, code đăng nhập/điều hướng/hết phiên mới.
+- `/api/v1/health/ready`, `/privacy`, `/data-deletion` trả 200; `/api/v1/staff` khi chưa đăng nhập trả 401. Đây là smoke HTTP/source assets, không phải nghiệm thu tương tác trình duyệt.
+- Image trước UI giữ ở `son-crm-app:rollback-b9519cd-before-ui`. Quay lại web bằng cách tag image đó thành `son-crm-app:production`, rồi trong `/srv/son-crm` chạy `docker compose --profile ai --env-file .env.production -f compose.production.yaml up -d --no-build --no-deps web`; kiểm lại domain/health sau chuyển.
