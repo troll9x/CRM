@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useCallback, useEffect, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { api, type Staff } from './api-client';
 
 type Contact = {
@@ -228,6 +228,11 @@ export function CustomerWorkspace({
   const [groups, setGroups] = useState<Group[]>([]);
   const [selected, setSelected] = useState<CustomerDetail | null>(null);
   const [query, setQuery] = useState('');
+  const [appliedQuery, setAppliedQuery] = useState('');
+  const [customerCursor, setCustomerCursor] = useState<string | null>(null);
+  const [moreLoading, setMoreLoading] = useState(false);
+  const listGeneration = useRef(0);
+  const canWrite = staff.permissions.includes('customers.write');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
@@ -326,6 +331,7 @@ export function CustomerWorkspace({
 
   const loadCustomers = useCallback(
     async (search = query) => {
+      const generation = ++listGeneration.current;
       setLoading(true);
       setError('');
       try {
@@ -334,41 +340,75 @@ export function CustomerWorkspace({
           nextCursor: string | null;
           hasMore: boolean;
         }>(`/customers${search ? `?query=${encodeURIComponent(search)}` : ''}`);
+        if (generation !== listGeneration.current) return;
         setCustomers(result.items);
+        setAppliedQuery(search);
+        setCustomerCursor(result.nextCursor);
         if (result.items.length && !result.items.some((item) => item.id === selected?.id)) {
           await loadDetail(result.items[0].id);
         } else if (!result.items.length) {
           setSelected(null);
         }
       } catch (caught) {
-        setError(caught instanceof Error ? caught.message : 'Không tải được danh sách khách.');
+        if (generation === listGeneration.current)
+          setError(caught instanceof Error ? caught.message : 'Không tải được danh sách khách.');
       } finally {
-        setLoading(false);
+        if (generation === listGeneration.current) setLoading(false);
       }
     },
     [loadDetail, query, selected?.id],
   );
 
+  async function loadMoreCustomers() {
+    if (!customerCursor || moreLoading || loading) return;
+    const generation = listGeneration.current;
+    setMoreLoading(true);
+    setError('');
+    try {
+      const params = new URLSearchParams({ cursor: customerCursor });
+      if (appliedQuery) params.set('query', appliedQuery);
+      const page = await api<{ items: CustomerSummary[]; nextCursor: string | null }>(
+        `/customers?${params}`,
+      );
+      if (generation !== listGeneration.current) return;
+      setCustomers((current) => [
+        ...current,
+        ...page.items.filter((row) => !current.some((existing) => existing.id === row.id)),
+      ]);
+      setCustomerCursor(page.nextCursor);
+    } catch (caught) {
+      if (generation === listGeneration.current)
+        setError(caught instanceof Error ? caught.message : 'Không tải thêm được khách hàng.');
+    } finally {
+      setMoreLoading(false);
+    }
+  }
+
   useEffect(() => {
     let active = true;
+    const generation = ++listGeneration.current;
     async function initialLoad() {
       try {
         const [groupRows, customerRows] = await Promise.all([
           api<Group[]>('/customers/groups'),
-          api<{ items: CustomerSummary[] }>('/customers'),
+          api<{ items: CustomerSummary[]; nextCursor: string | null }>('/customers'),
         ]);
         if (!active) return;
         setGroups(groupRows);
+        if (generation !== listGeneration.current) return;
         setCustomers(customerRows.items);
+        setCustomerCursor(customerRows.nextCursor);
         const suggestions = await api<DuplicateSuggestion[]>('/customers/duplicate-suggestions');
-        if (active) setDuplicateSuggestions(suggestions);
-        if (customerRows.items[0]) await loadDetail(customerRows.items[0].id);
+        if (active && generation === listGeneration.current) {
+          setDuplicateSuggestions(suggestions);
+          if (customerRows.items[0]) await loadDetail(customerRows.items[0].id);
+        }
       } catch (caught) {
-        if (active) {
+        if (active && generation === listGeneration.current) {
           setError(caught instanceof Error ? caught.message : 'Không tải được dữ liệu khách hàng.');
         }
       } finally {
-        if (active) setLoading(false);
+        if (active && generation === listGeneration.current) setLoading(false);
       }
     }
     void initialLoad();
@@ -768,17 +808,27 @@ export function CustomerWorkspace({
           <h1>Hồ sơ khách hàng</h1>
         </div>
         <div className="header-actions">
-          <button className="ghost" onClick={() => setShowCreate((current) => !current)}>
-            {showCreate ? 'Đóng biểu mẫu' : '+ Thêm khách'}
-          </button>
-          <button className="ghost" onClick={onLogout} disabled={loggingOut}>
+          {canWrite && (
+            <button className="primary" onClick={() => setShowCreate((current) => !current)}>
+              {showCreate ? 'Đóng biểu mẫu' : '+ Thêm khách'}
+            </button>
+          )}
+          <button className="ghost" onClick={onLogout} disabled={loggingOut} data-workspace-logout>
             Đăng xuất
           </button>
         </div>
       </header>
 
-      {message && <div className="success-message">{message}</div>}
-      {error && <div className="error-message">{error}</div>}
+      {message && (
+        <div className="success-message" role="status">
+          {message}
+        </div>
+      )}
+      {error && (
+        <div className="error-message" role="alert">
+          {error}
+        </div>
+      )}
       {duplicates.length > 0 && (
         <div className="duplicate-warning">
           <b>Cần kiểm tra trùng, hệ thống không tự gộp:</b>
@@ -832,7 +882,7 @@ export function CustomerWorkspace({
         </section>
       )}
 
-      {showCreate && (
+      {showCreate && canWrite && (
         <form className="panel-form create-customer" onSubmit={createCustomer}>
           <div className="section-heading">
             <div>
@@ -915,15 +965,20 @@ export function CustomerWorkspace({
             }}
           >
             <input
+              aria-label="Tìm khách hàng theo tên, mã, điện thoại hoặc email"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Tên, mã, điện thoại hoặc email"
             />
-            <button className="ghost">Tìm</button>
+            <button className="ghost" disabled={loading}>
+              Tìm
+            </button>
           </form>
           <div className="list-caption">
-            <span>{customers.length} hồ sơ</span>
-            {query && (
+            <span>
+              {customers.length} hồ sơ đã tải{customerCursor ? ' · Còn dữ liệu' : ''}
+            </span>
+            {(query || appliedQuery) && (
               <button
                 onClick={() => {
                   setQuery('');
@@ -957,10 +1012,21 @@ export function CustomerWorkspace({
                     </small>
                     <small>{customer.contacts[0]?.value ?? 'Chưa có liên hệ'}</small>
                   </span>
-                  <i>{customer._count.tasks}</i>
+                  {Boolean(customer._count.tasks) && (
+                    <i title="Việc cần theo dõi">{customer._count.tasks}</i>
+                  )}
                 </button>
               ))}
             </div>
+          )}
+          {customerCursor && !loading && (
+            <button
+              className="ghost crm-load-more"
+              disabled={moreLoading}
+              onClick={() => void loadMoreCustomers()}
+            >
+              {moreLoading ? 'Đang tải thêm…' : 'Tải thêm khách hàng'}
+            </button>
           )}
         </section>
 
@@ -970,7 +1036,7 @@ export function CustomerWorkspace({
               <b>Chọn một khách hàng</b>
               <span>Hồ sơ, địa chỉ, việc nhắc và cơ hội sẽ hiển thị tại đây.</span>
             </div>
-          ) : editing ? (
+          ) : editing && canWrite ? (
             <form className="panel-form" onSubmit={updateCustomer}>
               <div className="section-heading">
                 <div>
@@ -1049,9 +1115,11 @@ export function CustomerWorkspace({
                     </span>
                   </div>
                 </div>
-                <button className="ghost" onClick={() => setEditing(true)}>
-                  Chỉnh sửa
-                </button>
+                {canWrite && (
+                  <button className="ghost" onClick={() => setEditing(true)}>
+                    Chỉnh sửa
+                  </button>
+                )}
               </div>
 
               <div className="contact-strip">

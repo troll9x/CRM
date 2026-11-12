@@ -558,11 +558,11 @@ export function ProductWorkspace({
             </button>
           )}
           {canWrite && (
-            <button className="ghost" onClick={() => setShowCreate((current) => !current)}>
+            <button className="primary" onClick={() => setShowCreate((current) => !current)}>
               {showCreate ? 'Đóng biểu mẫu' : '+ Thêm sản phẩm'}
             </button>
           )}
-          <button className="ghost" onClick={onLogout} disabled={loggingOut}>
+          <button className="ghost" onClick={onLogout} disabled={loggingOut} data-workspace-logout>
             Đăng xuất
           </button>
         </div>
@@ -571,8 +571,8 @@ export function ProductWorkspace({
       <div className="assumption-note">
         Đang dùng giả định tạm: đơn vị cái/hộp/thùng, chưa quản lý lô, hạn dùng hoặc serial.
       </div>
-      {message && <div className="success-message">{message}</div>}
-      {error && <div className="error-message">{error}</div>}
+      {message && <div className="success-message" role="status">{message}</div>}
+      {error && <div className="error-message" role="alert">{error}</div>}
 
       {showImport && canWrite && (
         <section className="panel-form" style={{ display: 'grid', gap: 16 }}>

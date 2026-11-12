@@ -12,8 +12,19 @@ type ApiFailure = { error: { code: string; message: string }; meta?: { requestId
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
 
+function notifyExpiredSession(status: number, path: string) {
+  if (
+    status === 401 &&
+    path !== '/me' &&
+    !path.startsWith('/auth/') &&
+    typeof window !== 'undefined'
+  )
+    window.dispatchEvent(new Event('crm:session-expired'));
+}
+
 export async function apiBlob(path: string): Promise<Blob> {
   const response = await fetch(`${API_URL}${path}`, { credentials: 'include' });
+  notifyExpiredSession(response.status, path);
   if (!response.ok) throw new Error('Không tải được ảnh đính kèm từ Facebook.');
   return response.blob();
 }
@@ -32,6 +43,7 @@ export async function api<T>(path: string, options?: RequestInit): Promise<T> {
     credentials: 'include',
     headers,
   });
+  notifyExpiredSession(response.status, path);
   const payload = (await response.json()) as ApiSuccess<T> | ApiFailure;
   if (!response.ok || !('data' in payload)) {
     const failure = payload as ApiFailure;

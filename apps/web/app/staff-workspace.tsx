@@ -135,7 +135,7 @@ export function StaffWorkspace({ staff, onLogout, loggingOut }: Props) {
           <button
             onClick={() => {
               setError('');
-                setLoading(true);
+              setLoading(true);
               void load();
             }}
             disabled={loading}
@@ -152,7 +152,7 @@ export function StaffWorkspace({ staff, onLogout, loggingOut }: Props) {
           >
             + Tạo tài khoản
           </button>
-          <button onClick={() => void onLogout()} disabled={loggingOut}>
+          <button onClick={() => void onLogout()} disabled={loggingOut} data-workspace-logout>
             Đăng xuất
           </button>
         </div>

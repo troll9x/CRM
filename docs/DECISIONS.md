@@ -1,5 +1,9 @@
 # Nhật ký quyết định
 
+## COMMERCIAL-UX-01 — 12/11/2026
+
+Theo yêu cầu tối ưu UI/UX thành sản phẩm CRM thương mại: dùng design token và shell mới trên stack hiện có, không thêm thư viện UI/dependency hoặc nguồn asset bên ngoài. Điều hướng dựa vào quyền thật; tìm nhanh chỉ tìm màn hình. Bản UI không tự mở nghiệp vụ, quyền provider hoặc các phần Facebook chưa kiểm chứng. Nghiệm thu code/build và kiểm tra trực quan được ghi riêng.
+
 ## STAFF-MANAGEMENT-01 — 12/11/2026
 
 Theo yêu cầu xây module tài khoản/phân quyền, hoàn thiện UI trên RBAC hiện có, chọn nhiều vai trò và phân quyền theo tài khoản kênh. Không đổi bộ quyền của các vai trò hệ thống trong lát cắt này. Mọi cấp quyền bị giới hạn bởi quyền actor, owner chỉ owner được quản trị, không tự hạ quyền/khóa/reset và bảo vệ owner ACTIVE cuối cùng. Reset do quản trị đặt mật khẩu mới, thu hồi phiên; không giả lập email mời hoặc gửi mật khẩu tự động.

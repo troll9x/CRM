@@ -1,9 +1,10 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import './commercial.css';
 
 export const metadata: Metadata = {
   title: 'Sơn CRM',
-  description: 'CRM nội bộ cho cửa hàng bán sỉ và bán lẻ',
+  description: 'Quản lý khách hàng, bán hàng và vận hành cửa hàng bán sỉ, bán lẻ.',
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

@@ -24,6 +24,9 @@ describe('Vietnamese UI encoding', () => {
 
   it('declares Vietnamese document language and Vietnamese navigation', () => {
     expect(readFileSync(join(__dirname, 'layout.tsx'), 'utf8')).toContain('<html lang="vi">');
-    expect(readFileSync(join(__dirname, 'page.tsx'), 'utf8')).toContain('Tổng quan');
+    expect(readFileSync(join(__dirname, 'page.tsx'), 'utf8')).toContain(
+      "import HomeClient from './home-client';",
+    );
+    expect(readFileSync(join(__dirname, 'workspace-navigation.ts'), 'utf8')).toContain('Tổng quan');
   });
 });

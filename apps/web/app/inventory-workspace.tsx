@@ -411,13 +411,13 @@ export function InventoryWorkspace({
           <button className="ghost" onClick={() => void load()} disabled={loading}>
             Làm mới
           </button>
-          <button className="ghost" onClick={onLogout} disabled={loggingOut}>
+          <button className="ghost" onClick={onLogout} disabled={loggingOut} data-workspace-logout>
             Đăng xuất
           </button>
         </div>
       </header>
 
-      {message && <div className="success-message">{message}</div>}
+      {message && <div className="success-message" role="status">{message}</div>}
       {error && (
         <div className="error-message" role="alert">
           {error}

@@ -1,5 +1,9 @@
 # Backlog theo phụ thuộc
 
+## COMMERCIAL-UX-01 — 12/11/2026
+
+Đã viết shell/design token, điều hướng theo quyền, tìm nhanh, mobile drawer, đăng nhập, recovery lỗi/hết phiên và tải tiếp hồ sơ khách. Giữ nguyên API/schema/nghiệp vụ. Gate code đạt build/lint/typecheck, API 62 và web 17 unit test; còn triển khai và nghiệm thu trực quan. Xem [COMMERCIAL-UX-01](tasks/COMMERCIAL-UX-01.md).
+
 ## STAFF-MANAGEMENT-01 — 12/11/2026
 
 Đã triển khai release `b9519cd` lên VPS ngày 12/11/2026, không cần migration. E2E DB scratch đạt tạo/sửa/role/reset/khóa và bảo vệ quyền, business, phiên, owner đồng thời; public page/health/bundle mới 200, API quản trị bảo vệ 401. Còn kiểm tra UI trực quan bằng tài khoản quản trị; xem [task và demo](tasks/STAFF-MANAGEMENT-01.md).

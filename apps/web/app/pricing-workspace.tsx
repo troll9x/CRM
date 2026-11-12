@@ -227,7 +227,7 @@ export function PricingWorkspace({
         </div>
         <div className="header-actions">
           <span className="user-pill">{staff.displayName}</span>
-          <button className="ghost" onClick={onLogout} disabled={loggingOut}>
+          <button className="ghost" onClick={onLogout} disabled={loggingOut} data-workspace-logout>
             {loggingOut ? 'Đang thoát…' : 'Đăng xuất'}
           </button>
         </div>

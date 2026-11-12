@@ -181,7 +181,7 @@ export function ReturnsWorkspace({
             Chỉ tiếp nhận trong hạn đã cấu hình; hàng chỉ trở lại tồn sau kiểm tra chất lượng.
           </p>
         </div>
-        <button className="secondary" onClick={onLogout} disabled={loggingOut}>
+        <button className="secondary" onClick={onLogout} disabled={loggingOut} data-workspace-logout>
           Đăng xuất
         </button>
       </header>

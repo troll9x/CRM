@@ -1,5 +1,11 @@
 # Kế hoạch nghiệm thu
 
+## COMMERCIAL-UX-01 — 12/11/2026
+
+- [x] Code khung UI, điều hướng theo quyền, hash URL, tìm màn hình/keyboard, menu mobile, trạng thái hết phiên và tải tiếp khách hàng.
+- [x] Release riêng đạt build API/web, lint, typecheck web; API unit 62/62, web unit 17/17, gồm điều hướng theo quyền và xử lý hết phiên.
+- [ ] Nghiệm thu trực quan desktop/mobile, focus và tương tác form. Browser bridge không sẵn sàng, công cụ Windows chặn do không xác định chắc chắn URL; không coi code/build là nghiệm thu trực quan. Xem [COMMERCIAL-UX-01](tasks/COMMERCIAL-UX-01.md).
+
 ## STAFF-MANAGEMENT-01 — 12/11/2026
 
 - [x] API và UI tạo/sửa tài khoản, nhiều vai trò, quyền hiệu lực, reset mật khẩu, khóa/mở khóa và grant kênh dùng DB thật.

@@ -436,7 +436,7 @@ export function OrdersWorkspace({
           <button className="ghost" onClick={() => void load(query)} disabled={loading}>
             Làm mới
           </button>
-          <button className="ghost" onClick={onLogout} disabled={loggingOut}>
+          <button className="ghost" onClick={onLogout} disabled={loggingOut} data-workspace-logout>
             Đăng xuất
           </button>
         </div>

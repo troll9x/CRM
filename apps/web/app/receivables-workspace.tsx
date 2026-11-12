@@ -62,7 +62,7 @@ export function ReceivablesWorkspace({
             Phải thu phát sinh khi xác nhận đơn; số tiền thanh toán được phân bổ từ các phiếu thu.
           </p>
         </div>
-        <button className="secondary" onClick={onLogout} disabled={loggingOut}>
+        <button className="secondary" onClick={onLogout} disabled={loggingOut} data-workspace-logout>
           Đăng xuất
         </button>
       </header>

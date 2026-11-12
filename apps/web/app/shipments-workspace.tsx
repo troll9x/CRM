@@ -126,7 +126,7 @@ export function ShipmentsWorkspace({
             ghi nhận giao đủ toàn bộ đơn.
           </p>
         </div>
-        <button className="secondary" onClick={onLogout} disabled={loggingOut}>
+        <button className="secondary" onClick={onLogout} disabled={loggingOut} data-workspace-logout>
           Đăng xuất
         </button>
       </header>

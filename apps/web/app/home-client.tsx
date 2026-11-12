@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useEffect, useState } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { api, type Staff } from './api-client';
 import { CustomerWorkspace } from './customer-workspace';
@@ -16,38 +16,35 @@ import { ReceivablesWorkspace } from './receivables-workspace';
 import { ShipmentsWorkspace } from './shipments-workspace';
 import { IntegrationsWorkspace } from './integrations-workspace';
 import { StaffWorkspace } from './staff-workspace';
+import { CrmShell } from './crm-shell';
+import { CrmIcon } from './crm-icon';
+import { useWorkspaceNavigation } from './use-workspace-navigation';
 
 export default function Home() {
   const [staff, setStaff] = useState<Staff | null>(null);
   const [checking, setChecking] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [quoteFromChat, setQuoteFromChat] = useState<{
     customerId: string;
     conversationId: string;
     accountName: string;
   } | null>(null);
-  const [view, setView] = useState<
-    | 'overview'
-    | 'customers'
-    | 'products'
-    | 'purchasing'
-    | 'inventory'
-    | 'pricing'
-    | 'quotes'
-    | 'orders'
-    | 'returns'
-    | 'receivables'
-    | 'shipments'
-    | 'integrations'
-    | 'staff'
-  >('overview');
+  const { view, navigate, items } = useWorkspaceNavigation(staff?.permissions ?? []);
 
   useEffect(() => {
     let active = true;
+    function expired() {
+      setStaff(null);
+      setMessage(
+        'Phiên đăng nhập đã hết hạn hoặc quyền truy cập đã thay đổi. Vui lòng đăng nhập lại.',
+      );
+    }
+    window.addEventListener('crm:session-expired', expired);
     api<Staff>('/me')
-      .then((currentStaff) => {
-        if (active) setStaff(currentStaff);
+      .then((current) => {
+        if (active) setStaff(current);
       })
       .catch(() => {
         if (active) setStaff(null);
@@ -57,6 +54,7 @@ export default function Home() {
       });
     return () => {
       active = false;
+      window.removeEventListener('crm:session-expired', expired);
     };
   }, []);
 
@@ -71,18 +69,19 @@ export default function Home() {
         body: JSON.stringify({ email: form.get('email'), password: form.get('password') }),
       });
       setStaff(result.staff);
+      setShowPassword(false);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Đăng nhập không thành công.');
     } finally {
       setSubmitting(false);
     }
   }
-
   async function logout() {
     setSubmitting(true);
     try {
       await api('/auth/session', { method: 'DELETE' });
       setStaff(null);
+      setMessage('');
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Đăng xuất không thành công.');
     } finally {
@@ -90,220 +89,182 @@ export default function Home() {
     }
   }
 
-  if (checking) {
+  if (checking)
     return (
-      <main className="center-page">
-        <div className="loading">Đang kiểm tra phiên đăng nhập…</div>
+      <main className="center-page crm-loading-page">
+        <span className="crm-brand-mark">S</span>
+        <div role="status" className="loading">
+          Đang mở không gian làm việc…
+        </div>
       </main>
     );
-  }
 
-  if (!staff) {
+  if (!staff)
     return (
-      <main className="login-page">
+      <main className="login-page commercial-login">
         <section className="login-brand">
-          <div className="brand-mark">S</div>
-          <p className="eyebrow">CRM BÁN SỈ & BÁN LẺ</p>
-          <h1>Một nơi để theo dõi khách, đơn, kho và công nợ.</h1>
-          <p className="brand-copy">
-            Theo dõi khách hàng, sản phẩm, mua hàng và tồn kho trong cùng một hệ thống.
-          </p>
-          <div className="security-note">
-            <span>✓</span> Phiên đăng nhập HttpOnly · Quyền kiểm tra tại backend · Có nhật ký
+          <div className="crm-login-logo">
+            <span className="crm-brand-mark">S</span>
+            <strong>Sơn CRM</strong>
           </div>
+          <div className="crm-login-intro">
+            <p className="eyebrow">KHÔNG GIAN KINH DOANH CỦA BẠN</p>
+            <h1>
+              Từ cuộc trò chuyện
+              <br />
+              đến đơn hàng.
+            </h1>
+            <p className="brand-copy">
+              Chăm sóc khách hàng, quản lý bán hàng và vận hành cửa hàng trong một không gian làm
+              việc.
+            </p>
+            <div className="crm-login-workflow" aria-label="Quy trình bán hàng">
+              <span>
+                <CrmIcon name="customers" />
+                Khách hàng
+              </span>
+              <CrmIcon name="chevron" />
+              <span>
+                <CrmIcon name="orders" />
+                Đơn hàng
+              </span>
+              <CrmIcon name="chevron" />
+              <span>
+                <CrmIcon name="shipments" />
+                Giao hàng
+              </span>
+            </div>
+          </div>
+          <p className="crm-login-footnote">Sơn CRM · Dành cho cửa hàng bán sỉ & bán lẻ</p>
         </section>
         <section className="login-panel">
-          <form className="login-card" onSubmit={login}>
-            <p className="eyebrow">KHU VỰC NHÂN VIÊN</p>
+          <form
+            className="login-card"
+            onSubmit={(event) => void login(event)}
+            aria-busy={submitting}
+          >
+            <span className="crm-login-welcome">CHÀO MỪNG TRỞ LẠI</span>
             <h2>Đăng nhập Sơn CRM</h2>
-            <p className="muted">Dùng tài khoản nhân viên đã được cấp.</p>
-            <label>
-              Email
-              <input
-                name="email"
-                type="email"
-                autoComplete="username"
-                placeholder="Email nhân viên"
-                required
-              />
-            </label>
-            <label>
-              Mật khẩu
-              <input
-                name="password"
-                type="password"
-                autoComplete="current-password"
-                minLength={12}
-                required
-              />
-            </label>
-            {message && (
-              <div className="error-message" role="alert">
-                {message}
+            <p className="muted">Tiếp tục công việc của bạn hôm nay.</p>
+            <fieldset disabled={submitting}>
+              <label>
+                Email đăng nhập
+                <input
+                  name="email"
+                  type="email"
+                  autoComplete="username"
+                  placeholder="ten@cuahang.vn"
+                  required
+                  autoCapitalize="none"
+                  spellCheck={false}
+                />
+              </label>
+              <label htmlFor="crm-password">Mật khẩu</label>
+              <div className="crm-password-input">
+                <input
+                  id="crm-password"
+                  name="password"
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete="current-password"
+                  minLength={12}
+                  required
+                  placeholder="Nhập mật khẩu của bạn"
+                />
+                <button
+                  type="button"
+                  aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                  aria-pressed={showPassword}
+                  onClick={() => setShowPassword((current) => !current)}
+                >
+                  <CrmIcon name={showPassword ? 'eye-off' : 'eye'} />
+                </button>
               </div>
-            )}
-            <button className="primary" disabled={submitting}>
-              {submitting ? 'Đang đăng nhập…' : 'Đăng nhập'}
-            </button>
-            <small>Không đưa mật khẩu thật vào Git, frontend hoặc log.</small>
-            <small>
-              <Link href="/privacy">Chính sách quyền riêng tư</Link> ·{' '}
-              <Link href="/data-deletion">Yêu cầu xóa dữ liệu</Link>
-            </small>
+              {message && (
+                <div className="error-message" role="alert">
+                  {message}
+                </div>
+              )}
+              <button className="primary" type="submit">
+                {submitting ? 'Đang đăng nhập…' : 'Đăng nhập'}
+                <CrmIcon name="chevron" />
+              </button>
+            </fieldset>
+            <p className="crm-login-help">
+              Chưa có tài khoản hoặc quên mật khẩu?
+              <br />
+              Liên hệ người quản trị cửa hàng để được hỗ trợ.
+            </p>
+            <div className="crm-login-links">
+              <Link href="/privacy">Quyền riêng tư</Link>
+              <span>·</span>
+              <Link href="/data-deletion">Yêu cầu dữ liệu</Link>
+            </div>
           </form>
         </section>
       </main>
     );
-  }
 
+  const common = { staff, onLogout: logout, loggingOut: submitting };
   return (
-    <main className="dashboard-shell">
-      <aside>
-        <div className="sidebar-brand">
-          <span>S</span>
-          <strong>Sơn CRM</strong>
-        </div>
-        <nav>
-          <button
-            className={view === 'overview' ? 'active' : ''}
-            onClick={() => setView('overview')}
-          >
-            Tổng quan
-          </button>
-          <button
-            className={view === 'customers' ? 'active' : ''}
-            onClick={() => setView('customers')}
-            disabled={!staff.permissions.includes('customers.read')}
-          >
-            Khách hàng
-          </button>
-          <button
-            className={view === 'products' ? 'active' : ''}
-            onClick={() => setView('products')}
-            disabled={!staff.permissions.includes('catalog.read')}
-          >
-            Sản phẩm
-          </button>
-          <button
-            className={view === 'purchasing' ? 'active' : ''}
-            onClick={() => setView('purchasing')}
-            disabled={!staff.permissions.includes('purchasing.read')}
-          >
-            Mua hàng
-          </button>
-          <button
-            className={view === 'inventory' ? 'active' : ''}
-            onClick={() => setView('inventory')}
-            disabled={!staff.permissions.includes('inventory.read')}
-          >
-            Kho
-          </button>
-          {staff.permissions.includes('price.edit') && (
-            <button
-              className={view === 'pricing' ? 'active' : ''}
-              onClick={() => setView('pricing')}
-            >
-              Bảng giá
-            </button>
-          )}
-          {staff.permissions.includes('quotes.read') && (
-            <button className={view === 'quotes' ? 'active' : ''} onClick={() => setView('quotes')}>
-              Báo giá
-            </button>
-          )}
-          {staff.permissions.includes('orders.read') && (
-            <button className={view === 'orders' ? 'active' : ''} onClick={() => setView('orders')}>
-              Đơn hàng
-            </button>
-          )}
-          {staff.permissions.includes('shipments.read') && (
-            <button
-              className={view === 'shipments' ? 'active' : ''}
-              onClick={() => setView('shipments')}
-            >
-              Xuất kho & giao
-            </button>
-          )}
-          {staff.permissions.some((permission) => permission.startsWith('returns.')) && (
-            <button
-              className={view === 'returns' ? 'active' : ''}
-              onClick={() => setView('returns')}
-            >
-              Đổi trả
-            </button>
-          )}
-          {staff.permissions.includes('receivables.view') && (
-            <button
-              className={view === 'receivables' ? 'active' : ''}
-              onClick={() => setView('receivables')}
-            >
-              Công nợ
-            </button>
-          )}
-          {staff.permissions.includes('integrations.read') && (
-            <button
-              className={view === 'integrations' ? 'active' : ''}
-              onClick={() => setView('integrations')}
-            >
-              Đồng bộ đa kênh
-            </button>
-          )}
-          {staff.permissions.includes('staff.manage') && (
-            <button className={view === 'staff' ? 'active' : ''} onClick={() => setView('staff')}>
-              Tài khoản & phân quyền
-            </button>
-          )}
-        </nav>
-        <div className="staff-mini">
-          <b>{staff.displayName}</b>
-          <span>{staff.email}</span>
-        </div>
-      </aside>
-      {view === 'staff' && staff.permissions.includes('staff.manage') ? (
-        <StaffWorkspace staff={staff} onLogout={logout} loggingOut={submitting} />
+    <CrmShell {...common} view={view} items={items} onNavigate={navigate}>
+      {message && (
+        <p className="error-message crm-shell-error" role="alert">
+          {message}
+        </p>
+      )}
+      {view === 'staff' ? (
+        <StaffWorkspace {...common} />
       ) : view === 'customers' ? (
-        <CustomerWorkspace staff={staff} onLogout={logout} loggingOut={submitting} />
+        <CustomerWorkspace {...common} />
       ) : view === 'products' ? (
-        <ProductWorkspace staff={staff} onLogout={logout} loggingOut={submitting} />
+        <ProductWorkspace {...common} />
       ) : view === 'purchasing' ? (
-        <PurchasingWorkspace staff={staff} onLogout={logout} loggingOut={submitting} />
+        <PurchasingWorkspace {...common} />
       ) : view === 'inventory' ? (
-        <InventoryWorkspace staff={staff} onLogout={logout} loggingOut={submitting} />
+        <InventoryWorkspace {...common} />
       ) : view === 'pricing' ? (
-        <PricingWorkspace staff={staff} onLogout={logout} loggingOut={submitting} />
+        <PricingWorkspace {...common} />
       ) : view === 'quotes' ? (
-        <QuotesWorkspace
-          staff={staff}
-          onLogout={logout}
-          loggingOut={submitting}
-          fromChat={quoteFromChat}
-        />
+        <QuotesWorkspace {...common} fromChat={quoteFromChat} />
       ) : view === 'orders' ? (
-        <OrdersWorkspace staff={staff} onLogout={logout} loggingOut={submitting} />
+        <OrdersWorkspace {...common} />
       ) : view === 'returns' ? (
-        <ReturnsWorkspace staff={staff} onLogout={logout} loggingOut={submitting} />
+        <ReturnsWorkspace {...common} />
       ) : view === 'receivables' ? (
-        <ReceivablesWorkspace staff={staff} onLogout={logout} loggingOut={submitting} />
+        <ReceivablesWorkspace {...common} />
       ) : view === 'shipments' ? (
-        <ShipmentsWorkspace staff={staff} onLogout={logout} loggingOut={submitting} />
+        <ShipmentsWorkspace {...common} />
       ) : view === 'integrations' ? (
         <IntegrationsWorkspace
-          staff={staff}
-          onLogout={logout}
-          loggingOut={submitting}
+          {...common}
           onCreateQuote={(source) => {
             setQuoteFromChat(source);
-            setView('quotes');
+            navigate('quotes');
           }}
         />
+      ) : view === 'overview' ? (
+        <OverviewWorkspace {...common} onNavigate={navigate} />
       ) : (
-        <OverviewWorkspace
-          staff={staff}
-          onLogout={logout}
-          loggingOut={submitting}
-          onNavigate={setView}
-        />
+        <section className="crm-no-access">
+          <span className="crm-no-access-icon">
+            <CrmIcon name="staff" />
+          </span>
+          <p className="eyebrow">QUYỀN TRUY CẬP</p>
+          <h1>Tài khoản đã sẵn sàng</h1>
+          <p>
+            Bạn chưa được phân quyền sử dụng chức năng nào. Liên hệ người quản trị để được gán vai
+            trò phù hợp.
+          </p>
+          <button
+            type="button"
+            className="ghost"
+            disabled={submitting}
+            onClick={() => window.location.reload()}
+          >
+            Kiểm tra lại quyền
+          </button>
+        </section>
       )}
-    </main>
+    </CrmShell>
   );
 }

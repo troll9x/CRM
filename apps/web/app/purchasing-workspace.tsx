@@ -274,7 +274,7 @@ export function PurchasingWorkspace({
               </button>
             </>
           )}
-          <button className="ghost" onClick={onLogout} disabled={loggingOut}>
+          <button className="ghost" onClick={onLogout} disabled={loggingOut} data-workspace-logout>
             Đăng xuất
           </button>
         </div>
@@ -284,8 +284,8 @@ export function PurchasingWorkspace({
         <b>Chưa phải phiếu nhập kho.</b>
         <span>Phát hành hoặc hủy đơn mua không tạo sổ kho và không thay đổi tồn.</span>
       </div>
-      {message && <div className="success-message">{message}</div>}
-      {error && <div className="error-message">{error}</div>}
+      {message && <div className="success-message" role="status">{message}</div>}
+      {error && <div className="error-message" role="alert">{error}</div>}
 
       {showSupplierForm && (
         <form className="detail-card form-grid three" onSubmit={createSupplier}>

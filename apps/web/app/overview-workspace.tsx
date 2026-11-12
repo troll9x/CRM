@@ -242,13 +242,13 @@ export function OverviewWorkspace({
           <h1>Chào {staff.displayName}</h1>
           <p className="muted">Số liệu trực tiếp từ CRM, cập nhật theo dữ liệu đang lưu.</p>
         </div>
-        <button className="ghost" onClick={onLogout} disabled={loggingOut}>
+        <button className="ghost" onClick={onLogout} disabled={loggingOut} data-workspace-logout>
           Đăng xuất
         </button>
       </header>
 
       {loading && <div className="loading">Đang tổng hợp số liệu…</div>}
-      {error && <div className="error-message">{error}</div>}
+      {error && <div className="error-message" role="alert">{error}</div>}
       {overview && (
         <>
           {!hasComparisonData && (
@@ -361,7 +361,7 @@ export function OverviewWorkspace({
                 </button>
               </div>
               {salesReportError ? (
-                <p className="error-message">{salesReportError}</p>
+                <p className="error-message" role="alert">{salesReportError}</p>
               ) : !salesReport ? (
                 <p className="empty-copy">Đang tải báo cáo…</p>
               ) : (

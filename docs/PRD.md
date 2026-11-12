@@ -1,5 +1,9 @@
 # PRD — CRM bán sỉ và bán lẻ
 
+## Chuẩn hóa UI/UX sản phẩm — 12/11/2026
+
+Khung ứng dụng thống nhất cho toàn bộ module, menu theo nhóm và quyền, tìm màn hình bằng `Ctrl/Cmd+K`, hash URL giữ vị trí, menu mobile và đăng xuất chung. Chuẩn hóa bảng, biểu mẫu, trạng thái phản hồi, đăng nhập và màn hình chưa có quyền. Danh sách khách hàng tải tiếp bằng cursor thật. Không đổi nghiệp vụ/backend hoặc dùng dữ liệu mẫu production; xem [COMMERCIAL-UX-01](tasks/COMMERCIAL-UX-01.md).
+
 ## Quản trị tài khoản nhân viên — 12/11/2026
 
 Màn hình **Tài khoản & phân quyền** dành cho người có `staff.manage`: tạo/sửa nhân viên, gán nhiều vai trò hiện có, xem quyền hiệu lực, reset mật khẩu, khóa/mở tài khoản và cấp quyền theo Page/OA/shop. Gán quyền không vượt quyền của người thao tác; bảo vệ owner cuối cùng, thu hồi phiên cũ sau đổi vai trò/reset/khóa. Chi tiết tại [STAFF-MANAGEMENT-01](tasks/STAFF-MANAGEMENT-01.md).

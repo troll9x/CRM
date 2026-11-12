@@ -694,7 +694,7 @@ export function IntegrationsWorkspace({ staff, onLogout, loggingOut, onCreateQuo
           <button className="secondary" onClick={() => void refresh()} disabled={busy}>
             Làm mới dữ liệu
           </button>
-          <button className="secondary" onClick={onLogout} disabled={loggingOut}>
+          <button className="secondary" onClick={onLogout} disabled={loggingOut} data-workspace-logout>
             Đăng xuất
           </button>
         </div>
