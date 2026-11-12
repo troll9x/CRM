@@ -1,5 +1,9 @@
 # Hợp đồng API v1
 
+## CHAT-TWO-WAY-01 — 12/11/2026
+
+Không đổi endpoint/schema. `conversation_messages.direction` dùng enum `INBOUND|OUTBOUND_ECHO|SYSTEM`, không có `OUTBOUND`; UI phải dùng đúng enum khi xác định bên gửi. Facebook Page subscription đăng ký và đọc lại đủ `messages,message_echoes,feed`, không coi POST thành công là đủ nếu readback thiếu field.
+
 ## MULTICHANNEL-UX-02 — điều hướng OAuth 12/11/2026
 
 Facebook/Zalo callback 303 về `WEB_ORIGIN` giữ query `channelAttempt`, `channelResult`, `channelProvider` (Zalo) và bổ sung fragment `#integrations` để shell mở đúng module. Không thay request/response hay quyền backend; không mở route OAuth Shopee/TikTok khi chưa có adapter.

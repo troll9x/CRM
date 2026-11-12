@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import Image from 'next/image';
 import { api, apiBlob, type Staff } from './api-client';
 import { ChannelCatalog } from './channel-catalog';
+import { SocialMessageBubble } from './social-message-bubble';
 
 type Connection = {
   id: string;
@@ -340,6 +341,56 @@ export function IntegrationsWorkspace({ staff, onLogout, loggingOut, onCreateQuo
   }, [refresh, staff.permissions]);
 
   useEffect(() => {
+    if (!openConversationId || tab !== 'social') return;
+    const controller = new AbortController();
+    let disposed = false;
+    let pending = false;
+    const update = async () => {
+      if (pending || document.visibilityState !== 'visible') return;
+      pending = true;
+      try {
+        const page = await api<ConversationMessagePage>(
+          `/integrations/conversations/${openConversationId}/messages?limit=50`,
+          { signal: controller.signal },
+        );
+        if (!disposed)
+          setMessagePages((current) => {
+            const previous = current[openConversationId];
+            const overlaps = previous?.items.some((item) =>
+              page.items.some((row) => row.id === item.id),
+            );
+            const merged = overlaps
+              ? {
+                  items: [
+                    ...new Map(
+                      [...previous.items, ...page.items].map((item) => [item.id, item]),
+                    ).values(),
+                  ].sort(
+                    (a, b) => b.providerAt.localeCompare(a.providerAt) || b.id.localeCompare(a.id),
+                  ),
+                  nextCursor: previous.nextCursor,
+                }
+              : page;
+            return { ...current, [openConversationId]: merged };
+          });
+      } catch {
+        // Background refresh retries on the next interval. Explicit loads surface errors.
+      } finally {
+        pending = false;
+      }
+    };
+    const timer = window.setInterval(() => void update(), 10000);
+    const onVisible = () => void update();
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      disposed = true;
+      controller.abort();
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [openConversationId, tab]);
+
+  useEffect(() => {
     if (!staff.permissions.includes('connectors.manage')) return;
     const current = new URL(window.location.href);
     const attemptId = current.searchParams.get('channelAttempt');
@@ -573,7 +624,6 @@ export function IntegrationsWorkspace({ staff, onLogout, loggingOut, onCreateQuo
       return;
     }
     setOpenConversationId(conversationId);
-    if (messagePages[conversationId]) return;
     setMessageLoading(true);
     setError('');
     try {
@@ -1183,6 +1233,9 @@ export function IntegrationsWorkspace({ staff, onLogout, loggingOut, onCreateQuo
           setError={setError}
           setNotice={setNotice}
           onCreateQuote={onCreateQuote}
+          onReconnectFacebook={
+            staff.permissions.includes('connectors.manage') ? startFacebook : undefined
+          }
         />
       )}
 
@@ -1523,6 +1576,7 @@ type SocialInboxProps = {
   refresh: () => Promise<void>;
   setError: (error: string) => void;
   setNotice: (notice: string) => void;
+  onReconnectFacebook?: (connectionId: string) => Promise<void>;
   onCreateQuote?: (source: {
     customerId: string;
     conversationId: string;
@@ -2310,16 +2364,13 @@ function SocialInbox(props: SocialInboxProps) {
                     ? imageAttachmentIndices(message.mediaMetadata)
                     : [];
                 return (
-                  <article
+                  <SocialMessageBubble
                     key={message.id}
-                    className={`social-bubble ${message.direction === 'OUTBOUND' ? 'outbound' : 'inbound'}`}
+                    direction={message.direction}
+                    account={activeAccount}
+                    providerAt={message.providerAt}
+                    body={message.body}
                   >
-                    <small>
-                      {message.direction === 'OUTBOUND' ? activeAccount : 'Khách'} ·{' '}
-                      {socialDateTime(message.providerAt)} ·{' '}
-                      {message.importJobId ? 'Lịch sử Meta' : 'Webhook'}
-                    </small>
-                    {message.body && <p>{message.body}</p>}
                     {imageIndices.map((index) => (
                       <MessageImage
                         key={`${message.id}:${index}`}
@@ -2335,7 +2386,7 @@ function SocialInbox(props: SocialInboxProps) {
                           : `Nội dung ${message.contentType}`}
                       </p>
                     )}
-                  </article>
+                  </SocialMessageBubble>
                 );
               })}
             {messagePages[chat.id]?.items.length === 0 && (
@@ -2471,6 +2522,24 @@ function SocialInbox(props: SocialInboxProps) {
             ) : (
               <p className="social-compose-note">
                 {sendReasons[sendCapability.status] ?? `Chưa thể gửi: ${sendCapability.status}.`}{' '}
+                {activeProvider === 'FACEBOOK' &&
+                  activeConnection &&
+                  [
+                    'PAGE_NOT_CONNECTED',
+                    'REAUTH_REQUIRED',
+                    'BLOCKED_PERMISSION',
+                    'PAGE_TASK_MISSING',
+                  ].includes(sendCapability.status) &&
+                  props.onReconnectFacebook && (
+                    <button
+                      type="button"
+                      className="secondary"
+                      disabled={busy}
+                      onClick={() => void props.onReconnectFacebook?.(activeConnection.id)}
+                    >
+                      Cấp lại quyền Facebook
+                    </button>
+                  )}
                 {comment && sourceLink && (
                   <a href={sourceLink} target="_blank" rel="noreferrer">
                     Mở trong Facebook ↗

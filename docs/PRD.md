@@ -1,5 +1,9 @@
 # PRD — CRM bán sỉ và bán lẻ
 
+## CHAT-TWO-WAY-01 — 12/11/2026
+
+Hội thoại phân biệt tin khách và tin Page theo direction thật; tự cập nhật dữ liệu đã lưu mỗi 10 giây khi mở chat và tab đang hiển thị. Cấp quyền Facebook ở bước kết nối/cấp lại quyền Page, không đăng nhập lại theo từng khách; có nút cấp lại quyền tại ô chat cho quản trị viên khi cần. Xem [nhiệm vụ](tasks/CHAT-TWO-WAY-01.md).
+
 ## MULTICHANNEL-UX-02 — 12/11/2026
 
 Màn hình đa kênh dùng tab ngang và bốn thẻ nền tảng, danh sách tài khoản riêng, chẩn đoán thu gọn. Bỏ banner “Trạng thái thật”. Nút cấp quyền Facebook/Zalo chỉ mở theo preflight; Shopee/TikTok chưa có adapter cấp quyền, hiện dẫn tới hướng dẫn thiết lập. Chủ dự án xác nhận chưa có ứng dụng Zalo/Shopee/TikTok. Xem [nhiệm vụ](tasks/MULTICHANNEL-UX-02.md).

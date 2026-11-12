@@ -101,7 +101,14 @@ describe('Facebook OAuth local contract (mock provider, scratch database only)',
                       url.pathname.includes(secondPageId)
                     ),
                 }
-              : { data: [{ id: config.FACEBOOK_APP_ID }] }
+              : {
+                  data: [
+                    {
+                      id: config.FACEBOOK_APP_ID,
+                      subscribed_fields: ['messages', 'message_echoes', 'feed'],
+                    },
+                  ],
+                }
             : { error: 'unsupported fixture path' };
     return Promise.resolve(
       new Response(JSON.stringify(body), { status: 'error' in body ? 404 : 200 }),

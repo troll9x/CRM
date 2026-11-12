@@ -1,5 +1,9 @@
 # Kế hoạch nghiệm thu
 
+## CHAT-TWO-WAY-01 — 12/11/2026
+
+Tin `OUTBOUND_ECHO` hiện phía Page với tên Page; tin `INBOUND` hiện phía khách; SYSTEM không gắn nhãn khách. Kết nối mới phải có readback field echo; poll hội thoại hiển thị theo chu kỳ 10 giây và dừng khi unmount/tab ẩn. OAuth lại chỉ theo lỗi quyền/token và quyền quản trị, không vượt cửa sổ phản hồi. Bằng chứng nhập bù và giới hạn live tại [CHAT-TWO-WAY-01](tasks/CHAT-TWO-WAY-01.md).
+
 ## MULTICHANNEL-UX-02 — 12/11/2026
 
 - Không còn banner “Trạng thái thật”; tab đa kênh không kế thừa màu/bố cục sidebar.

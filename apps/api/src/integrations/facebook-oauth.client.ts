@@ -190,7 +190,7 @@ export class FacebookOAuthClient {
   async subscribe(page: FacebookPageGrant): Promise<void> {
     const appId = this.settings().appId;
     const endpoint = this.graphUrl(`${encodeURIComponent(page.id)}/subscribed_apps`);
-    const body = new URLSearchParams({ subscribed_fields: 'messages,feed' });
+    const body = new URLSearchParams({ subscribed_fields: 'messages,message_echoes,feed' });
     const result = await this.json(endpoint, {
       method: 'POST',
       headers: {
@@ -206,9 +206,16 @@ export class FacebookOAuthClient {
     });
     if (
       !Array.isArray(check['data']) ||
-      !check['data'].some(
-        (item) => item && typeof item === 'object' && (item as { id?: unknown }).id === appId,
-      )
+      !check['data'].some((item) => {
+        if (!item || typeof item !== 'object') return false;
+        const row = item as { id?: unknown; subscribed_fields?: unknown };
+        const fields = row.subscribed_fields;
+        return (
+          row.id === appId &&
+          Array.isArray(fields) &&
+          ['messages', 'message_echoes', 'feed'].every((field) => fields.includes(field))
+        );
+      })
     )
       throw new BadGatewayException('Chưa đọc lại được Page subscription.');
   }

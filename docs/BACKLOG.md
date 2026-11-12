@@ -1,5 +1,9 @@
 # Backlog theo phụ thuộc
 
+## CHAT-TWO-WAY-01 — 12/11/2026
+
+Sửa subscription Page thiếu `message_echoes`, lỗi nhận nhầm OUTBOUND_ECHO thành tin khách, cache cũ khi mở lại chat; thêm cập nhật hội thoại và lối cấp lại quyền tại ô chat. Theo dõi nhập bù có checkpoint và giới hạn; còn nghiệm thu trực quan và sự kiện echo mới từ Meta, không lấy backfill làm bằng chứng webhook/giao tin.
+
 ## MULTICHANNEL-UX-02 — 12/11/2026
 
 Đã sửa lỗi CSS tab/sidebar, thu gọn thẻ kết nối và chẩn đoán, sửa callback quay về đúng module. Còn mở: đăng ký/duyệt ứng dụng Zalo/Shopee/TikTok; cấu hình backend an toàn; adapter OAuth/refresh và nhập đơn Shopee/TikTok theo tài liệu hiện hành cho app/thị trường; cấp quyền tài khoản và nghiệm thu live từng kênh. Chưa xác minh trực quan desktop/mobile do công cụ trình duyệt bị chặn.

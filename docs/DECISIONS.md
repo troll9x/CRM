@@ -1,5 +1,9 @@
 # Nhật ký quyết định
 
+## CHAT-TWO-WAY-01 — 12/11/2026
+
+Fanpage là danh tính gửi ra ngoài; nhân viên thao tác bằng tài khoản CRM và grant Page. Chỉ đề nghị Facebook OAuth lại khi hết hạn/thiếu quyền, có nút do người dùng chủ động bấm; không bật popup đăng nhập mỗi lần mở chat. Giữ cửa sổ phản hồi và kiểm quyền backend; không gửi tin thử cho khách thật để nghiệm thu.
+
 ## MULTICHANNEL-UX-02 — 12/11/2026
 
 Theo yêu cầu làm gọn giao diện và kết nối một chạm: người dùng cấp quyền qua nền tảng; ứng dụng dịch vụ do quản trị viên thiết lập một lần. Chủ dự án xác nhận chưa có ứng dụng tích hợp cho Zalo OA, Shopee và TikTok Shop. Không biến nút hướng dẫn thành kết nối giả; không coi thiếu ứng dụng là lỗi phần mềm. Các giới hạn quyền/webhook vẫn được lưu và xem trong chẩn đoán quản trị. Shopee/TikTok còn thiếu adapter cấp quyền và nhập đơn.
